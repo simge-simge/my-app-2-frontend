@@ -16,6 +16,14 @@ export type CreateBookInput = {
   status?: BookStatus
 }
 
+export type UpdateBookInput = {
+  author?: string | null
+  description?: string | null
+  cover_url?: string | null
+  isbn?: string | null
+  status?: BookStatus
+}
+
 export type Book = {
   id: string
   owner_id: string
@@ -33,6 +41,10 @@ export function getMyBooks() {
   return apiFetch("/books/me") as Promise<Book[]>
 }
 
+export function getBook(bookId: string) {
+  return apiFetch(`/books/${bookId}`) as Promise<Book>
+}
+
 export function createBook(data: CreateBookInput) {
   return apiFetch("/books/", {
     method: "POST",
@@ -45,6 +57,25 @@ export function createBook(data: CreateBookInput) {
       status: data.status ?? "available",
     }),
   }) as Promise<Book>
+}
+
+export function updateBook(bookId: string, data: UpdateBookInput) {
+  return apiFetch(`/books/${bookId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      author: data.author || null,
+      description: data.description || null,
+      cover_url: data.cover_url || null,
+      isbn: data.isbn || null,
+      status: data.status ?? "available",
+    }),
+  }) as Promise<Book>
+}
+
+export function deleteBook(bookId: string) {
+  return apiFetch(`/books/${bookId}`, {
+    method: "DELETE",
+  }) as Promise<{ message: string }>
 }
 
 function getFileExtension(asset: ImagePickerAsset) {

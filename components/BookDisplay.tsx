@@ -1,14 +1,15 @@
-import { Image, StyleSheet, Text, View } from "react-native"
+import { Image, Pressable, StyleSheet, Text, View } from "react-native"
 
 import type { Book } from "@/services/books"
 
 type Props = {
   book: Book
+  onPress?: () => void
 }
 
-export default function BookDisplay({ book }: Props) {
+export default function BookDisplay({ book, onPress }: Props) {
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={onPress}>
       {book.cover_url ? (
         <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="cover" />
       ) : (
@@ -32,7 +33,7 @@ export default function BookDisplay({ book }: Props) {
           {book.status}
         </Text>
       </View>
-    </View>
+    </Pressable>
   )
 }
 

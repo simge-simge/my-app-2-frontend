@@ -67,7 +67,12 @@ export default function Library() {
         data={books}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        renderItem={({ item }) => <BookDisplay book={item} />}
+        renderItem={({ item }) => (
+          <BookDisplay
+            book={item}
+            onPress={() => router.push(`/books/${item.id}`)}
+          />
+        )}
         contentContainerStyle={[
           styles.listContent,
           books.length === 0 && styles.emptyListContent,
