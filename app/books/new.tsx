@@ -31,7 +31,7 @@ export default function NewBookScreen() {
         isbn: values.isbn || null,
       })
 
-      router.replace("/library")
+      router.back()
     } catch (err) {
       console.error("Failed to create book", err)
       Alert.alert("Error", err instanceof Error ? err.message : "Could not save the book.")

@@ -39,13 +39,12 @@ export default function BookDisplay({ book, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
+    width: "48%",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "#E4E7EC",
-    marginHorizontal: 6,
     marginBottom: 12,
     minHeight: 220,
   },

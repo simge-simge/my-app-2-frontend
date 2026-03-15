@@ -41,6 +41,10 @@ export function getMyBooks() {
   return apiFetch("/books/me") as Promise<Book[]>
 }
 
+export function getBookFeed() {
+  return apiFetch("/books/feed") as Promise<Book[]>
+}
+
 export function getBook(bookId: string) {
   return apiFetch(`/books/${bookId}`) as Promise<Book>
 }

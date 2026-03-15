@@ -74,7 +74,7 @@ export default function EditBookScreen() {
         status: book?.status ?? "available",
       })
 
-      router.replace("/library")
+      router.back()
     } catch (err) {
       console.error("Failed to update book", err)
       Alert.alert("Error", err instanceof Error ? err.message : "Could not update the book.")
@@ -102,7 +102,7 @@ export default function EditBookScreen() {
     try {
       setDeleting(true)
       await deleteBook(bookId)
-      router.replace("/library")
+      router.back()
     } catch (err) {
       console.error("Failed to delete book", err)
       Alert.alert("Error", err instanceof Error ? err.message : "Could not delete the book.")
