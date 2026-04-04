@@ -11,6 +11,7 @@ import {
 import { router, useFocusEffect } from "expo-router"
 
 import BookDisplay from "@/components/BookDisplay"
+import { palette } from "@/constants/theme"
 import { getMyBooks, type Book } from "@/services/books"
 
 export default function Library() {
@@ -51,7 +52,7 @@ export default function Library() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A6CF7" />
+        <ActivityIndicator size="large" color={palette.text} />
       </View>
     )
   }
@@ -67,27 +68,15 @@ export default function Library() {
         data={books}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        renderItem={({ item }) => (
-          <BookDisplay
-            book={item}
-            onPress={() => router.push(`/books/${item.id}`)}
-          />
-        )}
-        contentContainerStyle={[
-          styles.listContent,
-          books.length === 0 && styles.emptyListContent,
-        ]}
+        renderItem={({ item }) => <BookDisplay book={item} onPress={() => router.push(`/books/${item.id}`)} />}
+        contentContainerStyle={[styles.listContent, books.length === 0 && styles.emptyListContent]}
         columnWrapperStyle={books.length > 1 ? styles.row : undefined}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#4A6CF7" />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.text} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No books yet</Text>
-            <Text style={styles.emptyText}>
-              Add books from the app and they will appear here.
-            </Text>
+            <Text style={styles.emptyText}>Add books from the app and they will appear here.</Text>
           </View>
         }
       />
@@ -102,23 +91,23 @@ export default function Library() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F8FC",
+    backgroundColor: palette.background,
     paddingHorizontal: 18,
     paddingTop: 24,
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#111827",
+    color: palette.text,
   },
   subtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    color: palette.textMuted,
     marginTop: 6,
     marginBottom: 18,
   },
   error: {
-    color: "#B42318",
+    color: palette.danger,
     marginBottom: 12,
   },
   listContent: {
@@ -138,19 +127,19 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111827",
+    color: palette.text,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: "#6B7280",
+    color: palette.textMuted,
     textAlign: "center",
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F7F8FC",
+    backgroundColor: palette.background,
   },
   addButton: {
     position: "absolute",
@@ -159,17 +148,17 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#4A6CF7",
+    backgroundColor: palette.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#1D4ED8",
+    shadowColor: palette.accentDark,
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
   addButtonText: {
-    color: "#FFFFFF",
+    color: palette.white,
     fontSize: 34,
     lineHeight: 34,
     fontWeight: "400",

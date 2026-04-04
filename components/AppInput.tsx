@@ -1,4 +1,5 @@
 import { TextInput, StyleSheet } from "react-native"
+import { palette } from "@/constants/theme"
 
 type Props = {
   placeholder: string
@@ -28,9 +29,11 @@ export default function AppInput({
 const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: palette.border,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 18,
     marginBottom: 12,
+    backgroundColor: palette.surface,
+    color: palette.text,
   },
 })

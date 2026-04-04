@@ -12,6 +12,7 @@ import {
 } from "react-native"
 import { useFocusEffect } from "expo-router"
 
+import { palette } from "@/constants/theme"
 import { getBookFeed, type Book } from "@/services/books"
 import { createSwipe, type SwipeDirection } from "@/services/swipes"
 
@@ -30,9 +31,7 @@ export default function Explore() {
   const { width } = useWindowDimensions()
 
   const loadBooks = useCallback(async (showLoader = false) => {
-    if (showLoader) {
-      setLoading(true)
-    }
+    if (showLoader) setLoading(true)
 
     try {
       setError(null)
@@ -50,60 +49,46 @@ export default function Explore() {
     }
   }, [position])
 
-  useFocusEffect(
-    useCallback(() => {
-      loadBooks(true)
-    }, [loadBooks])
-  )
+  useFocusEffect(useCallback(() => { loadBooks(true) }, [loadBooks]))
 
   const handleRefresh = () => {
     setRefreshing(true)
     loadBooks()
   }
 
-  const forceSwipe = useCallback(
-    (direction: SwipeDirection) => {
-      const activeBook = books[currentIndex]
+  const forceSwipe = useCallback((direction: SwipeDirection) => {
+    const activeBook = books[currentIndex]
+    if (!activeBook || isAnimatingSwipe) return
 
-      if (!activeBook || isAnimatingSwipe) {
+    setIsAnimatingSwipe(true)
+    Animated.timing(position, {
+      toValue: { x: direction === "right" ? width + 120 : -width - 120, y: 0 },
+      duration: SWIPE_OUT_DURATION,
+      useNativeDriver: true,
+    }).start(async ({ finished }) => {
+      if (!finished) {
+        setIsAnimatingSwipe(false)
         return
       }
 
-      setIsAnimatingSwipe(true)
-
-      Animated.timing(position, {
-        toValue: {
-          x: direction === "right" ? width + 120 : -width - 120,
-          y: 0,
-        },
-        duration: SWIPE_OUT_DURATION,
-        useNativeDriver: true,
-      }).start(async ({ finished }) => {
-        if (!finished) {
-          setIsAnimatingSwipe(false)
-          return
-        }
-
-        try {
-          setError(null)
-          await createSwipe({
-            target_book_id: activeBook.id,
-            target_owner_user_id: activeBook.owner_id,
-            direction,
-          })
-          position.setValue({ x: 0, y: 0 })
-          setCurrentIndex((prev) => prev + 1)
-        } catch (err) {
-          console.error(`Failed to create ${direction} swipe`, err)
-          position.setValue({ x: 0, y: 0 })
-          setError("Could not save your swipe right now.")
-        } finally {
-          setIsAnimatingSwipe(false)
-        }
-      })
-    },
-    [books, currentIndex, isAnimatingSwipe, position, width]
-  )
+      try {
+        setError(null)
+        await createSwipe({
+          target_book_id: activeBook.id,
+          target_owner_user_id: activeBook.owner_id,
+          direction,
+        })
+        position.setValue({ x: 0, y: 0 })
+        setCurrentIndex((prev) => prev + 1)
+      } catch (err) {
+        console.error(`Failed to create ${direction} swipe`, err)
+        position.setValue({ x: 0, y: 0 })
+        setError("Could not save your swipe right now.")
+      } finally {
+        setIsAnimatingSwipe(false)
+      }
+    })
+  }, [books, currentIndex, isAnimatingSwipe, position, width])
 
   const resetPosition = useCallback(() => {
     Animated.spring(position, {
@@ -113,44 +98,23 @@ export default function Explore() {
     }).start()
   }, [position])
 
-  const panResponder = useMemo(
-    () =>
+  const panResponder = useMemo(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        !isAnimatingSwipe && (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4),
-      onMoveShouldSetPanResponderCapture: (_, gesture) =>
-        !isAnimatingSwipe &&
-        Math.abs(gesture.dx) > Math.abs(gesture.dy) &&
-        Math.abs(gesture.dx) > 4,
+      onMoveShouldSetPanResponder: (_, gesture) => !isAnimatingSwipe && (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4),
+      onMoveShouldSetPanResponderCapture: (_, gesture) => !isAnimatingSwipe && Math.abs(gesture.dx) > Math.abs(gesture.dy) && Math.abs(gesture.dx) > 4,
       onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_, gesture) => {
-        if (isAnimatingSwipe) {
-          return
-        }
-
-        position.setValue({ x: gesture.dx, y: gesture.dy })
+        if (!isAnimatingSwipe) position.setValue({ x: gesture.dx, y: gesture.dy })
       },
       onPanResponderRelease: (_, gesture) => {
-        if (isAnimatingSwipe) {
-          return
-        }
-
-        if (gesture.dx > SWIPE_THRESHOLD) {
-          forceSwipe("right")
-          return
-        }
-
-        if (gesture.dx < -SWIPE_THRESHOLD) {
-          forceSwipe("left")
-          return
-        }
-
+        if (isAnimatingSwipe) return
+        if (gesture.dx > SWIPE_THRESHOLD) return forceSwipe("right")
+        if (gesture.dx < -SWIPE_THRESHOLD) return forceSwipe("left")
         resetPosition()
       },
       onPanResponderTerminate: resetPosition,
-    }),
-    [forceSwipe, isAnimatingSwipe, position, resetPosition]
+    }), [forceSwipe, isAnimatingSwipe, position, resetPosition]
   )
 
   const activeBook = books[currentIndex]
@@ -172,59 +136,39 @@ export default function Explore() {
   })
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A6CF7" />
-      </View>
-    )
+    return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Explore</Text>
       <Text style={styles.subtitle}>Swipe right or left to move through your community feed</Text>
-
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={[styles.content, books.length === 0 && styles.emptyListContent]}>
         {books.length === 0 || !activeBook ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No books to explore</Text>
-            <Text style={styles.emptyText}>
-              You have seen every available book in your feed for now.
-            </Text>
+            <Text style={styles.emptyText}>You have seen every available book in your feed for now.</Text>
           </View>
         ) : (
           <View style={styles.deckSection}>
             <View style={styles.deck}>
-              {stackedBooks
-                .slice()
-                .reverse()
-                .map((book, reverseIndex) => {
-                  const stackIndex = stackedBooks.length - reverseIndex
-                  const stackedStyle = {
-                    top: stackIndex * 12,
-                    transform: [{ scale: 1 - stackIndex * 0.04 }],
-                    opacity: 1 - stackIndex * 0.14,
-                    zIndex: STACK_SIZE - stackIndex,
-                  } as const
+              {stackedBooks.slice().reverse().map((book, reverseIndex) => {
+                const stackIndex = stackedBooks.length - reverseIndex
+                const stackedStyle = {
+                  top: stackIndex * 12,
+                  transform: [{ scale: 1 - stackIndex * 0.04 }],
+                  opacity: 1 - stackIndex * 0.14,
+                  zIndex: STACK_SIZE - stackIndex,
+                } as const
 
-                  return (
-                    <View key={book.id} style={[styles.card, styles.stackedCard, stackedStyle]}>
-                      <BookCard book={book} />
-                    </View>
-                  )
-                })}
+                return <View key={book.id} style={[styles.card, styles.stackedCard, stackedStyle]}><BookCard book={book} /></View>
+              })}
 
               <Animated.View
                 key={activeBook.id}
-                style={[
-                  styles.card,
-                  styles.topCard,
-                  {
-                    transform: [...position.getTranslateTransform(), { rotate }],
-                  },
-                ]}
+                style={[styles.card, styles.topCard, { transform: [...position.getTranslateTransform(), { rotate }] }]}
                 {...panResponder.panHandlers}
               >
                 <Animated.View style={[styles.swipeBadge, styles.likeBadge, { opacity: likeOpacity }]}>
@@ -237,10 +181,7 @@ export default function Explore() {
               </Animated.View>
             </View>
 
-            <Text style={styles.counter}>
-              {currentIndex + 1} / {books.length}
-            </Text>
-
+            <Text style={styles.counter}>{currentIndex + 1} / {books.length}</Text>
             <Text style={styles.refreshText} onPress={refreshing ? undefined : handleRefresh}>
               {refreshing ? "Refreshing..." : "Refresh deck"}
             </Text>
@@ -257,13 +198,7 @@ function BookCard({ book }: { book: Book }) {
   return (
     <View key={book.id} style={styles.cardInner}>
       {book.cover_url ? (
-        <Image
-          key={`${book.id}-${book.cover_url}`}
-          source={{ uri: book.cover_url }}
-          style={[styles.cover, { height: coverHeight }]}
-          resizeMode="cover"
-          fadeDuration={0}
-        />
+        <Image key={`${book.id}-${book.cover_url}`} source={{ uri: book.cover_url }} style={[styles.cover, { height: coverHeight }]} resizeMode="cover" fadeDuration={0} />
       ) : (
         <View key={`${book.id}-fallback`} style={[styles.cover, styles.coverFallback, { height: coverHeight }]}>
           <Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text>
@@ -275,194 +210,65 @@ function BookCard({ book }: { book: Book }) {
           <Text style={styles.status}>{book.status}</Text>
           <Text style={styles.author}>{book.author || "Unknown author"}</Text>
         </View>
-
         <Text style={styles.cardTitle}>{book.title}</Text>
-
-        <Text numberOfLines={4} style={styles.description}>
-          {book.description || "No description yet for this book."}
-        </Text>
+        <Text numberOfLines={4} style={styles.description}>{book.description || "No description yet for this book."}</Text>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F7F8FC",
-    paddingHorizontal: 18,
-    paddingTop: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-    marginTop: 6,
-    marginBottom: 18,
-  },
-  error: {
-    color: "#B42318",
-    marginBottom: 12,
-  },
-  content: {
-    flex: 1,
-    paddingBottom: 28,
-  },
-  deckSection: {
-    flex: 1,
-    paddingTop: 10,
-  },
-  deck: {
-    flex: 1,
-    minHeight: 620,
-    position: "relative",
-  },
+  container: { flex: 1, backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 24 },
+  title: { fontSize: 28, fontWeight: "700", color: palette.text },
+  subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
+  error: { color: palette.danger, marginBottom: 12 },
+  content: { flex: 1, paddingBottom: 28 },
+  deckSection: { flex: 1, paddingTop: 10 },
+  deck: { flex: 1, minHeight: 620, position: "relative" },
   card: {
     position: "absolute",
     width: "100%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: palette.surface,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#E4E7EC",
+    borderColor: palette.border,
     overflow: "hidden",
-    shadowColor: "#101828",
+    shadowColor: palette.accentDark,
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 8,
   },
-  topCard: {
-    top: 0,
-    zIndex: 10,
-  },
-  outgoingCard: {
-    zIndex: 20,
-  },
-  stackedCard: {
-    left: 0,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  emptyListContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  cardInner: {
-    backgroundColor: "#FFFFFF",
-  },
-  cover: {
-    width: "100%",
-    backgroundColor: "#D9E3FF",
-  },
-  coverFallback: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  coverFallbackText: {
-    fontSize: 48,
-    fontWeight: "800",
-    color: "#4A6CF7",
-  },
-  cardContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    gap: 12,
-  },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-  },
+  topCard: { top: 0, zIndex: 10 },
+  stackedCard: { left: 0 },
+  emptyState: { alignItems: "center", paddingHorizontal: 24 },
+  emptyListContent: { flexGrow: 1, justifyContent: "center" },
+  cardInner: { backgroundColor: palette.surface },
+  cover: { width: "100%", backgroundColor: palette.surfaceMuted },
+  coverFallback: { alignItems: "center", justifyContent: "center" },
+  coverFallbackText: { fontSize: 48, fontWeight: "800", color: palette.textSoft },
+  cardContent: { paddingHorizontal: 20, paddingVertical: 18, gap: 12 },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   status: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#4A6CF7",
+    color: palette.textSoft,
     textTransform: "capitalize",
-    backgroundColor: "#EEF2FF",
+    backgroundColor: palette.accentSoft,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
   },
-  author: {
-    flex: 1,
-    textAlign: "right",
-    fontSize: 14,
-    color: "#667085",
-  },
-  cardTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    lineHeight: 34,
-    color: "#111827",
-  },
-  description: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#475467",
-  },
-  swipeBadge: {
-    position: "absolute",
-    top: 24,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 3,
-    borderRadius: 14,
-    zIndex: 20,
-    transform: [{ rotate: "-12deg" }],
-  },
-  likeBadge: {
-    left: 20,
-    borderColor: "#12B76A",
-    backgroundColor: "rgba(18, 183, 106, 0.12)",
-  },
-  nopeBadge: {
-    right: 20,
-    borderColor: "#F04438",
-    backgroundColor: "rgba(240, 68, 56, 0.12)",
-    transform: [{ rotate: "12deg" }],
-  },
-  swipeBadgeText: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111827",
-    letterSpacing: 1,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F7F8FC",
-  },
-  counter: {
-    marginTop: 22,
-    textAlign: "center",
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#667085",
-  },
-  refreshText: {
-    marginTop: 14,
-    textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#4A6CF7",
-  },
+  author: { flex: 1, textAlign: "right", fontSize: 14, color: palette.textMuted },
+  cardTitle: { fontSize: 28, fontWeight: "800", lineHeight: 34, color: palette.text },
+  description: { fontSize: 15, lineHeight: 22, color: palette.textMuted },
+  swipeBadge: { position: "absolute", top: 24, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 3, borderRadius: 14, zIndex: 20, transform: [{ rotate: "-12deg" }] },
+  likeBadge: { left: 20, borderColor: palette.success, backgroundColor: "rgba(47, 125, 87, 0.12)" },
+  nopeBadge: { right: 20, borderColor: palette.danger, backgroundColor: "rgba(181, 74, 53, 0.12)", transform: [{ rotate: "12deg" }] },
+  swipeBadgeText: { fontSize: 18, fontWeight: "800", color: palette.text, letterSpacing: 1 },
+  emptyTitle: { fontSize: 20, fontWeight: "700", color: palette.text, marginBottom: 8 },
+  emptyText: { fontSize: 14, color: palette.textMuted, textAlign: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background },
+  counter: { marginTop: 22, textAlign: "center", fontSize: 14, fontWeight: "700", color: palette.textMuted },
+  refreshText: { marginTop: 14, textAlign: "center", fontSize: 15, fontWeight: "700", color: palette.textSoft },
 })

@@ -14,6 +14,7 @@ import * as ImagePicker from "expo-image-picker"
 import type { ImagePickerAsset } from "expo-image-picker"
 
 import AppButton from "@/components/AppButton"
+import { palette } from "@/constants/theme"
 import type { Book } from "@/services/books"
 
 type BookFormValues = {
@@ -242,7 +243,7 @@ export default function BookForm({
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: "#F7F8FC",
+    backgroundColor: palette.background,
   },
   container: {
     padding: 24,
@@ -251,11 +252,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#111827",
+    color: palette.text,
   },
   subtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    color: palette.textMuted,
     marginTop: 6,
     marginBottom: 24,
   },
@@ -264,45 +265,46 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: "#4B5563",
+    color: palette.textMuted,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#D0D5DD",
-    borderRadius: 12,
+    borderColor: palette.border,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: palette.surface,
     fontSize: 15,
+    color: palette.text,
   },
   inputDisabled: {
-    backgroundColor: "#EAECF0",
-    color: "#667085",
+    backgroundColor: palette.surfaceMuted,
+    color: palette.textMuted,
   },
   helperText: {
     marginTop: 8,
     fontSize: 12,
-    color: "#667085",
+    color: palette.textMuted,
   },
   coverButton: {
     borderWidth: 1,
-    borderColor: "#4A6CF7",
-    borderRadius: 12,
+    borderColor: palette.border,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    backgroundColor: "#EEF3FF",
+    backgroundColor: palette.surface,
     alignItems: "center",
   },
   coverButtonText: {
-    color: "#2447D5",
+    color: palette.text,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   coverHint: {
     marginTop: 8,
     fontSize: 12,
-    color: "#667085",
+    color: palette.textMuted,
   },
   descriptionInput: {
     minHeight: 120,
@@ -313,7 +315,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   deleteButtonText: {
-    color: "#B42318",
+    color: palette.danger,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -321,10 +323,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F7F8FC",
+    backgroundColor: palette.background,
   },
   loadingText: {
     fontSize: 16,
-    color: "#667085",
+    color: palette.textMuted,
   },
 })

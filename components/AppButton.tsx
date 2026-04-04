@@ -1,4 +1,5 @@
 import { Pressable, Text, StyleSheet } from "react-native"
+import { palette } from "@/constants/theme"
 
 type Props = {
   title: string
@@ -18,15 +19,21 @@ export default function AppButton({ title, onPress, loading }: Props) {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: "#4A6CF7",
-    padding: 14,
-    borderRadius: 10,
+    backgroundColor: palette.accent,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 18,
     alignItems: "center",
     marginTop: 10,
+    shadowColor: palette.accentDark,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
   text: {
-    color: "white",
-    fontWeight: "600",
+    color: palette.white,
+    fontWeight: "700",
     fontSize: 16,
   },
 })

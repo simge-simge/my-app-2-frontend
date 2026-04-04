@@ -1,9 +1,10 @@
-import { View, StyleSheet, Text, Pressable, Alert } from "react-native"
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native"
 import { useState } from "react"
 import { router } from "expo-router"
 
-import AppInput from "@/components/AppInput"
 import AppButton from "@/components/AppButton"
+import AppInput from "@/components/AppInput"
+import { palette } from "@/constants/theme"
 import { signUp } from "@/services/authentication"
 
 export default function Signup() {
@@ -18,9 +19,7 @@ export default function Signup() {
     }
 
     setLoading(true)
-
     const { error } = await signUp(email, password)
-
     setLoading(false)
 
     if (error) {
@@ -34,32 +33,20 @@ export default function Signup() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
+      <View style={styles.card}>
+        <Text style={styles.eyebrow}>Join the circle</Text>
+        <Text style={styles.title}>Create your account.</Text>
+        <Text style={styles.subtitle}>Start building your shelf and matching with readers nearby.</Text>
 
-      <AppInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-      />
+        <AppInput placeholder="Email" value={email} onChangeText={setEmail} />
+        <AppInput placeholder="Password" value={password} secure onChangeText={setPassword} />
 
-      <AppInput
-        placeholder="Password"
-        value={password}
-        secure
-        onChangeText={setPassword}
-      />
+        <AppButton title="Sign Up" onPress={handleSignup} loading={loading} />
 
-      <AppButton
-        title="Sign Up"
-        onPress={handleSignup}
-        loading={loading}
-      />
-
-      <Pressable onPress={() => router.push("/login")}>
-        <Text style={styles.link}>
-          Already have an account? Login
-        </Text>
-      </Pressable>
+        <Pressable onPress={() => router.push("/login")}>
+          <Text style={styles.link}>Already have an account? Login</Text>
+        </Pressable>
+      </View>
     </View>
   )
 }
@@ -69,15 +56,39 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     padding: 24,
+    backgroundColor: palette.background,
+  },
+  card: {
+    backgroundColor: palette.surface,
+    borderRadius: 28,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  eyebrow: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: palette.textSoft,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    marginBottom: 10,
   },
   title: {
     fontSize: 30,
-    fontWeight: "600",
-    marginBottom: 30,
+    fontWeight: "700",
+    color: palette.text,
+  },
+  subtitle: {
+    marginTop: 8,
+    marginBottom: 22,
+    fontSize: 15,
+    lineHeight: 22,
+    color: palette.textMuted,
   },
   link: {
     marginTop: 20,
     textAlign: "center",
-    color: "#4A6CF7",
+    color: palette.textSoft,
+    fontWeight: "700",
   },
 })
