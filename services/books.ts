@@ -27,6 +27,7 @@ export type UpdateBookInput = {
 export type Book = {
   id: string
   owner_id: string
+  owner_name?: string | null
   community_id: string
   title: string
   author: string | null
@@ -43,6 +44,14 @@ export function getMyBooks() {
 
 export function getBookFeed() {
   return apiFetch("/books/feed") as Promise<Book[]>
+}
+
+export type BookSearchField = "all" | "title" | "author" | "owner"
+
+export function searchBooks(query: string, field: BookSearchField = "all") {
+  return apiFetch(
+    `/books/search?q=${encodeURIComponent(query)}&field=${encodeURIComponent(field)}`,
+  ) as Promise<Book[]>
 }
 
 export function getBook(bookId: string) {

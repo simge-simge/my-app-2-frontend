@@ -33,6 +33,7 @@ function RootStack() {
       <Stack.Screen name="(auth)/signup" options={headerlessScreenOptions} />
       <Stack.Screen name="(tabs)/home" options={headerlessScreenOptions} />
       <Stack.Screen name="(tabs)/explore" options={{ title: "Explore" }} />
+      <Stack.Screen name="(tabs)/search" options={{ title: "Search Books" }} />
       <Stack.Screen name="(tabs)/library" options={{ title: "My Library" }} />
       <Stack.Screen name="(tabs)/matches" options={{ title: "My Matches" }} />
       <Stack.Screen name="(tabs)/settings" options={{ title: "Settings" }} />

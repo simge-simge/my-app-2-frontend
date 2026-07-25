@@ -8,14 +8,19 @@ import { palette } from "@/constants/theme"
 import { signIn } from "@/services/authentication"
 
 export default function Login() {
-  const [email, setEmail] = useState("simge@gmail.com")
-  const [password, setPassword] = useState("simge123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert("Login failed", "Please enter your email and password.")
+      return
+    }
+
     try {
       setLoading(true)
-      const { error } = await signIn(email, password)
+      const { error } = await signIn(email.trim(), password)
 
       if (error) {
         Alert.alert("Login failed", error.message)

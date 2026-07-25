@@ -66,16 +66,24 @@ export default function Home() {
         </View>
 
         <View style={styles.quoteContent}>
-          <Text style={styles.quoteMark}>"</Text>
+          <Text style={styles.quoteMark}>{"\u201c"}</Text>
           <Text style={styles.quoteText}>{quote.quote}</Text>
           <Text style={styles.quoteAuthor}>- {quote.author}</Text>
         </View>
       </View>
 
       <View style={styles.buttons}>
-        <Pressable style={[styles.button, styles.exploreButton]} onPress={() => router.push("/explore")}>
-          <Text style={styles.buttonText}>Explore Books</Text>
-        </Pressable>
+        <View style={styles.primaryButtonRow}>
+          <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/explore")}>
+            <Ionicons name="compass-outline" size={20} color="#FFF9F0" />
+            <Text style={styles.buttonText}>Explore Books</Text>
+          </Pressable>
+
+          <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/search")}>
+            <Ionicons name="search" size={20} color="#FFF9F0" />
+            <Text style={styles.buttonText}>Search</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.bottomButtonRow}>
           <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/library")}>
@@ -201,19 +209,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 14,
   },
+  primaryButtonRow: {
+    flexDirection: "row",
+    gap: 14,
+  },
   button: {
+    minHeight: 58,
+    flexDirection: "row",
     backgroundColor: "#C86C3A",
-    paddingVertical: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
     borderRadius: 18,
     alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     shadowColor: "#8A4522",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 14,
     elevation: 4,
-  },
-  exploreButton: {
-    width: "100%",
   },
   halfButton: {
     flex: 1,

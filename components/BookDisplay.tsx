@@ -6,9 +6,10 @@ import type { Book } from "@/services/books"
 type Props = {
   book: Book
   onPress?: () => void
+  showOwner?: boolean
 }
 
-export default function BookDisplay({ book, onPress }: Props) {
+export default function BookDisplay({ book, onPress, showOwner = false }: Props) {
   return (
     <Pressable style={styles.card} onPress={onPress}>
       {book.cover_url ? (
@@ -29,6 +30,12 @@ export default function BookDisplay({ book, onPress }: Props) {
         <Text numberOfLines={1} style={styles.author}>
           {book.author || "Unknown author"}
         </Text>
+
+        {showOwner ? (
+          <Text numberOfLines={1} style={styles.owner}>
+            Owner: {book.owner_name || "Unknown"}
+          </Text>
+        ) : null}
 
         <Text numberOfLines={1} style={styles.status}>
           {book.status}
@@ -79,6 +86,10 @@ const styles = StyleSheet.create({
   },
   author: {
     fontSize: 13,
+    color: palette.textMuted,
+  },
+  owner: {
+    fontSize: 12,
     color: palette.textMuted,
   },
   status: {
