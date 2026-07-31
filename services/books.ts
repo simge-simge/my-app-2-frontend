@@ -30,6 +30,7 @@ export type Book = {
   owner_name?: string | null
   owner_admin?: boolean
   community_id: string
+  community_name?: string | null
   title: string
   author: string | null
   description: string | null
@@ -47,11 +48,11 @@ export function getBookFeed() {
   return apiFetch("/books/feed") as Promise<Book[]>
 }
 
-export type BookSearchField = "all" | "title" | "author" | "owner"
+export type SearchScope = "community" | "all"
 
-export function searchBooks(query: string, field: BookSearchField = "all") {
+export function searchBooks(query: string, scope: SearchScope = "community") {
   return apiFetch(
-    `/books/search?q=${encodeURIComponent(query)}&field=${encodeURIComponent(field)}`,
+    `/books/search?q=${encodeURIComponent(query)}&scope=${scope}`,
   ) as Promise<Book[]>
 }
 

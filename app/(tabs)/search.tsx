@@ -3,8 +3,8 @@ import { useEffect, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,24 +13,29 @@ import {
 
 import BookDisplay from "@/components/BookDisplay"
 import { palette } from "@/constants/theme"
-import {
-  searchBooks,
-  type Book,
-  type BookSearchField,
-} from "@/services/books"
+import { searchBooks, type Book, type SearchScope } from "@/services/books"
+import { searchProfiles, type ProfileSearchResult } from "@/services/profile"
 
 const SEARCH_DELAY_MS = 300
-const SEARCH_FILTERS: { label: string; value: BookSearchField }[] = [
+
+type SearchMode = "books" | "users"
+
+const SEARCH_MODES: { label: string; value: SearchMode }[] = [
+  { label: "Search Books", value: "books" },
+  { label: "Search Users", value: "users" },
+]
+
+const SEARCH_SCOPES: { label: string; value: SearchScope }[] = [
+  { label: "Community", value: "community" },
   { label: "All", value: "all" },
-  { label: "Title", value: "title" },
-  { label: "Author", value: "author" },
-  { label: "Owner", value: "owner" },
 ]
 
 export default function Search() {
+  const [mode, setMode] = useState<SearchMode>("books")
+  const [scope, setScope] = useState<SearchScope>("community")
   const [query, setQuery] = useState("")
-  const [field, setField] = useState<BookSearchField>("all")
   const [books, setBooks] = useState<Book[]>([])
+  const [users, setUsers] = useState<ProfileSearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,6 +44,7 @@ export default function Search() {
 
     if (!searchTerm) {
       setBooks([])
+      setUsers([])
       setLoading(false)
       setError(null)
       return
@@ -50,22 +56,28 @@ export default function Search() {
 
     const timeout = setTimeout(async () => {
       try {
-        const response = await searchBooks(searchTerm, field)
-
-        if (!cancelled) {
-          setBooks(response)
+        if (mode === "books") {
+          const response = await searchBooks(searchTerm, scope)
+          if (!cancelled) {
+            setBooks(response)
+            setUsers([])
+          }
+        } else {
+          const response = await searchProfiles(searchTerm, scope)
+          if (!cancelled) {
+            setUsers(response)
+            setBooks([])
+          }
         }
       } catch (err) {
-        console.error("Failed to search books", err)
-
+        console.error(`Failed to search ${mode}`, err)
         if (!cancelled) {
           setBooks([])
-          setError("Could not search books right now.")
+          setUsers([])
+          setError(`Could not search ${mode} right now.`)
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+        if (!cancelled) setLoading(false)
       }
     }, SEARCH_DELAY_MS)
 
@@ -73,23 +85,42 @@ export default function Search() {
       cancelled = true
       clearTimeout(timeout)
     }
-  }, [field, query])
+  }, [mode, query, scope])
 
   const searchTerm = query.trim()
-  const activeFilter = SEARCH_FILTERS.find((filter) => filter.value === field)
-  const placeholder =
-    field === "all"
-      ? "Search books"
-      : `Search by ${activeFilter?.label.toLowerCase()}`
-  const emptyFilterDescription =
-    field === "all"
-      ? "across all fields"
-      : `by ${activeFilter?.label.toLowerCase()}`
+  const emptyState = (
+    <View style={styles.emptyState}>
+      <Ionicons
+        name={searchTerm ? (mode === "books" ? "book-outline" : "people-outline") : "search-outline"}
+        size={36}
+        color={palette.textSoft}
+      />
+      <Text style={styles.emptyTitle}>
+        {searchTerm ? `No matching ${mode}` : `Search ${mode}`}
+      </Text>
+      <Text style={styles.emptyText}>
+        {searchTerm
+          ? `No ${mode} match "${searchTerm}" in this scope.`
+          : `Enter a search term to search ${scope === "community" ? "your community" : "public communities"}.`}
+      </Text>
+    </View>
+  )
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Search Books</Text>
-      <Text style={styles.subtitle}>Find available titles in your community</Text>
+      <SegmentedControl
+        accessibilityLabel="Search type"
+        options={SEARCH_MODES}
+        selected={mode}
+        onSelect={setMode}
+      />
+
+      <SegmentedControl
+        accessibilityLabel="Search scope"
+        options={SEARCH_SCOPES}
+        selected={scope}
+        onSelect={setScope}
+      />
 
       <View style={styles.searchBar}>
         <Ionicons name="search" size={20} color={palette.textMuted} />
@@ -98,7 +129,7 @@ export default function Search() {
           autoCorrect={false}
           autoFocus
           onChangeText={setQuery}
-          placeholder={placeholder}
+          placeholder={mode === "books" ? "Search books..." : "Search users..."}
           placeholderTextColor={palette.textMuted}
           returnKeyType="search"
           style={styles.input}
@@ -116,69 +147,106 @@ export default function Search() {
         ) : null}
       </View>
 
-      <ScrollView
-        horizontal
-        contentContainerStyle={styles.filters}
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-      >
-        {SEARCH_FILTERS.map((filter) => {
-          const selected = filter.value === field
-
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              key={filter.value}
-              onPress={() => setField(filter.value)}
-              style={[styles.filterButton, selected && styles.filterButtonSelected]}
-            >
-              <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
-                {filter.label}
-              </Text>
-            </Pressable>
-          )
-        })}
-      </ScrollView>
-
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={palette.text} />
         </View>
-      ) : (
+      ) : mode === "books" ? (
         <FlatList
+          key="book-results"
           data={books}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          renderItem={({ item }) => <BookDisplay book={item} showOwner />}
-          contentContainerStyle={[
-            styles.listContent,
-            books.length === 0 && styles.emptyListContent,
-          ]}
-          columnWrapperStyle={books.length > 1 ? styles.row : undefined}
+          renderItem={({ item }) => (
+            <View style={styles.bookCell}>
+              <BookDisplay
+                book={item}
+                showOwner
+                showCommunity={scope === "all"}
+                style={styles.bookCard}
+              />
+            </View>
+          )}
+          contentContainerStyle={[styles.listContent, books.length === 0 && styles.emptyListContent]}
+          columnWrapperStyle={styles.bookRow}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons
-                name={searchTerm ? "book-outline" : "search-outline"}
-                size={36}
-                color={palette.textSoft}
-              />
-              <Text style={styles.emptyTitle}>
-                {searchTerm ? "No matching books" : "Search your community"}
-              </Text>
-              <Text style={styles.emptyText}>
-                {searchTerm
-                  ? `No available books match "${searchTerm}" ${emptyFilterDescription}.`
-                  : "Enter a search term to see available matches."}
-              </Text>
-            </View>
-          }
+          ListEmptyComponent={emptyState}
+        />
+      ) : (
+        <FlatList
+          key="user-results"
+          data={users}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <UserResult user={item} showCommunity={scope === "all"} />}
+          contentContainerStyle={[styles.listContent, users.length === 0 && styles.emptyListContent]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={emptyState}
         />
       )}
+    </View>
+  )
+}
+
+function SegmentedControl<T extends string>({
+  accessibilityLabel,
+  options,
+  selected,
+  onSelect,
+}: {
+  accessibilityLabel: string
+  options: { label: string; value: T }[]
+  selected: T
+  onSelect: (value: T) => void
+}) {
+  return (
+    <View accessibilityLabel={accessibilityLabel} style={styles.segmented}>
+      {options.map((option) => {
+        const isSelected = selected === option.value
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: isSelected }}
+            key={option.value}
+            onPress={() => onSelect(option.value)}
+            style={[styles.segment, isSelected && styles.segmentSelected]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[styles.segmentText, isSelected && styles.segmentTextSelected]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
+function UserResult({ user, showCommunity }: { user: ProfileSearchResult; showCommunity: boolean }) {
+  const displayName = user.display_name || "Unknown reader"
+  return (
+    <View style={styles.userCard}>
+      {user.avatar_url ? (
+        <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
+      ) : (
+        <View style={[styles.avatar, styles.avatarFallback]}>
+          <Text style={styles.avatarText}>{displayName.slice(0, 1).toUpperCase()}</Text>
+        </View>
+      )}
+      <View style={styles.userDetails}>
+        <View style={styles.userNameRow}>
+          <Text numberOfLines={1} style={styles.userName}>{displayName}</Text>
+          {user.admin ? <Ionicons name="shield-checkmark" size={16} color={palette.accentDark} /> : null}
+        </View>
+        {showCommunity && user.community_name ? (
+          <Text numberOfLines={1} style={styles.communityName}>{user.community_name}</Text>
+        ) : null}
+      </View>
     </View>
   )
 }
@@ -188,18 +256,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
     paddingHorizontal: 18,
-    paddingTop: 24,
+    paddingTop: 16,
   },
-  title: {
-    fontSize: 28,
+  segmented: {
+    flexDirection: "row",
+    gap: 4,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: palette.surfaceMuted,
+    marginBottom: 10,
+  },
+  segment: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 9,
+    paddingHorizontal: 12,
+  },
+  segmentSelected: {
+    backgroundColor: palette.surfaceStrong,
+  },
+  segmentText: {
+    fontSize: 14,
     fontWeight: "700",
-    color: palette.text,
-  },
-  subtitle: {
-    fontSize: 15,
     color: palette.textMuted,
-    marginTop: 6,
-    marginBottom: 18,
+  },
+  segmentTextSelected: {
+    color: palette.white,
   },
   searchBar: {
     minHeight: 50,
@@ -211,83 +295,36 @@ const styles = StyleSheet.create({
     borderColor: palette.border,
     borderRadius: 8,
     paddingHorizontal: 14,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  input: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: palette.text,
-  },
-  clearButton: {
-    width: 24,
-    height: 24,
+  input: { flex: 1, paddingVertical: 12, fontSize: 16, color: palette.text },
+  clearButton: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
+  error: { color: palette.danger, marginBottom: 12 },
+  listContent: { paddingBottom: 24 },
+  emptyListContent: { flexGrow: 1, justifyContent: "center" },
+  bookRow: { gap: 12 },
+  bookCell: { flexGrow: 1, flexBasis: 0, width: "48%" },
+  bookCard: { width: "100%" },
+  userCard: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  filters: {
-    gap: 8,
-    paddingBottom: 18,
-  },
-  filterScroll: {
-    flexGrow: 0,
-  },
-  filterButton: {
-    height: 36,
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    backgroundColor: palette.surface,
+    gap: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: 8,
+    backgroundColor: palette.surface,
   },
-  filterButtonSelected: {
-    backgroundColor: palette.surfaceStrong,
-    borderColor: palette.surfaceStrong,
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: palette.textMuted,
-  },
-  filterTextSelected: {
-    color: palette.white,
-  },
-  error: {
-    color: palette.danger,
-    marginBottom: 12,
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-  emptyListContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  row: {
-    justifyContent: "space-between",
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingHorizontal: 24,
-    gap: 8,
-  },
-  emptyTitle: {
-    marginTop: 4,
-    fontSize: 20,
-    fontWeight: "700",
-    color: palette.text,
-  },
-  emptyText: {
-    maxWidth: 320,
-    fontSize: 14,
-    lineHeight: 20,
-    color: palette.textMuted,
-    textAlign: "center",
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceMuted },
+  avatarFallback: { alignItems: "center", justifyContent: "center" },
+  avatarText: { fontSize: 20, fontWeight: "700", color: palette.textSoft },
+  userDetails: { flex: 1, minWidth: 0, gap: 4 },
+  userNameRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  userName: { flexShrink: 1, fontSize: 17, fontWeight: "700", color: palette.text },
+  communityName: { fontSize: 13, color: palette.textMuted },
+  emptyState: { alignItems: "center", paddingHorizontal: 24, gap: 8 },
+  emptyTitle: { marginTop: 4, fontSize: 20, fontWeight: "700", color: palette.text },
+  emptyText: { maxWidth: 320, fontSize: 14, lineHeight: 20, color: palette.textMuted, textAlign: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
 })

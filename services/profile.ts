@@ -1,4 +1,5 @@
 import { apiFetch } from "./api"
+import type { SearchScope } from "./books"
 
 export type Profile = {
   id: string
@@ -14,6 +15,21 @@ export type Profile = {
   pending_community_name: string | null
   pending_community_request_id: string | null
   created_at: string
+}
+
+export type ProfileSearchResult = {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+  community_id: string | null
+  community_name: string | null
+  admin: boolean
+}
+
+export function searchProfiles(query: string, scope: SearchScope = "community") {
+  return apiFetch(
+    `/profile/me/search?q=${encodeURIComponent(query)}&scope=${scope}`,
+  ) as Promise<ProfileSearchResult[]>
 }
 
 export function getProfile() {

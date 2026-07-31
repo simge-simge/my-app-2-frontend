@@ -1,4 +1,12 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native"
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native"
 
 import { palette } from "@/constants/theme"
 import type { Book } from "@/services/books"
@@ -8,11 +16,19 @@ type Props = {
   book: Book
   onPress?: () => void
   showOwner?: boolean
+  showCommunity?: boolean
+  style?: StyleProp<ViewStyle>
 }
 
-export default function BookDisplay({ book, onPress, showOwner = false }: Props) {
+export default function BookDisplay({
+  book,
+  onPress,
+  showOwner = false,
+  showCommunity = false,
+  style,
+}: Props) {
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable style={[styles.card, style]} onPress={onPress}>
       {book.cover_url ? (
         <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="cover" />
       ) : (
@@ -39,6 +55,12 @@ export default function BookDisplay({ book, onPress, showOwner = false }: Props)
             </Text>
             {book.owner_admin ? <AdminBadge /> : null}
           </View>
+        ) : null}
+
+        {showCommunity && book.community_name ? (
+          <Text numberOfLines={1} style={styles.community}>
+            {book.community_name}
+          </Text>
         ) : null}
 
         <Text numberOfLines={1} style={styles.status}>
@@ -102,6 +124,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexWrap: "wrap",
     gap: 6,
+  },
+  community: {
+    fontSize: 12,
+    color: palette.textSoft,
   },
   status: {
     fontSize: 12,
