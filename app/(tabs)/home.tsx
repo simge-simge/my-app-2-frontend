@@ -1,26 +1,39 @@
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
 import { useCallback, useState } from "react"
 import { useFocusEffect, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
+import AdminBadge from "@/components/AdminBadge"
 import { getProfile } from "@/services/profile"
+import { getInbox } from "@/services/inbox"
 import { getRandomHomeDisplayImage, getRandomQuote, type Quote } from "@/services/quotes"
 
 export default function Home() {
   const router = useRouter()
+  const { width, height } = useWindowDimensions()
+  const isNarrow = width < 380
+  const isCompact = height < 760
+  const isWide = width >= 768
+  const imageHeight = isWide ? 300 : isCompact ? 170 : Math.min(250, Math.max(190, height * 0.28))
 
   const [name, setName] = useState<string | null>(null)
   const [community, setCommunity] = useState<string | null>(null)
+  const [communityLocation, setCommunityLocation] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [quote, setQuote] = useState<Quote>(() => getRandomQuote())
   const [displayImage, setDisplayImage] = useState(() => getRandomHomeDisplayImage())
 
   const loadProfile = useCallback(async () => {
     try {
-      const profile = await getProfile()
+      const [profile, inbox] = await Promise.all([getProfile(), getInbox()])
 
       setName(profile.display_name)
       setCommunity(profile.community_name)
+      setCommunityLocation(profile.community_location)
+      setIsAdmin(profile.admin)
+      setUnreadCount(inbox.unread_count)
     } catch (err) {
       console.error("Failed to load profile", err)
     } finally {
@@ -45,35 +58,66 @@ export default function Home() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.container,
+        isCompact && styles.compactContainer,
+        isWide && styles.wideContainer,
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerDetails}>
           <Text style={styles.eyebrow}>Welcome back</Text>
-          <Text style={styles.name}>{name ?? "User"}</Text>
-          <Text style={styles.community}>{community ?? "Community"}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{name ?? "User"}</Text>
+            {isAdmin ? <AdminBadge /> : null}
+          </View>
+          {community ? (
+            <Text style={styles.community}>{community}</Text>
+          ) : (
+            <Pressable onPress={() => router.push("/communities/search")} accessibilityRole="button">
+              <Text style={styles.joinCommunityPrompt}>Not in a community yet? Click here to join one</Text>
+            </Pressable>
+          )}
+          {communityLocation ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={15} color="#6D5D4B" />
+              <Text style={styles.location}>{communityLocation}</Text>
+            </View>
+          ) : null}
         </View>
 
-        <Pressable style={styles.settingsButton} onPress={() => router.push("/settings")}>
-          <Ionicons name="settings-outline" size={22} color="#183153" />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable style={styles.settingsButton} onPress={() => router.push("/inbox")} accessibilityLabel="Open inbox">
+            <Ionicons name="mail-outline" size={22} color="#183153" />
+            {unreadCount > 0 ? (
+              <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View>
+            ) : null}
+          </Pressable>
+          <Pressable style={styles.settingsButton} onPress={() => router.push("/settings")} accessibilityLabel="Open settings">
+            <Ionicons name="settings-outline" size={22} color="#183153" />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.quoteCard}>
-        <View style={styles.quoteImageWrap}>
+        <View style={[styles.quoteImageWrap, { height: imageHeight }]}>
           <Image source={displayImage} style={styles.quoteImage} resizeMode="cover" />
           <View style={styles.quoteImageOverlay} />
           <Text style={styles.quoteLabel}>Shelf Note</Text>
         </View>
 
-        <View style={styles.quoteContent}>
-          <Text style={styles.quoteMark}>{"\u201c"}</Text>
-          <Text style={styles.quoteText}>{quote.quote}</Text>
-          <Text style={styles.quoteAuthor}>- {quote.author}</Text>
+        <View style={[styles.quoteContent, isCompact && styles.compactQuoteContent]}>
+          <Text style={[styles.quoteMark, isCompact && styles.compactQuoteMark]}>{"\u201c"}</Text>
+          <Text style={[styles.quoteText, isCompact && styles.compactQuoteText]}>{quote.quote}</Text>
+          <Text style={[styles.quoteAuthor, isCompact && styles.compactQuoteAuthor]}>- {quote.author}</Text>
         </View>
       </View>
 
       <View style={styles.buttons}>
-        <View style={styles.primaryButtonRow}>
+        <View style={[styles.buttonRow, isNarrow && styles.narrowButtonRow]}>
           <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/explore")}>
             <Ionicons name="compass-outline" size={20} color="#FFF9F0" />
             <Text style={styles.buttonText}>Explore Books</Text>
@@ -85,7 +129,7 @@ export default function Home() {
           </Pressable>
         </View>
 
-        <View style={styles.bottomButtonRow}>
+        <View style={[styles.buttonRow, isNarrow && styles.narrowButtonRow]}>
           <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/library")}>
             <Text style={styles.buttonText}>My Library</Text>
           </Pressable>
@@ -95,23 +139,46 @@ export default function Home() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    backgroundColor: "#F7F2E8",
+  },
+  container: {
+    flexGrow: 1,
+    width: "100%",
+    maxWidth: 760,
+    alignSelf: "center",
     paddingHorizontal: 24,
     paddingTop: 18,
     paddingBottom: 28,
     backgroundColor: "#F7F2E8",
     gap: 24,
   },
+  compactContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
+    gap: 16,
+  },
+  wideContainer: {
+    paddingHorizontal: 32,
+    paddingTop: 28,
+    paddingBottom: 36,
+    gap: 28,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  headerDetails: {
+    flex: 1,
+    marginRight: 12,
   },
   eyebrow: {
     fontSize: 13,
@@ -126,10 +193,33 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#183153",
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
   community: {
     fontSize: 16,
     color: "#6D5D4B",
     marginTop: 6,
+  },
+  joinCommunityPrompt: {
+    fontSize: 14,
+    color: "#8A4522",
+    fontWeight: "700",
+    marginTop: 8,
+    textDecorationLine: "underline",
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  location: {
+    fontSize: 14,
+    color: "#6D5D4B",
   },
   settingsButton: {
     width: 44,
@@ -141,9 +231,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E7D9C5",
   },
+  headerActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  badge: {
+    position: "absolute",
+    right: -5,
+    top: -5,
+    minWidth: 19,
+    height: 19,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#B54A35",
+    borderWidth: 2,
+    borderColor: "#F7F2E8",
+  },
+  badgeText: {
+    color: "#FFF9F0",
+    fontSize: 9,
+    fontWeight: "800",
+  },
   quoteCard: {
-    flex: 1,
-    minHeight: 0,
     backgroundColor: "#FFF9F0",
     borderRadius: 28,
     overflow: "hidden",
@@ -156,7 +267,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   quoteImageWrap: {
-    height: 260,
     justifyContent: "flex-end",
     padding: 18,
     backgroundColor: "#183153",
@@ -183,11 +293,21 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 24,
   },
+  compactQuoteContent: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 18,
+  },
   quoteMark: {
     fontSize: 44,
     lineHeight: 44,
     color: "#9A6B39",
     marginBottom: 8,
+  },
+  compactQuoteMark: {
+    fontSize: 34,
+    lineHeight: 32,
+    marginBottom: 4,
   },
   quoteText: {
     fontSize: 22,
@@ -195,23 +315,29 @@ const styles = StyleSheet.create({
     color: "#183153",
     fontWeight: "600",
   },
+  compactQuoteText: {
+    fontSize: 18,
+    lineHeight: 26,
+  },
   quoteAuthor: {
     marginTop: 18,
     fontSize: 15,
     color: "#6D5D4B",
     fontWeight: "600",
   },
+  compactQuoteAuthor: {
+    marginTop: 12,
+    fontSize: 14,
+  },
   buttons: {
-    marginTop: "auto",
     gap: 16,
   },
-  bottomButtonRow: {
+  buttonRow: {
     flexDirection: "row",
     gap: 14,
   },
-  primaryButtonRow: {
-    flexDirection: "row",
-    gap: 14,
+  narrowButtonRow: {
+    flexDirection: "column",
   },
   button: {
     minHeight: 58,

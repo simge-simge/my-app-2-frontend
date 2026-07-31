@@ -12,6 +12,7 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 
 import { palette } from "@/constants/theme"
+import AdminBadge from "@/components/AdminBadge"
 import {
   deleteMatch,
   getMatch,
@@ -111,6 +112,7 @@ export default function MatchDetailScreen() {
           <View style={styles.heroText}>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{displayName}</Text>
+              {match.other_user.admin ? <AdminBadge /> : null}
               <View style={[styles.statusBadge, match.revealed ? styles.revealedBadge : styles.pendingBadge]}>
                 <Text style={[styles.statusText, match.revealed ? styles.revealedText : styles.pendingText]}>
                   {match.revealed ? "Revealed" : "Pending"}

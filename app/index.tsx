@@ -1,47 +1,68 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
 import { router } from "expo-router"
 
 import { palette } from "@/constants/theme"
 
 export default function Index() {
+  const { width, height } = useWindowDimensions()
+  const isCompact = width < 380 || height < 650
+
   return (
-    <View style={styles.container}>
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Book Tinder</Text>
-        <Text style={styles.title}>Meet your next favorite read through your community.</Text>
-        <Text style={styles.subtitle}>
-          Swap shelves, discover books nearby, and turn matches into real conversations.
-        </Text>
-      </View>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, isCompact && styles.compactContainer]} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
+        <View style={[styles.heroCard, isCompact && styles.compactHeroCard]}>
+          <Text style={styles.eyebrow}>Book Tinder</Text>
+          <Text style={[styles.title, isCompact && styles.compactTitle]}>Meet your next favorite read through your community.</Text>
+          <Text style={[styles.subtitle, isCompact && styles.compactSubtitle]}>
+            Swap shelves, discover books nearby, and turn matches into real conversations.
+          </Text>
+        </View>
 
-      <View style={styles.actions}>
-        <Pressable style={styles.primaryButton} onPress={() => router.push("/login")}>
-          <Text style={styles.primaryButtonText}>Login</Text>
-        </Pressable>
+        <View style={styles.actions}>
+          <Pressable style={styles.primaryButton} onPress={() => router.push("/login")}>
+            <Text style={styles.primaryButtonText}>Login</Text>
+          </Pressable>
 
-        <Pressable style={styles.secondaryButton} onPress={() => router.push("/signup")}>
-          <Text style={styles.secondaryButtonText}>Create Account</Text>
-        </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => router.push("/signup")}>
+            <Text style={styles.secondaryButtonText}>Create Account</Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    justifyContent: "space-between",
+    backgroundColor: palette.background,
+  },
+  container: {
+    flexGrow: 1,
+    justifyContent: "center",
     padding: 24,
     backgroundColor: palette.background,
   },
+  compactContainer: {
+    padding: 16,
+  },
+  content: {
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+  },
   heroCard: {
-    marginTop: "auto",
-    marginBottom: 40,
+    marginBottom: 32,
     backgroundColor: palette.surface,
     borderRadius: 30,
     padding: 24,
     borderWidth: 1,
     borderColor: palette.border,
+  },
+  compactHeroCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 22,
   },
   eyebrow: {
     fontSize: 13,
@@ -57,11 +78,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: palette.text,
   },
+  compactTitle: {
+    fontSize: 28,
+    lineHeight: 35,
+  },
   subtitle: {
     marginTop: 14,
     fontSize: 16,
     lineHeight: 24,
     color: palette.textMuted,
+  },
+  compactSubtitle: {
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 22,
   },
   actions: {
     gap: 14,

@@ -12,6 +12,7 @@ import {
 import { router, useFocusEffect } from "expo-router"
 
 import { palette } from "@/constants/theme"
+import AdminBadge from "@/components/AdminBadge"
 import { getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
 
 export default function MatchesScreen() {
@@ -109,7 +110,10 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
           )}
 
           <View style={styles.headerText}>
-            <Text style={styles.name}>{displayName}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{displayName}</Text>
+              {match.other_user.admin ? <AdminBadge /> : null}
+            </View>
             <Text style={styles.date}>{matchedAt}</Text>
           </View>
         </View>
@@ -196,6 +200,7 @@ const styles = StyleSheet.create({
   avatarFallback: { alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 20, fontWeight: "700", color: palette.textSoft },
   headerText: { flex: 1, gap: 4 },
+  nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
   name: { fontSize: 18, fontWeight: "700", color: palette.text },
   date: { fontSize: 13, color: palette.textMuted },
   statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },

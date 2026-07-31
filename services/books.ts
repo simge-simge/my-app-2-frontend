@@ -28,6 +28,7 @@ export type Book = {
   id: string
   owner_id: string
   owner_name?: string | null
+  owner_admin?: boolean
   community_id: string
   title: string
   author: string | null

@@ -2,6 +2,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native"
 
 import { palette } from "@/constants/theme"
 import type { Book } from "@/services/books"
+import AdminBadge from "@/components/AdminBadge"
 
 type Props = {
   book: Book
@@ -32,9 +33,12 @@ export default function BookDisplay({ book, onPress, showOwner = false }: Props)
         </Text>
 
         {showOwner ? (
-          <Text numberOfLines={1} style={styles.owner}>
-            Owner: {book.owner_name || "Unknown"}
-          </Text>
+          <View style={styles.ownerRow}>
+            <Text numberOfLines={1} style={styles.owner}>
+              Owner: {book.owner_name || "Unknown"}
+            </Text>
+            {book.owner_admin ? <AdminBadge /> : null}
+          </View>
         ) : null}
 
         <Text numberOfLines={1} style={styles.status}>
@@ -89,8 +93,15 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
   },
   owner: {
+    flexShrink: 1,
     fontSize: 12,
     color: palette.textMuted,
+  },
+  ownerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
   },
   status: {
     fontSize: 12,

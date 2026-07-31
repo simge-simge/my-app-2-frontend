@@ -1,0 +1,181 @@
+import { Ionicons } from "@expo/vector-icons"
+import { useEffect, useState } from "react"
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native"
+
+import { palette } from "@/constants/theme"
+import { ApiError } from "@/services/api"
+import {
+  requestCommunityJoin,
+  searchCommunities,
+  type CommunitySearchResult,
+} from "@/services/communities"
+
+export default function CommunitySearch() {
+  const [query, setQuery] = useState("")
+  const [location, setLocation] = useState("")
+  const [results, setResults] = useState<CommunitySearchResult[]>([])
+  const [loading, setLoading] = useState(true)
+  const [joiningId, setJoiningId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const timer = setTimeout(async () => {
+      try {
+        setLoading(true)
+        const communities = await searchCommunities(query, location)
+        if (active) setResults(communities)
+      } catch (err) {
+        if (active) {
+          console.error("Failed to search communities", err)
+          Alert.alert("Error", err instanceof ApiError ? err.message : "Could not load communities")
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
+    }, 300)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [query, location])
+
+  const handleJoin = async (community: CommunitySearchResult) => {
+    if (community.is_member || community.request_pending || joiningId) return
+    try {
+      setJoiningId(community.id)
+      await requestCommunityJoin(community.id)
+      setResults((current) => current.map((item) => ({
+        ...item,
+        request_pending: item.id === community.id,
+      })))
+    } catch (err) {
+      console.error("Failed to request community membership", err)
+      Alert.alert("Unable to send request", err instanceof ApiError ? err.message : "Please try again")
+    } finally {
+      setJoiningId(null)
+    }
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={20} color={palette.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by name or location"
+          placeholderTextColor={palette.textMuted}
+          autoFocus
+          returnKeyType="search"
+        />
+      </View>
+
+      <View style={styles.searchBox}>
+        <Ionicons name="location-outline" size={20} color={palette.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          value={location}
+          onChangeText={setLocation}
+          placeholder="Filter by location"
+          placeholderTextColor={palette.textMuted}
+          returnKeyType="search"
+        />
+        {location ? (
+          <Pressable onPress={() => setLocation("")} accessibilityLabel="Clear location filter">
+            <Ionicons name="close-circle" size={20} color={palette.textMuted} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={palette.accent} />
+        </View>
+      ) : (
+        <FlatList
+          data={results}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={results.length ? styles.list : styles.emptyList}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => {
+            const disabled = item.is_member || item.request_pending || joiningId !== null
+            const buttonText = item.is_member
+              ? "Joined"
+              : item.request_pending
+                ? "Request sent"
+                : joiningId === item.id
+                  ? "Sending..."
+                  : "Join"
+            return (
+              <View style={styles.communityRow}>
+                <View style={styles.communityDetails}>
+                  <Text style={styles.communityName}>{item.name}</Text>
+                  <View style={styles.metaRow}>
+                    <Ionicons name="location-outline" size={14} color={palette.textMuted} />
+                    <Text style={styles.metaText}>{item.location || "Location not specified"}</Text>
+                    <Text style={styles.metaDot}>·</Text>
+                    <Ionicons name="people-outline" size={14} color={palette.textMuted} />
+                    <Text style={styles.metaText}>{item.member_count} {item.member_count === 1 ? "member" : "members"}</Text>
+                  </View>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.joinButton,
+                    disabled && styles.joinButtonDisabled,
+                    pressed && !disabled && styles.joinButtonPressed,
+                  ]}
+                  onPress={() => handleJoin(item)}
+                  disabled={disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${buttonText} ${item.name}`}
+                >
+                  <Text style={[styles.joinButtonText, disabled && styles.joinButtonTextDisabled]}>{buttonText}</Text>
+                </Pressable>
+              </View>
+            )
+          }}
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Ionicons name="people-outline" size={38} color={palette.textMuted} />
+              <Text style={styles.emptyTitle}>No communities found</Text>
+              <Text style={styles.emptyText}>Try a different name or location.</Text>
+            </View>
+          }
+        />
+      )}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: palette.background, padding: 20, gap: 12 },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: palette.border, borderRadius: 16, paddingHorizontal: 14, minHeight: 50, backgroundColor: palette.surface },
+  searchInput: { flex: 1, color: palette.text, fontSize: 16, paddingVertical: 12 },
+  list: { paddingTop: 6, paddingBottom: 30, gap: 10 },
+  emptyList: { flexGrow: 1 },
+  communityRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: 18, padding: 15 },
+  communityDetails: { flex: 1, gap: 7 },
+  communityName: { color: palette.text, fontSize: 17, fontWeight: "700" },
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
+  metaText: { color: palette.textMuted, fontSize: 12 },
+  metaDot: { color: palette.textMuted, marginHorizontal: 2 },
+  joinButton: { minWidth: 70, minHeight: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, backgroundColor: palette.accent },
+  joinButtonDisabled: { backgroundColor: palette.surfaceMuted },
+  joinButtonPressed: { opacity: 0.75 },
+  joinButtonText: { color: palette.white, fontSize: 13, fontWeight: "700" },
+  joinButtonTextDisabled: { color: palette.textMuted },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+  emptyTitle: { color: palette.text, fontSize: 17, fontWeight: "700", marginTop: 4 },
+  emptyText: { color: palette.textMuted, fontSize: 14 },
+})

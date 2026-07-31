@@ -16,6 +16,7 @@ export type MatchUser = {
   display_name: string | null
   avatar_url: string | null
   community_id?: string | null
+  admin: boolean
   created_at?: string
 }
 

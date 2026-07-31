@@ -37,9 +37,11 @@ function RootStack() {
       <Stack.Screen name="(tabs)/library" options={{ title: "My Library" }} />
       <Stack.Screen name="(tabs)/matches" options={{ title: "My Matches" }} />
       <Stack.Screen name="(tabs)/settings" options={{ title: "Settings" }} />
+      <Stack.Screen name="(tabs)/inbox" options={{ title: "Inbox" }} />
       <Stack.Screen name="books/new" options={{ title: "Add Book" }} />
       <Stack.Screen name="books/[bookId]" options={{ title: "Book Details" }} />
       <Stack.Screen name="matches/[matchId]" options={{ title: "Match Details" }} />
+      <Stack.Screen name="communities/search" options={{ title: "Find a community", presentation: "modal" }} />
     </Stack>
   );
 }
