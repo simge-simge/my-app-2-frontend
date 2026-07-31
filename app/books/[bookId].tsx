@@ -4,6 +4,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import type { ImagePickerAsset } from "expo-image-picker"
 
 import BookForm from "@/components/BookForm"
+import { getCachedApiData } from "@/services/api"
 import {
   deleteBook,
   getBook,
@@ -14,9 +15,10 @@ import {
 
 export default function EditBookScreen() {
   const { bookId } = useLocalSearchParams<{ bookId: string }>()
+  const cachePath = bookId ? `/books/${bookId}` : ""
 
-  const [book, setBook] = useState<Book | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [book, setBook] = useState<Book | null>(() => getCachedApiData<Book>(cachePath) ?? null)
+  const [loading, setLoading] = useState(() => getCachedApiData<Book>(cachePath) === undefined)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -26,7 +28,7 @@ export default function EditBookScreen() {
     }
 
     try {
-      setLoading(true)
+      if (getCachedApiData<Book>(cachePath) === undefined) setLoading(true)
       const response = await getBook(bookId)
       setBook(response)
     } catch (err) {
@@ -36,7 +38,7 @@ export default function EditBookScreen() {
     } finally {
       setLoading(false)
     }
-  }, [bookId])
+  }, [bookId, cachePath])
 
   useFocusEffect(
     useCallback(() => {

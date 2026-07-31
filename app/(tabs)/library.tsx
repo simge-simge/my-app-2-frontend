@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
@@ -12,16 +12,19 @@ import { router, useFocusEffect } from "expo-router"
 
 import BookDisplay from "@/components/BookDisplay"
 import { palette } from "@/constants/theme"
+import { getCachedApiData } from "@/services/api"
 import { getMyBooks, type Book } from "@/services/books"
 
 export default function Library() {
-  const [books, setBooks] = useState<Book[]>([])
-  const [loading, setLoading] = useState(true)
+  const cachedBooks = getCachedApiData<Book[]>("/books/me")
+  const [books, setBooks] = useState<Book[]>(() => cachedBooks ?? [])
+  const [loading, setLoading] = useState(() => cachedBooks === undefined)
+  const hasLoaded = useRef(cachedBooks !== undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadBooks = useCallback(async (showLoader = false) => {
-    if (showLoader) {
+    if (showLoader && !hasLoaded.current) {
       setLoading(true)
     }
 
@@ -33,6 +36,7 @@ export default function Library() {
       console.error("Failed to load books", err)
       setError("Could not load your library.")
     } finally {
+      hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }

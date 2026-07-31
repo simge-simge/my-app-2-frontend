@@ -15,9 +15,9 @@ import { Ionicons } from "@expo/vector-icons"
 
 import { palette } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
-import { getProfile, updateProfile, deleteAccount } from "@/services/profile"
+import { getProfile, updateProfile, deleteAccount, type Profile } from "@/services/profile"
 import { signOut } from "@/services/authentication"
-import { ApiError } from "@/services/api"
+import { ApiError, getCachedApiData } from "@/services/api"
 import { createCommunity } from "@/services/admin"
 import { updateCommunityVisibility } from "@/services/communities"
 
@@ -25,30 +25,31 @@ type EditableField = "name" | "phone" | "instagram" | "telegram"
 
 export default function Settings() {
   const router = useRouter()
+  const cachedProfile = getCachedApiData<Profile>("/profile/me/")
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => cachedProfile === undefined)
   const [saving, setSaving] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [editingField, setEditingField] = useState<EditableField | null>(null)
 
-  const [name, setName] = useState("")
-  const [community, setCommunity] = useState("")
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [communityId, setCommunityId] = useState<string | null>(null)
-  const [communityPublic, setCommunityPublic] = useState(false)
+  const [name, setName] = useState(() => cachedProfile?.display_name ?? "")
+  const [community, setCommunity] = useState(() => cachedProfile?.community_name ?? "")
+  const [isAdmin, setIsAdmin] = useState(() => cachedProfile?.admin ?? false)
+  const [communityId, setCommunityId] = useState<string | null>(() => cachedProfile?.community_id ?? null)
+  const [communityPublic, setCommunityPublic] = useState(() => Boolean(cachedProfile?.community_public))
   const [visibilitySaving, setVisibilitySaving] = useState(false)
-  const [isAppAdmin, setIsAppAdmin] = useState(false)
-  const [pendingCommunity, setPendingCommunity] = useState<string | null>(null)
+  const [isAppAdmin, setIsAppAdmin] = useState(() => cachedProfile?.is_app_admin ?? false)
+  const [pendingCommunity, setPendingCommunity] = useState<string | null>(() => cachedProfile?.pending_community_name ?? null)
   const [communityName, setCommunityName] = useState("")
   const [communityLocation, setCommunityLocation] = useState("")
   const [communityAdminEmail, setCommunityAdminEmail] = useState("")
 
-  const [contacts, setContacts] = useState({
-    email: "",
-    phone: "",
-    instagram: "",
-    telegram: "",
-  })
+  const [contacts, setContacts] = useState(() => ({
+    email: cachedProfile?.contacts?.email ?? "",
+    phone: cachedProfile?.contacts?.phone ?? "",
+    instagram: cachedProfile?.contacts?.instagram ?? "",
+    telegram: cachedProfile?.contacts?.telegram ?? "",
+  }))
 
   const loadProfile = useCallback(async () => {
     try {

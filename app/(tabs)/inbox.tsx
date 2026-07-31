@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import { router, useFocusEffect } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
 import { palette } from "@/constants/theme"
+import { getCachedApiData } from "@/services/api"
 import {
   decideCommunityRequest,
   getInbox,
@@ -20,18 +21,21 @@ import {
   markNotificationRead,
   type CommunityJoinRequest,
   type InboxNotification,
+  type InboxResponse,
 } from "@/services/inbox"
 
 export default function InboxScreen() {
-  const [notifications, setNotifications] = useState<InboxNotification[]>([])
-  const [requests, setRequests] = useState<CommunityJoinRequest[]>([])
-  const [loading, setLoading] = useState(true)
+  const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
+  const [notifications, setNotifications] = useState<InboxNotification[]>(() => cachedInbox?.notifications ?? [])
+  const [requests, setRequests] = useState<CommunityJoinRequest[]>(() => cachedInbox?.join_requests ?? [])
+  const [loading, setLoading] = useState(() => cachedInbox === undefined)
+  const hasLoaded = useRef(cachedInbox !== undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [actingId, setActingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadInbox = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true)
+    if (showLoader && !hasLoaded.current) setLoading(true)
     try {
       setError(null)
       const inbox = await getInbox()
@@ -41,6 +45,7 @@ export default function InboxScreen() {
       console.error("Failed to load inbox", err)
       setError("Could not load your inbox.")
     } finally {
+      hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
@@ -13,17 +13,20 @@ import { router, useFocusEffect } from "expo-router"
 
 import { palette } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
+import { getCachedApiData } from "@/services/api"
 import { getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
 
 export default function MatchesScreen() {
-  const [matches, setMatches] = useState<Match[]>([])
-  const [loading, setLoading] = useState(true)
+  const cachedMatches = getCachedApiData<Match[]>("/matches/")
+  const [matches, setMatches] = useState<Match[]>(() => cachedMatches ?? [])
+  const [loading, setLoading] = useState(() => cachedMatches === undefined)
+  const hasLoaded = useRef(cachedMatches !== undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [revealingMatchId, setRevealingMatchId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadMatches = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true)
+    if (showLoader && !hasLoaded.current) setLoading(true)
 
     try {
       setError(null)
@@ -33,6 +36,7 @@ export default function MatchesScreen() {
       console.error("Failed to load matches", err)
       setError("Could not load your matches.")
     } finally {
+      hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }

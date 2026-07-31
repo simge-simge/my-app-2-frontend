@@ -4,24 +4,29 @@ import { useFocusEffect, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
 import AdminBadge from "@/components/AdminBadge"
-import { getProfile } from "@/services/profile"
-import { getInbox } from "@/services/inbox"
+import { getCachedApiData } from "@/services/api"
+import { getBookFeed, getMyBooks } from "@/services/books"
+import { getMatches } from "@/services/matches"
+import { getProfile, type Profile } from "@/services/profile"
+import { getInbox, type InboxResponse } from "@/services/inbox"
 import { getRandomHomeDisplayImage, getRandomQuote, type Quote } from "@/services/quotes"
 
 export default function Home() {
   const router = useRouter()
+  const cachedProfile = getCachedApiData<Profile>("/profile/me/")
+  const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
   const { width, height } = useWindowDimensions()
   const isNarrow = width < 380
   const isCompact = height < 760
   const isWide = width >= 768
   const imageHeight = isWide ? 300 : isCompact ? 170 : Math.min(250, Math.max(190, height * 0.28))
 
-  const [name, setName] = useState<string | null>(null)
-  const [community, setCommunity] = useState<string | null>(null)
-  const [communityLocation, setCommunityLocation] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [name, setName] = useState<string | null>(() => cachedProfile?.display_name ?? null)
+  const [community, setCommunity] = useState<string | null>(() => cachedProfile?.community_name ?? null)
+  const [communityLocation, setCommunityLocation] = useState<string | null>(() => cachedProfile?.community_location ?? null)
+  const [isAdmin, setIsAdmin] = useState(() => cachedProfile?.admin ?? false)
+  const [loading, setLoading] = useState(() => !cachedProfile || !cachedInbox)
+  const [unreadCount, setUnreadCount] = useState(() => cachedInbox?.unread_count ?? 0)
   const [quote, setQuote] = useState<Quote>(() => getRandomQuote())
   const [displayImage, setDisplayImage] = useState(() => getRandomHomeDisplayImage())
 
@@ -34,6 +39,10 @@ export default function Home() {
       setCommunityLocation(profile.community_location)
       setIsAdmin(profile.admin)
       setUnreadCount(inbox.unread_count)
+
+      // Warm the destinations linked from the dashboard. Calls are deduplicated
+      // and use the short-lived cache, so an immediate click reuses this work.
+      void Promise.allSettled([getMyBooks(), getBookFeed(), getMatches()])
     } catch (err) {
       console.error("Failed to load profile", err)
     } finally {

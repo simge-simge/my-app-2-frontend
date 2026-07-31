@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react"
+import { useCallback, useRef, useState, type ReactNode } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 
 import { palette } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
+import { getCachedApiData } from "@/services/api"
 import {
   deleteMatch,
   getMatch,
@@ -25,8 +26,11 @@ import {
 
 export default function MatchDetailScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>()
-  const [match, setMatch] = useState<Match | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cachePath = matchId ? `/matches/${matchId}` : ""
+  const cachedMatch = getCachedApiData<Match>(cachePath)
+  const [match, setMatch] = useState<Match | null>(() => cachedMatch ?? null)
+  const [loading, setLoading] = useState(() => cachedMatch === undefined)
+  const hasLoaded = useRef(cachedMatch !== undefined)
   const [revealing, setRevealing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +38,7 @@ export default function MatchDetailScreen() {
   const loadMatch = useCallback(async () => {
     if (!matchId) return
     try {
-      setLoading(true)
+      if (!hasLoaded.current) setLoading(true)
       setError(null)
       const response = await getMatch(matchId)
       setMatch(response)
@@ -42,6 +46,7 @@ export default function MatchDetailScreen() {
       console.error("Failed to load match", err)
       setError("Could not load this match.")
     } finally {
+      hasLoaded.current = true
       setLoading(false)
     }
   }, [matchId])

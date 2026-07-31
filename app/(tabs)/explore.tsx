@@ -13,6 +13,7 @@ import {
 import { useFocusEffect } from "expo-router"
 
 import { palette } from "@/constants/theme"
+import { getCachedApiData } from "@/services/api"
 import { getBookFeed, type Book } from "@/services/books"
 import { createSwipe, type SwipeDirection } from "@/services/swipes"
 
@@ -21,8 +22,10 @@ const SWIPE_OUT_DURATION = 220
 const STACK_SIZE = 3
 
 export default function Explore() {
-  const [books, setBooks] = useState<Book[]>([])
-  const [loading, setLoading] = useState(true)
+  const cachedBooks = getCachedApiData<Book[]>("/books/feed")
+  const [books, setBooks] = useState<Book[]>(() => cachedBooks ?? [])
+  const [loading, setLoading] = useState(() => cachedBooks === undefined)
+  const hasLoaded = useRef(cachedBooks !== undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -31,7 +34,7 @@ export default function Explore() {
   const { width } = useWindowDimensions()
 
   const loadBooks = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true)
+    if (showLoader && !hasLoaded.current) setLoading(true)
 
     try {
       setError(null)
@@ -44,6 +47,7 @@ export default function Explore() {
       console.error("Failed to load book feed", err)
       setError("Could not load books right now.")
     } finally {
+      hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }
