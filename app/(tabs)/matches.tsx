@@ -70,7 +70,7 @@ export default function MatchesScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Matches</Text>
-      <Text style={styles.subtitle}>People who matched with your books, newest first</Text>
+      <Text style={styles.subtitle}>Book swaps and accepted borrow requests, newest first</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <FlatList
@@ -83,7 +83,7 @@ export default function MatchesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No matches yet</Text>
-            <Text style={styles.emptyText}>When one of your swipes turns into a match, it will show up here.</Text>
+            <Text style={styles.emptyText}>Book swaps and accepted borrow requests will show up here.</Text>
           </View>
         }
       />
@@ -95,6 +95,9 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
   const displayName = match.other_user.display_name || "Unknown reader"
   const matchedAt = formatMatchDate(match.created_at)
   const canReveal = !match.my_revealed
+  const isBorrowMatch = !match.my_book || !match.their_book
+  const borrowedBook = match.my_book ?? match.their_book
+  const borrowLabel = match.my_book ? "You are lending" : "You are borrowing"
   const otherStatusText = match.their_revealed ? `${displayName} revealed contact info.` : `${displayName} hasn't revealed yet.`
   const myStatusText = match.my_revealed ? "Your contact info has been revealed for this match." : "Your contact info is still hidden."
 
@@ -129,10 +132,17 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
         </View>
       </View>
 
-      <View style={styles.booksRow}>
-        <BookSummary label="Your book" book={match.my_book} />
-        <BookSummary label="Their book" book={match.their_book} />
-      </View>
+      {isBorrowMatch && borrowedBook ? (
+        <View style={styles.borrowMatchBlock}>
+          <Text style={styles.borrowMatchLabel}>{borrowLabel}</Text>
+          <BookSummary label={match.my_book ? "Your book" : `${displayName}'s book`} book={borrowedBook} />
+        </View>
+      ) : match.my_book && match.their_book ? (
+        <View style={styles.booksRow}>
+          <BookSummary label="Your book" book={match.my_book} />
+          <BookSummary label="Their book" book={match.their_book} />
+        </View>
+      ) : null}
 
       <View style={styles.revealPanel}>
         <Text style={styles.revealHint}>{otherStatusText}</Text>
@@ -214,6 +224,8 @@ const styles = StyleSheet.create({
   revealedText: { color: palette.success },
   pendingText: { color: palette.textSoft },
   booksRow: { flexDirection: "row", gap: 12 },
+  borrowMatchBlock: { gap: 8 },
+  borrowMatchLabel: { fontSize: 15, fontWeight: "700", color: palette.accentDark },
   revealPanel: { borderTopWidth: 1, borderTopColor: palette.border, paddingTop: 14, gap: 12 },
   revealHint: { fontSize: 13, color: palette.textMuted, lineHeight: 18 },
   revealButton: { backgroundColor: palette.accent, borderRadius: 16, alignItems: "center", paddingVertical: 13, paddingHorizontal: 14 },

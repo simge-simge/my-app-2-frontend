@@ -15,10 +15,12 @@ import { Ionicons } from "@expo/vector-icons"
 import { palette } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import {
+  decideBorrowRequest,
   decideCommunityRequest,
   getInbox,
   markAllNotificationsRead,
   markNotificationRead,
+  type BookBorrowRequest,
   type CommunityJoinRequest,
   type InboxNotification,
   type InboxResponse,
@@ -28,6 +30,7 @@ export default function InboxScreen() {
   const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
   const [notifications, setNotifications] = useState<InboxNotification[]>(() => cachedInbox?.notifications ?? [])
   const [requests, setRequests] = useState<CommunityJoinRequest[]>(() => cachedInbox?.join_requests ?? [])
+  const [borrowRequests, setBorrowRequests] = useState<BookBorrowRequest[]>(() => cachedInbox?.borrow_requests ?? [])
   const [loading, setLoading] = useState(() => cachedInbox === undefined)
   const hasLoaded = useRef(cachedInbox !== undefined)
   const [refreshing, setRefreshing] = useState(false)
@@ -41,6 +44,7 @@ export default function InboxScreen() {
       const inbox = await getInbox()
       setNotifications(inbox.notifications)
       setRequests(inbox.join_requests)
+      setBorrowRequests(inbox.borrow_requests ?? [])
     } catch (err) {
       console.error("Failed to load inbox", err)
       setError("Could not load your inbox.")
@@ -62,6 +66,20 @@ export default function InboxScreen() {
     } catch (err) {
       console.error("Failed to review community request", err)
       Alert.alert("Error", "Could not review this request.")
+    } finally {
+      setActingId(null)
+    }
+  }
+
+  const handleBorrowDecision = async (request: BookBorrowRequest, decision: "accepted" | "declined") => {
+    try {
+      setActingId(request.id)
+      setError(null)
+      await decideBorrowRequest(request.id, decision)
+      await loadInbox()
+    } catch (err) {
+      console.error("Failed to review borrow request", err)
+      Alert.alert("Error", "Could not review this borrow request.")
     } finally {
       setActingId(null)
     }
@@ -97,7 +115,7 @@ export default function InboxScreen() {
   }
 
   const hasUnread = notifications.some((item) => !item.read_at)
-  const isEmpty = requests.length === 0 && notifications.length === 0
+  const isEmpty = requests.length === 0 && borrowRequests.length === 0 && notifications.length === 0
 
   return (
     <ScrollView
@@ -113,6 +131,32 @@ export default function InboxScreen() {
         {hasUnread ? <Pressable onPress={handleMarkAllRead}><Text style={styles.markRead}>Mark all read</Text></Pressable> : null}
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {borrowRequests.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Borrow requests</Text>
+          {borrowRequests.map((request) => (
+            <View key={request.id} style={styles.requestCard}>
+              <View style={styles.iconWrap}><Ionicons name="book-outline" size={22} color={palette.accentDark} /></View>
+              <View style={styles.cardBody}>
+                <Text style={styles.cardTitle}>
+                  {request.requester.display_name || "A reader"} wants to borrow {request.book.title}
+                </Text>
+                {request.book.author ? <Text style={styles.message}>by {request.book.author}</Text> : null}
+                <Text style={styles.date}>{formatDate(request.created_at)}</Text>
+                <View style={styles.actions}>
+                  <Pressable style={[styles.actionButton, styles.declineButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "declined")}>
+                    <Text style={styles.declineText}>Decline</Text>
+                  </Pressable>
+                  <Pressable style={[styles.actionButton, styles.approveButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "accepted")}>
+                    <Text style={styles.approveText}>{actingId === request.id ? "Saving..." : "Accept"}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {requests.length > 0 ? (
         <View style={styles.section}>

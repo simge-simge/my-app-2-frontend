@@ -39,6 +39,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = data.session?.access_token
   const userId = data.session?.user.id ?? null
   const method = (options.method ?? "GET").toUpperCase()
+  const skipCache = options.cache === "no-store"
 
   if (userId !== activeUserId) {
     clearApiCache()
@@ -46,7 +47,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   }
 
   const cacheKey = userId ? `${userId}:${path}` : null
-  if (method === "GET" && cacheKey) {
+  if (method === "GET" && cacheKey && !skipCache) {
     const cached = responseCache.get(cacheKey)
     if (cached && Date.now() - cached.storedAt < GET_CACHE_MAX_AGE_MS) {
       return cached.data

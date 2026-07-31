@@ -1,7 +1,9 @@
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
+import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
 import { router } from "expo-router"
 
 import { palette } from "@/constants/theme"
+
+const appIcon = require("../assets/images/icon.png")
 
 export default function Index() {
   const { width, height } = useWindowDimensions()
@@ -11,6 +13,14 @@ export default function Index() {
     <ScrollView style={styles.screen} contentContainerStyle={[styles.container, isCompact && styles.compactContainer]} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
         <View style={[styles.heroCard, isCompact && styles.compactHeroCard]}>
+          <View style={[styles.iconFrame, isCompact && styles.compactIconFrame]}>
+            <Image
+              accessibilityLabel="Book Tinder app icon"
+              source={appIcon}
+              style={styles.appIcon}
+              resizeMode="cover"
+            />
+          </View>
           <Text style={styles.eyebrow}>Book Tinder</Text>
           <Text style={[styles.title, isCompact && styles.compactTitle]}>Meet your next favorite read through your community.</Text>
           <Text style={[styles.subtitle, isCompact && styles.compactSubtitle]}>
@@ -63,6 +73,31 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     marginBottom: 22,
+  },
+  iconFrame: {
+    width: 112,
+    height: 112,
+    marginBottom: 20,
+    borderRadius: 26,
+    overflow: "hidden",
+    backgroundColor: palette.surfaceMuted,
+    borderWidth: 1,
+    borderColor: palette.border,
+    shadowColor: palette.accentDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  compactIconFrame: {
+    width: 88,
+    height: 88,
+    marginBottom: 16,
+    borderRadius: 22,
+  },
+  appIcon: {
+    width: "100%",
+    height: "100%",
   },
   eyebrow: {
     fontSize: 13,

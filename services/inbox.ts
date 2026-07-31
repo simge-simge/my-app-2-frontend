@@ -24,14 +24,37 @@ export type CommunityJoinRequest = {
   }
 }
 
+export type BookBorrowRequest = {
+  id: string
+  book_id: string
+  requester_id: string
+  owner_id: string
+  status: "pending"
+  created_at: string
+  book: {
+    id: string
+    title: string
+    author: string | null
+    cover_url: string | null
+    status: string
+  }
+  requester: {
+    id: string
+    display_name: string | null
+    avatar_url: string | null
+    community_id: string | null
+  }
+}
+
 export type InboxResponse = {
   notifications: InboxNotification[]
   join_requests: CommunityJoinRequest[]
+  borrow_requests: BookBorrowRequest[]
   unread_count: number
 }
 
 export function getInbox() {
-  return apiFetch("/inbox/") as Promise<InboxResponse>
+  return apiFetch("/inbox/", { cache: "no-store" }) as Promise<InboxResponse>
 }
 
 export function markNotificationRead(notificationId: string) {
@@ -44,6 +67,13 @@ export function markAllNotificationsRead() {
 
 export function decideCommunityRequest(requestId: string, decision: "approved" | "declined") {
   return apiFetch(`/inbox/community-requests/${requestId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ decision }),
+  })
+}
+
+export function decideBorrowRequest(requestId: string, decision: "accepted" | "declined") {
+  return apiFetch(`/inbox/borrow-requests/${requestId}`, {
     method: "PATCH",
     body: JSON.stringify({ decision }),
   })

@@ -30,8 +30,8 @@ export type MatchContacts = {
 export type Match = {
   match_id: string
   created_at: string
-  my_book: MatchBook
-  their_book: MatchBook
+  my_book: MatchBook | null
+  their_book: MatchBook | null
   other_user: MatchUser
   revealed: boolean
   my_revealed: boolean
@@ -49,7 +49,7 @@ export type RevealMatchResponse = {
 }
 
 export function getMatches() {
-  return apiFetch("/matches/") as Promise<Match[]>
+  return apiFetch("/matches/", { cache: "no-store" }) as Promise<Match[]>
 }
 
 export function getMatch(matchId: string) {

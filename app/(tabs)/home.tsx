@@ -129,7 +129,7 @@ export default function Home() {
         <View style={[styles.buttonRow, isNarrow && styles.narrowButtonRow]}>
           <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/explore")}>
             <Ionicons name="compass-outline" size={20} color="#FFF9F0" />
-            <Text style={styles.buttonText}>Explore Books</Text>
+            <Text style={styles.buttonText}>Explore</Text>
           </Pressable>
 
           <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/search")}>
@@ -140,11 +140,13 @@ export default function Home() {
 
         <View style={[styles.buttonRow, isNarrow && styles.narrowButtonRow]}>
           <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/library")}>
-            <Text style={styles.buttonText}>My Library</Text>
+            <Ionicons name="library-outline" size={20} color="#FFF9F0" />
+            <Text style={styles.buttonText}>Library</Text>
           </Pressable>
 
           <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/matches")}>
-            <Text style={styles.buttonText}>My Matches</Text>
+            <Ionicons name="heart-outline" size={20} color="#FFF9F0" />
+            <Text style={styles.buttonText}>Matches</Text>
           </Pressable>
         </View>
       </View>

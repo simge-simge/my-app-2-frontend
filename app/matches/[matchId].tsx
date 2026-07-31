@@ -106,6 +106,8 @@ export default function MatchDetailScreen() {
   const memberSinceText = match.other_user.created_at ? `Member since ${formatMatchDate(match.other_user.created_at)}` : "Profile details available"
   const matchedAt = formatMatchDate(match.created_at)
   const canReveal = !match.my_revealed
+  const isBorrowMatch = !match.my_book || !match.their_book
+  const borrowedBook = match.my_book ?? match.their_book
   const otherStatusText = match.their_revealed ? `${displayName} revealed contact info.` : `${displayName} hasn't revealed yet.`
   const myStatusText = match.my_revealed ? "Your contact info has been revealed for this match." : "Your contact info is still hidden."
 
@@ -138,8 +140,21 @@ export default function MatchDetailScreen() {
         {match.contacts ? <ContactList contacts={match.contacts} /> : null}
       </View>
 
-      <InfoSection title="Your Book"><BookDetails book={match.my_book} /></InfoSection>
-      <InfoSection title="Their Book"><BookDetails book={match.their_book} /></InfoSection>
+      {isBorrowMatch && borrowedBook ? (
+        <InfoSection title={match.my_book ? "Book You’re Lending" : "Book You’re Borrowing"}>
+          <Text style={styles.borrowExplanation}>
+            {match.my_book
+              ? `${displayName} asked to borrow this book.`
+              : `${displayName} accepted your request to borrow this book.`}
+          </Text>
+          <BookDetails book={borrowedBook} />
+        </InfoSection>
+      ) : match.my_book && match.their_book ? (
+        <>
+          <InfoSection title="Your Book"><BookDetails book={match.my_book} /></InfoSection>
+          <InfoSection title="Their Book"><BookDetails book={match.their_book} /></InfoSection>
+        </>
+      ) : null}
 
       <Pressable style={[styles.deleteButton, deleting && styles.actionDisabled]} onPress={confirmDelete} disabled={deleting}>
         <Text style={styles.deleteButtonText}>{deleting ? "Deleting..." : "Delete Match"}</Text>
@@ -219,6 +234,7 @@ const styles = StyleSheet.create({
   statusLine: { fontSize: 14, color: palette.textMuted, lineHeight: 20 },
   section: { backgroundColor: palette.surface, borderRadius: 24, borderWidth: 1, borderColor: palette.border, padding: 16, gap: 12 },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: palette.text },
+  borrowExplanation: { fontSize: 14, lineHeight: 20, color: palette.textMuted },
   avatar: { backgroundColor: palette.surfaceMuted },
   avatarFallback: { alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 26, fontWeight: "700", color: palette.textSoft },
