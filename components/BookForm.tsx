@@ -14,7 +14,7 @@ import * as ImagePicker from "expo-image-picker"
 import type { ImagePickerAsset } from "expo-image-picker"
 
 import AppButton from "@/components/AppButton"
-import { palette } from "@/constants/theme"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 
 type BookFormValues = {
@@ -248,9 +248,13 @@ const styles = StyleSheet.create({
   container: {
     padding: 24,
     paddingBottom: 40,
+    width: "100%",
+    maxWidth: layout.formMax,
+    alignSelf: "center",
   },
   title: {
-    fontSize: 28,
+    fontFamily: typography.serif,
+    fontSize: 30,
     fontWeight: "700",
     color: palette.text,
   },
@@ -264,14 +268,16 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   label: {
-    fontSize: 14,
-    color: palette.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    color: palette.ink,
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
+    minHeight: 52,
+    borderWidth: 1.5,
     borderColor: palette.border,
-    borderRadius: 18,
+    borderRadius: radii.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: palette.surface,
@@ -288,13 +294,16 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
   },
   coverButton: {
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: 18,
+    minHeight: 52,
+    borderWidth: 1.5,
+    borderColor: palette.borderStrong,
+    borderRadius: radii.md,
     paddingHorizontal: 14,
     paddingVertical: 14,
     backgroundColor: palette.surface,
     alignItems: "center",
+    justifyContent: "center",
+    ...shadows.soft,
   },
   coverButtonText: {
     color: palette.text,
@@ -312,6 +321,8 @@ const styles = StyleSheet.create({
   deleteButton: {
     marginTop: 20,
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
     paddingVertical: 14,
   },
   deleteButtonText: {

@@ -1,10 +1,12 @@
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native"
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useState } from "react"
 import { router } from "expo-router"
 
 import AppButton from "@/components/AppButton"
 import AppInput from "@/components/AppInput"
-import { palette } from "@/constants/theme"
+import { BookDoodles } from "@/components/BookDoodles"
+import GentleEntrance from "@/components/GentleEntrance"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { signUp } from "@/services/authentication"
 
 export default function Signup() {
@@ -13,82 +15,45 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
 
   const handleSignup = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill all fields")
-      return
-    }
-
+    if (!email || !password) { Alert.alert("Error", "Please fill all fields"); return }
     setLoading(true)
     const { error } = await signUp(email, password)
     setLoading(false)
-
-    if (error) {
-      Alert.alert("Signup failed", error.message)
-      return
-    }
-
+    if (error) { Alert.alert("Signup failed", error.message); return }
     Alert.alert("Success", "Please login.")
     router.replace("/login")
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Join the circle</Text>
-        <Text style={styles.title}>Create your account.</Text>
-        <Text style={styles.subtitle}>Start building your shelf and matching with readers nearby.</Text>
-
-        <AppInput placeholder="Email" value={email} onChangeText={setEmail} />
-        <AppInput placeholder="Password" value={password} secure onChangeText={setPassword} />
-
-        <AppButton title="Sign Up" onPress={handleSignup} loading={loading} />
-
-        <Pressable onPress={() => router.push("/login")}>
-          <Text style={styles.link}>Already have an account? Login</Text>
-        </Pressable>
-      </View>
-    </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <GentleEntrance style={styles.card}>
+          <BookDoodles compact />
+          <Text style={styles.eyebrow}>CommonShelf · Join the circle</Text>
+          <Text style={styles.title}>Make room for a new story.</Text>
+          <Text style={styles.subtitle}>Build your shelf and meet readers in your community.</Text>
+          <View style={styles.form}>
+            <AppInput placeholder="Email" value={email} onChangeText={setEmail} />
+            <AppInput placeholder="Password" value={password} secure onChangeText={setPassword} />
+            <AppButton title="Create account" onPress={handleSignup} loading={loading} />
+          </View>
+          <Pressable style={styles.linkTarget} onPress={() => router.push("/login")} accessibilityRole="link">
+            <Text style={styles.link}>Already have an account? Log in</Text>
+          </Pressable>
+        </GentleEntrance>
+      </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: palette.background,
-  },
-  card: {
-    backgroundColor: palette.surface,
-    borderRadius: 28,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: palette.textSoft,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: palette.text,
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 22,
-    fontSize: 15,
-    lineHeight: 22,
-    color: palette.textMuted,
-  },
-  link: {
-    marginTop: 20,
-    textAlign: "center",
-    color: palette.textSoft,
-    fontWeight: "700",
-  },
+  flex: { flex: 1, backgroundColor: palette.background },
+  container: { flexGrow: 1, justifyContent: "center", padding: 20, paddingVertical: 32 },
+  card: { width: "100%", maxWidth: layout.formMax, alignSelf: "center", backgroundColor: palette.paper, borderRadius: radii.xl, borderCurve: "continuous", padding: 24, borderWidth: 1.5, borderColor: palette.borderStrong, ...shadows.lifted },
+  eyebrow: { marginTop: 12, fontSize: 12, fontWeight: "800", color: palette.accentDark, textTransform: "uppercase", letterSpacing: 1.4 },
+  title: { marginTop: 7, fontFamily: typography.serif, fontSize: 32, lineHeight: 38, fontWeight: "700", color: palette.ink },
+  subtitle: { marginTop: 7, fontSize: 15, lineHeight: 22, color: palette.textMuted },
+  form: { marginTop: 22 },
+  linkTarget: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  link: { color: palette.accentDark, fontWeight: "800", textDecorationLine: "underline" },
 })

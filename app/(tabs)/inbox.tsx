@@ -12,7 +12,7 @@ import {
 import { router, useFocusEffect } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
-import { palette } from "@/constants/theme"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import {
   decideBorrowRequest,
@@ -217,17 +217,17 @@ function formatDate(value: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.background },
-  content: { padding: 20, paddingBottom: 36, gap: 22 },
+  content: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 20, paddingBottom: 36, gap: 22 },
   emptyContent: { flexGrow: 1 },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
-  title: { fontSize: 28, fontWeight: "700", color: palette.text },
+  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
   subtitle: { fontSize: 14, color: palette.textMuted, marginTop: 5 },
   markRead: { color: palette.accentDark, fontSize: 13, fontWeight: "700" },
   error: { color: palette.danger },
   section: { gap: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: "700", color: palette.text },
-  requestCard: { flexDirection: "row", gap: 12, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
-  notificationCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  sectionTitle: { fontFamily: typography.serif, fontSize: 18, fontWeight: "700", color: palette.text },
+  requestCard: { flexDirection: "row", gap: 12, padding: 16, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, backgroundColor: palette.surface, ...shadows.soft },
+  notificationCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, backgroundColor: palette.surface, ...shadows.soft },
   unreadCard: { borderColor: palette.accent, backgroundColor: palette.accentSoft },
   iconWrap: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: palette.accentSoft },
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: palette.accent },
@@ -237,13 +237,13 @@ const styles = StyleSheet.create({
   message: { color: palette.textMuted, fontSize: 14, lineHeight: 20 },
   date: { color: palette.textMuted, fontSize: 12 },
   actions: { flexDirection: "row", gap: 10, marginTop: 8 },
-  actionButton: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 13 },
+  actionButton: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingVertical: 10, borderRadius: radii.md },
   declineButton: { backgroundColor: palette.dangerSoft },
   approveButton: { backgroundColor: palette.success },
   declineText: { color: palette.danger, fontWeight: "700" },
   approveText: { color: palette.white, fontWeight: "700" },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 10 },
-  emptyTitle: { color: palette.text, fontSize: 20, fontWeight: "700" },
+  emptyTitle: { color: palette.text, fontFamily: typography.serif, fontSize: 21, fontWeight: "700" },
   emptyText: { color: palette.textMuted, textAlign: "center", lineHeight: 20 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background },
 })

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "book-tinder",
+    "name": "CommonShelf",
     "slug": "book-tinder",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -45,9 +45,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#FFF9ED",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#38332D"
           }
         }
       ],

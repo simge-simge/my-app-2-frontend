@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native"
 
-import { palette } from "@/constants/theme"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { ApiError } from "@/services/api"
 import {
   requestCommunityJoin,
@@ -159,23 +159,23 @@ export default function CommunitySearch() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.background, padding: 20, gap: 12 },
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: palette.border, borderRadius: 16, paddingHorizontal: 14, minHeight: 50, backgroundColor: palette.surface },
+  container: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", backgroundColor: palette.background, padding: 20, gap: 12 },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, paddingHorizontal: 14, minHeight: 52, backgroundColor: palette.surface },
   searchInput: { flex: 1, color: palette.text, fontSize: 16, paddingVertical: 12 },
   list: { paddingTop: 6, paddingBottom: 30, gap: 10 },
   emptyList: { flexGrow: 1 },
-  communityRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: 18, padding: 15 },
+  communityRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: palette.surface, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, padding: 15, ...shadows.soft },
   communityDetails: { flex: 1, gap: 7 },
-  communityName: { color: palette.text, fontSize: 17, fontWeight: "700" },
+  communityName: { color: palette.text, fontFamily: typography.serif, fontSize: 18, fontWeight: "700" },
   metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
   metaText: { color: palette.textMuted, fontSize: 12 },
   metaDot: { color: palette.textMuted, marginHorizontal: 2 },
-  joinButton: { minWidth: 70, minHeight: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, backgroundColor: palette.accent },
+  joinButton: { minWidth: 70, minHeight: 44, borderRadius: radii.md, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, backgroundColor: palette.accent, borderWidth: 1, borderColor: palette.accentDark },
   joinButtonDisabled: { backgroundColor: palette.surfaceMuted },
   joinButtonPressed: { opacity: 0.75 },
   joinButtonText: { color: palette.white, fontSize: 13, fontWeight: "700" },
   joinButtonTextDisabled: { color: palette.textMuted },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  emptyTitle: { color: palette.text, fontSize: 17, fontWeight: "700", marginTop: 4 },
+  emptyTitle: { color: palette.text, fontFamily: typography.serif, fontSize: 19, fontWeight: "700", marginTop: 4 },
   emptyText: { color: palette.textMuted, fontSize: 14 },
 })

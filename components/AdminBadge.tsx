@@ -6,7 +6,7 @@ import { palette } from "@/constants/theme"
 export default function AdminBadge() {
   return (
     <View style={styles.badge} accessibilityLabel="Community admin">
-      <Ionicons name="shield-checkmark" size={12} color={palette.accentDark} />
+      <Ionicons name="book" size={12} color={palette.ink} />
       <Text style={styles.text}>Admin</Text>
     </View>
   )
@@ -20,12 +20,14 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: palette.accentSoft,
-    transform: [{ translateY: 4 }],
+    borderRadius: 4,
+    backgroundColor: palette.yellow,
+    borderWidth: 1,
+    borderColor: palette.borderStrong,
+    transform: [{ rotate: "-2deg" }],
   },
   text: {
-    color: palette.accentDark,
+    color: palette.ink,
     fontSize: 11,
     fontWeight: "700",
   },

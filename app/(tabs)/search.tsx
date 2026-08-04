@@ -13,7 +13,7 @@ import {
 } from "react-native"
 
 import BookDisplay from "@/components/BookDisplay"
-import { palette } from "@/constants/theme"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { requestToBorrowBook, searchBooks, type Book, type SearchScope } from "@/services/books"
 import { searchProfiles, type ProfileSearchResult } from "@/services/profile"
 import { supabase } from "@/utils/supabase"
@@ -136,6 +136,9 @@ export default function Search() {
 
   return (
     <View style={styles.container}>
+      <Text style={styles.title}>Search</Text>
+      <Text style={styles.subtitle}>Find books and readers in your community</Text>
+
       <SegmentedControl
         accessibilityLabel="Search type"
         options={SEARCH_MODES}
@@ -312,25 +315,43 @@ const styles = StyleSheet.create({
     backgroundColor: palette.background,
     paddingHorizontal: 18,
     paddingTop: 16,
+    width: "100%",
+    maxWidth: layout.contentMax,
+    alignSelf: "center",
+  },
+  title: {
+    fontFamily: typography.serif,
+    fontSize: 30,
+    fontWeight: "700",
+    color: palette.text,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: palette.textMuted,
+    marginTop: 6,
+    marginBottom: 18,
   },
   segmented: {
     flexDirection: "row",
     gap: 4,
     padding: 4,
-    borderRadius: 12,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
     backgroundColor: palette.surfaceMuted,
     marginBottom: 10,
   },
   segment: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 9,
     paddingHorizontal: 12,
   },
   segmentSelected: {
-    backgroundColor: palette.surfaceStrong,
+    backgroundColor: palette.accent,
+    ...shadows.soft,
   },
   segmentText: {
     fontSize: 14,
@@ -346,14 +367,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: palette.borderStrong,
+    borderRadius: radii.md,
     paddingHorizontal: 14,
     marginBottom: 16,
   },
   input: { flex: 1, paddingVertical: 12, fontSize: 16, color: palette.text },
-  clearButton: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
+  clearButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   error: { color: palette.danger, marginBottom: 12 },
   listContent: { paddingBottom: 24 },
   emptyListContent: { flexGrow: 1, justifyContent: "center" },
@@ -361,7 +382,7 @@ const styles = StyleSheet.create({
   bookCell: { flexGrow: 1, flexBasis: 0, width: "48%" },
   bookCard: { width: "100%" },
   borrowButton: {
-    minHeight: 42,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 13,
@@ -379,9 +400,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     marginBottom: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: palette.borderStrong,
     backgroundColor: palette.surface,
   },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceMuted },
@@ -391,8 +412,8 @@ const styles = StyleSheet.create({
   userNameRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   userName: { flexShrink: 1, fontSize: 17, fontWeight: "700", color: palette.text },
   communityName: { fontSize: 13, color: palette.textMuted },
-  emptyState: { alignItems: "center", paddingHorizontal: 24, gap: 8 },
-  emptyTitle: { marginTop: 4, fontSize: 20, fontWeight: "700", color: palette.text },
+  emptyState: { alignSelf: "center", alignItems: "center", paddingHorizontal: 24, paddingVertical: 22, gap: 8, backgroundColor: palette.blueSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, transform: [{ rotate: "-0.5deg" }] },
+  emptyTitle: { marginTop: 4, fontFamily: typography.serif, fontSize: 20, fontWeight: "700", color: palette.text },
   emptyText: { maxWidth: 320, fontSize: 14, lineHeight: 20, color: palette.textMuted, textAlign: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
 })

@@ -1,3 +1,4 @@
+import { router, useFocusEffect } from "expo-router"
 import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
@@ -9,10 +10,9 @@ import {
   Text,
   View,
 } from "react-native"
-import { router, useFocusEffect } from "expo-router"
 
-import { palette } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
 
@@ -70,7 +70,7 @@ export default function MatchesScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Matches</Text>
-      <Text style={styles.subtitle}>Book swaps and accepted borrow requests, newest first</Text>
+      <Text style={styles.subtitle}>Book swaps and accepted borrow requests</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <FlatList
@@ -197,17 +197,17 @@ function formatMatchDate(value: string) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 24 },
-  title: { fontSize: 28, fontWeight: "700", color: palette.text },
+  container: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 18 },
+  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
   subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
   error: { color: palette.danger, marginBottom: 12 },
   listContent: { paddingBottom: 24, gap: 14 },
   emptyListContent: { flexGrow: 1, justifyContent: "center" },
   emptyState: { alignItems: "center", paddingHorizontal: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: "700", color: palette.text, marginBottom: 8 },
+  emptyTitle: { fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text, marginBottom: 8 },
   emptyText: { fontSize: 14, color: palette.textMuted, textAlign: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background },
-  card: { backgroundColor: palette.surface, borderRadius: 24, borderWidth: 1, borderColor: palette.border, padding: 16, gap: 16 },
+  card: { backgroundColor: palette.surface, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, padding: 16, gap: 16, ...shadows.soft },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   userRow: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceMuted },
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   avatarFallbackText: { fontSize: 20, fontWeight: "700", color: palette.textSoft },
   headerText: { flex: 1, gap: 4 },
   nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
-  name: { fontSize: 18, fontWeight: "700", color: palette.text },
+  name: { fontFamily: typography.serif, fontSize: 19, fontWeight: "700", color: palette.text },
   date: { fontSize: 13, color: palette.textMuted },
   statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   revealedBadge: { backgroundColor: palette.successSoft },
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   borrowMatchLabel: { fontSize: 15, fontWeight: "700", color: palette.accentDark },
   revealPanel: { borderTopWidth: 1, borderTopColor: palette.border, paddingTop: 14, gap: 12 },
   revealHint: { fontSize: 13, color: palette.textMuted, lineHeight: 18 },
-  revealButton: { backgroundColor: palette.accent, borderRadius: 16, alignItems: "center", paddingVertical: 13, paddingHorizontal: 14 },
+  revealButton: { minHeight: 48, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingVertical: 13, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.accentDark },
   revealButtonDisabled: { opacity: 0.7 },
   revealButtonText: { color: palette.white, fontSize: 15, fontWeight: "700" },
   contactsCard: { backgroundColor: palette.surfaceMuted, borderRadius: 16, padding: 12, gap: 8 },
@@ -242,5 +242,5 @@ const styles = StyleSheet.create({
   cover: { width: "100%", height: 150, borderRadius: 14, backgroundColor: palette.surfaceMuted, marginBottom: 10 },
   coverFallback: { alignItems: "center", justifyContent: "center" },
   coverFallbackText: { fontSize: 34, fontWeight: "700", color: palette.textSoft },
-  bookTitle: { fontSize: 15, fontWeight: "700", color: palette.text, lineHeight: 20 },
+  bookTitle: { fontFamily: typography.serif, fontSize: 16, fontWeight: "700", color: palette.text, lineHeight: 20 },
 })

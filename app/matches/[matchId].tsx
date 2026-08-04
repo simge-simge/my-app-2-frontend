@@ -11,7 +11,7 @@ import {
 } from "react-native"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 
-import { palette } from "@/constants/theme"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
 import { getCachedApiData } from "@/services/api"
 import {
@@ -216,13 +216,13 @@ function formatMatchDate(value: string) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 18, backgroundColor: palette.background, gap: 16 },
+  container: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 18, backgroundColor: palette.background, gap: 16 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background, paddingHorizontal: 24 },
-  heroCard: { backgroundColor: palette.surface, borderRadius: 24, borderWidth: 1, borderColor: palette.border, padding: 18, gap: 16 },
+  heroCard: { backgroundColor: palette.surface, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, padding: 18, gap: 16, ...shadows.soft },
   heroHeader: { flexDirection: "row", alignItems: "center", gap: 14 },
   heroText: { flex: 1, gap: 4 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  title: { fontSize: 26, fontWeight: "700", color: palette.text, flex: 1 },
+  title: { fontFamily: typography.serif, fontSize: 26, fontWeight: "700", color: palette.text, flex: 1 },
   subtitle: { fontSize: 14, color: palette.textMuted },
   statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   revealedBadge: { backgroundColor: palette.successSoft },
@@ -232,8 +232,8 @@ const styles = StyleSheet.create({
   pendingText: { color: palette.textSoft },
   statusBlock: { gap: 8 },
   statusLine: { fontSize: 14, color: palette.textMuted, lineHeight: 20 },
-  section: { backgroundColor: palette.surface, borderRadius: 24, borderWidth: 1, borderColor: palette.border, padding: 16, gap: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: palette.text },
+  section: { backgroundColor: palette.surface, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, padding: 16, gap: 12, ...shadows.soft },
+  sectionTitle: { fontFamily: typography.serif, fontSize: 19, fontWeight: "700", color: palette.text },
   borrowExplanation: { fontSize: 14, lineHeight: 20, color: palette.textMuted },
   avatar: { backgroundColor: palette.surfaceMuted },
   avatarFallback: { alignItems: "center", justifyContent: "center" },
@@ -242,12 +242,12 @@ const styles = StyleSheet.create({
   cover: { width: "100%", height: 240, borderRadius: 16, backgroundColor: palette.surfaceMuted },
   coverFallback: { alignItems: "center", justifyContent: "center" },
   coverFallbackText: { fontSize: 42, fontWeight: "700", color: palette.textSoft },
-  bookTitle: { fontSize: 20, fontWeight: "700", color: palette.text },
+  bookTitle: { fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text },
   infoRow: { gap: 4 },
   infoLabel: { fontSize: 12, fontWeight: "700", color: palette.textMuted, textTransform: "uppercase", letterSpacing: 0.4 },
   infoValue: { fontSize: 15, color: palette.text },
   infoValueMultiline: { lineHeight: 22 },
-  revealButton: { backgroundColor: palette.accent, borderRadius: 16, alignItems: "center", paddingVertical: 13, paddingHorizontal: 14 },
+  revealButton: { minHeight: 48, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingVertical: 13, paddingHorizontal: 14 },
   revealButtonText: { color: palette.white, fontSize: 15, fontWeight: "700" },
   contactsCard: { backgroundColor: palette.surfaceMuted, borderRadius: 16, padding: 12, gap: 8 },
   contactsTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   contactRow: { gap: 2 },
   contactLabel: { fontSize: 12, fontWeight: "600", color: palette.textMuted },
   contactValue: { fontSize: 14, color: palette.text },
-  deleteButton: { backgroundColor: palette.dangerSoft, borderRadius: 16, alignItems: "center", paddingVertical: 14, marginBottom: 12 },
+  deleteButton: { minHeight: 48, justifyContent: "center", backgroundColor: palette.dangerSoft, borderRadius: radii.md, alignItems: "center", paddingVertical: 14, marginBottom: 12 },
   deleteButtonText: { color: palette.danger, fontSize: 15, fontWeight: "700" },
   actionDisabled: { opacity: 0.7 },
   emptyTitle: { fontSize: 22, fontWeight: "700", color: palette.text, marginBottom: 8 },

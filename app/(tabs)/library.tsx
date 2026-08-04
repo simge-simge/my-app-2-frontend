@@ -9,9 +9,10 @@ import {
   View,
 } from "react-native"
 import { router, useFocusEffect } from "expo-router"
+import { Ionicons } from "@expo/vector-icons"
 
 import BookDisplay from "@/components/BookDisplay"
-import { palette } from "@/constants/theme"
+import { palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getMyBooks, type Book } from "@/services/books"
 
@@ -79,13 +80,14 @@ export default function Library() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.text} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
+            <View style={styles.emptyIllustration}><Ionicons name="library-outline" size={34} color={palette.ink} /></View>
             <Text style={styles.emptyTitle}>No books yet</Text>
-            <Text style={styles.emptyText}>Add books from the app and they will appear here.</Text>
+            <Text style={styles.emptyText}>Add your first book and begin a shelf worth sharing.</Text>
           </View>
         }
       />
 
-      <Pressable style={styles.addButton} onPress={() => router.push("/books/new")}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Add book" style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={() => router.push("/books/new")}>
         <Text style={styles.addButtonText}>+</Text>
       </Pressable>
     </View>
@@ -97,10 +99,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
     paddingHorizontal: 18,
-    paddingTop: 24,
+    paddingTop: 18,
+    width: "100%",
+    maxWidth: 960,
+    alignSelf: "center",
   },
   title: {
-    fontSize: 28,
+    fontFamily: typography.serif,
+    fontSize: 30,
     fontWeight: "700",
     color: palette.text,
   },
@@ -128,8 +134,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
   },
+  emptyIllustration: { width: 78, height: 62, borderRadius: radii.md, borderWidth: 1.5, borderColor: palette.borderStrong, backgroundColor: palette.yellow, alignItems: "center", justifyContent: "center", marginBottom: 14, transform: [{ rotate: "-3deg" }] },
   emptyTitle: {
-    fontSize: 20,
+    fontFamily: typography.serif,
+    fontSize: 21,
     fontWeight: "700",
     color: palette.text,
     marginBottom: 8,
@@ -149,18 +157,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 24,
     alignSelf: "center",
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: palette.accent,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: palette.accentDark,
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: palette.accentDark,
+    ...shadows.lifted,
   },
+  addButtonPressed: { transform: [{ scale: 0.94 }] },
   addButtonText: {
     color: palette.white,
     fontSize: 34,

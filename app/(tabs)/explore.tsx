@@ -1,5 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { Ionicons } from "@expo/vector-icons"
+import { useFocusEffect } from "expo-router"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Animated,
   Dimensions,
@@ -10,9 +13,8 @@ import {
   useWindowDimensions,
   View,
 } from "react-native"
-import { useFocusEffect } from "expo-router"
 
-import { palette } from "@/constants/theme"
+import { palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getBookFeed, type Book } from "@/services/books"
 import { createSwipe, type SwipeDirection } from "@/services/swipes"
@@ -30,8 +32,15 @@ export default function Explore() {
   const [error, setError] = useState<string | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimatingSwipe, setIsAnimatingSwipe] = useState(false)
+  const [reduceMotion, setReduceMotion] = useState(false)
   const position = useRef(new Animated.ValueXY()).current
   const { width } = useWindowDimensions()
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion)
+    return () => subscription.remove()
+  }, [])
 
   const loadBooks = useCallback(async (showLoader = false) => {
     if (showLoader && !hasLoaded.current) setLoading(true)
@@ -67,7 +76,7 @@ export default function Explore() {
     setIsAnimatingSwipe(true)
     Animated.timing(position, {
       toValue: { x: direction === "right" ? width + 120 : -width - 120, y: 0 },
-      duration: SWIPE_OUT_DURATION,
+      duration: reduceMotion ? 0 : SWIPE_OUT_DURATION,
       useNativeDriver: true,
     }).start(async ({ finished }) => {
       if (!finished) {
@@ -92,15 +101,16 @@ export default function Explore() {
         setIsAnimatingSwipe(false)
       }
     })
-  }, [books, currentIndex, isAnimatingSwipe, position, width])
+  }, [books, currentIndex, isAnimatingSwipe, position, reduceMotion, width])
 
   const resetPosition = useCallback(() => {
+    if (reduceMotion) { position.setValue({ x: 0, y: 0 }); return }
     Animated.spring(position, {
       toValue: { x: 0, y: 0 },
       useNativeDriver: true,
       friction: 5,
     }).start()
-  }, [position])
+  }, [position, reduceMotion])
 
   const panResponder = useMemo(() =>
     PanResponder.create({
@@ -146,12 +156,13 @@ export default function Explore() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Explore</Text>
-      <Text style={styles.subtitle}>Swipe right or left to move through your community feed</Text>
+      <Text style={styles.subtitle}>Swipe to move through your community feed</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={[styles.content, books.length === 0 && styles.emptyListContent]}>
         {books.length === 0 || !activeBook ? (
           <View style={styles.emptyState}>
+            <View style={styles.emptyIllustration}><Ionicons name="book-outline" size={36} color={palette.ink} /></View>
             <Text style={styles.emptyTitle}>No books to explore</Text>
             <Text style={styles.emptyText}>You have seen every available book in your feed for now.</Text>
           </View>
@@ -197,7 +208,7 @@ export default function Explore() {
 }
 
 function BookCard({ book }: { book: Book }) {
-  const coverHeight = Math.min(Dimensions.get("window").width * 0.95, 360)
+  const coverHeight = Math.min(Dimensions.get("window").width * 0.78, 330)
 
   return (
     <View key={book.id} style={styles.cardInner}>
@@ -222,30 +233,28 @@ function BookCard({ book }: { book: Book }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 24 },
-  title: { fontSize: 28, fontWeight: "700", color: palette.text },
+  container: { flex: 1, width: "100%", maxWidth: 620, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 18 },
+  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
   subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
   error: { color: palette.danger, marginBottom: 12 },
   content: { flex: 1, paddingBottom: 28 },
   deckSection: { flex: 1, paddingTop: 10 },
-  deck: { flex: 1, minHeight: 620, position: "relative" },
+  deck: { flex: 1, minHeight: 535, position: "relative" },
   card: {
     position: "absolute",
     width: "100%",
     backgroundColor: palette.surface,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderRadius: radii.lg,
+    borderCurve: "continuous",
+    borderWidth: 1.5,
+    borderColor: palette.borderStrong,
     overflow: "hidden",
-    shadowColor: palette.accentDark,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
+    ...shadows.lifted,
   },
   topCard: { top: 0, zIndex: 10 },
   stackedCard: { left: 0 },
   emptyState: { alignItems: "center", paddingHorizontal: 24 },
+  emptyIllustration: { width: 78, height: 60, borderRadius: radii.md, backgroundColor: palette.blue, borderWidth: 1.5, borderColor: palette.borderStrong, alignItems: "center", justifyContent: "center", marginBottom: 14, transform: [{ rotate: "2deg" }] },
   emptyListContent: { flexGrow: 1, justifyContent: "center" },
   cardInner: { backgroundColor: palette.surface },
   cover: { width: "100%", backgroundColor: palette.surfaceMuted },
@@ -264,13 +273,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   author: { flex: 1, textAlign: "right", fontSize: 14, color: palette.textMuted },
-  cardTitle: { fontSize: 28, fontWeight: "800", lineHeight: 34, color: palette.text },
+  cardTitle: { fontFamily: typography.serif, fontSize: 26, fontWeight: "700", lineHeight: 31, color: palette.text },
   description: { fontSize: 15, lineHeight: 22, color: palette.textMuted },
   swipeBadge: { position: "absolute", top: 24, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 3, borderRadius: 14, zIndex: 20, transform: [{ rotate: "-12deg" }] },
   likeBadge: { left: 20, borderColor: palette.success, backgroundColor: "rgba(47, 125, 87, 0.12)" },
   nopeBadge: { right: 20, borderColor: palette.danger, backgroundColor: "rgba(181, 74, 53, 0.12)", transform: [{ rotate: "12deg" }] },
   swipeBadgeText: { fontSize: 18, fontWeight: "800", color: palette.text, letterSpacing: 1 },
-  emptyTitle: { fontSize: 20, fontWeight: "700", color: palette.text, marginBottom: 8 },
+  emptyTitle: { fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text, marginBottom: 8 },
   emptyText: { fontSize: 14, color: palette.textMuted, textAlign: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background },
   counter: { marginTop: 22, textAlign: "center", fontSize: 14, fontWeight: "700", color: palette.textMuted },

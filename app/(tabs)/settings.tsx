@@ -13,7 +13,7 @@ import { useCallback, useState } from "react"
 import { useFocusEffect, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
-import { palette } from "@/constants/theme"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
 import { getProfile, updateProfile, deleteAccount, type Profile } from "@/services/profile"
 import { signOut } from "@/services/authentication"
@@ -330,15 +330,20 @@ const styles = StyleSheet.create({
   container: {
     padding: 24,
     backgroundColor: palette.background,
+    width: "100%",
+    maxWidth: layout.readingMax,
+    alignSelf: "center",
   },
   card: {
     backgroundColor: palette.surface,
-    borderRadius: 28,
+    borderRadius: radii.lg,
     padding: 22,
-    borderWidth: 1,
-    borderColor: palette.border,
+    borderWidth: 1.5,
+    borderColor: palette.borderStrong,
+    ...shadows.soft,
   },
   section: {
+    fontFamily: typography.serif,
     fontSize: 20,
     fontWeight: "700",
     color: palette.text,
@@ -368,10 +373,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
+    minHeight: 52,
     width: "100%",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: palette.border,
-    borderRadius: 18,
+    borderRadius: radii.md,
     padding: 14,
     paddingRight: 58,
     backgroundColor: palette.background,
@@ -384,9 +390,9 @@ const styles = StyleSheet.create({
   fieldAction: {
     position: "absolute",
     right: 7,
-    top: 6,
-    width: 38,
-    height: 38,
+    top: 3,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -422,9 +428,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: palette.borderStrong,
+    borderRadius: radii.md,
     backgroundColor: palette.surfaceMuted,
     padding: 14,
     marginTop: -6,

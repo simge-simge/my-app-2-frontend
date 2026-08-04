@@ -1,10 +1,12 @@
-import { Alert, StyleSheet, Text, View } from "react-native"
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useState } from "react"
 import { router } from "expo-router"
 
 import AppButton from "@/components/AppButton"
 import AppInput from "@/components/AppInput"
-import { palette } from "@/constants/theme"
+import { BookDoodles } from "@/components/BookDoodles"
+import GentleEntrance from "@/components/GentleEntrance"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { signIn } from "@/services/authentication"
 
 export default function Login() {
@@ -13,74 +15,40 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert("Login failed", "Please enter your email and password.")
-      return
-    }
-
+    if (!email.trim() || !password) { Alert.alert("Login failed", "Please enter your email and password."); return }
     try {
       setLoading(true)
       const { error } = await signIn(email.trim(), password)
-
-      if (error) {
-        Alert.alert("Login failed", error.message)
-        return
-      }
-
+      if (error) { Alert.alert("Login failed", error.message); return }
       router.replace("/(tabs)/home")
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Welcome back</Text>
-        <Text style={styles.title}>Sign in to your shelf.</Text>
-        <Text style={styles.subtitle}>Pick up where you left off and keep your reading circle moving.</Text>
-
-        <AppInput placeholder="Email" value={email} onChangeText={setEmail} />
-        <AppInput placeholder="Password" value={password} secure onChangeText={setPassword} />
-
-        <AppButton title="Login" onPress={handleLogin} loading={loading} />
-      </View>
-    </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <GentleEntrance style={styles.card}>
+          <BookDoodles compact />
+          <Text style={styles.eyebrow}>CommonShelf · Welcome back</Text>
+          <Text style={styles.title}>Return to your shelf.</Text>
+          <Text style={styles.subtitle}>Your next bookish conversation is waiting.</Text>
+          <View style={styles.form}>
+            <AppInput placeholder="Email" value={email} onChangeText={setEmail} />
+            <AppInput placeholder="Password" value={password} secure onChangeText={setPassword} />
+            <AppButton title="Log in" onPress={handleLogin} loading={loading} />
+          </View>
+        </GentleEntrance>
+      </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: palette.background,
-  },
-  card: {
-    backgroundColor: palette.surface,
-    borderRadius: 28,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: palette.textSoft,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: palette.text,
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 22,
-    fontSize: 15,
-    lineHeight: 22,
-    color: palette.textMuted,
-  },
+  flex: { flex: 1, backgroundColor: palette.background },
+  container: { flexGrow: 1, justifyContent: "center", padding: 20, paddingVertical: 32 },
+  card: { width: "100%", maxWidth: layout.formMax, alignSelf: "center", backgroundColor: palette.paper, borderRadius: radii.xl, borderCurve: "continuous", padding: 24, borderWidth: 1.5, borderColor: palette.borderStrong, ...shadows.lifted },
+  eyebrow: { marginTop: 12, fontSize: 12, fontWeight: "800", color: palette.accentDark, textTransform: "uppercase", letterSpacing: 1.4 },
+  title: { marginTop: 7, fontFamily: typography.serif, fontSize: 32, lineHeight: 38, fontWeight: "700", color: palette.ink },
+  subtitle: { marginTop: 7, fontSize: 15, lineHeight: 22, color: palette.textMuted },
+  form: { marginTop: 22 },
 })

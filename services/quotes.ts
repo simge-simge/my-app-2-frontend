@@ -30,7 +30,7 @@ export function getRandomQuote(): Quote {
   if (validQuotes.length === 0) {
     return {
       quote: "A good story can still surprise you when you open the page again.",
-      author: "Book Tinder",
+      author: "CommonShelf",
     }
   }
 

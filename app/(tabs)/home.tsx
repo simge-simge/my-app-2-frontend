@@ -1,383 +1,498 @@
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
-import { useCallback, useState } from "react"
-import { useFocusEffect, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
+import { useFocusEffect, useRouter } from "expo-router"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native"
 
 import AdminBadge from "@/components/AdminBadge"
+import { BookDoodles } from "@/components/BookDoodles"
+import GentleEntrance from "@/components/GentleEntrance"
+import LandingBookRail from "@/components/LandingBookRail"
+import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
-import { getBookFeed, getMyBooks } from "@/services/books"
+import { getBookFeed, getMyBooks, searchBooks, type Book } from "@/services/books"
+import { getInbox, type InboxResponse } from "@/services/inbox"
 import { getMatches } from "@/services/matches"
 import { getProfile, type Profile } from "@/services/profile"
-import { getInbox, type InboxResponse } from "@/services/inbox"
-import { getRandomHomeDisplayImage, getRandomQuote, type Quote } from "@/services/quotes"
+
+const GLOBAL_PREVIEW_QUERIES = ["a", "e", "i"] as const
+
+function getPreviewCacheKey(query: string) {
+  return `/books/search?q=${encodeURIComponent(query)}&scope=all`
+}
+
+function selectPreviewBooks(results: Book[]) {
+  const unique = [...new Map(results.map((book) => [book.id, book])).values()]
+  const byCommunity = new Map<string, Book[]>()
+
+  for (const book of unique) {
+    const key = book.community_id || "unknown"
+    byCommunity.set(key, [...(byCommunity.get(key) ?? []), book])
+  }
+
+  const communities = [...byCommunity.values()]
+  const varied: Book[] = []
+  for (let index = 0; varied.length < 12; index += 1) {
+    let added = false
+    for (const communityBooks of communities) {
+      const book = communityBooks[index]
+      if (book) {
+        varied.push(book)
+        added = true
+      }
+      if (varied.length === 12) break
+    }
+    if (!added) break
+  }
+
+  return varied
+}
 
 export default function Home() {
   const router = useRouter()
+  const { width } = useWindowDimensions()
+  const isWide = width >= 880
   const cachedProfile = getCachedApiData<Profile>("/profile/me/")
   const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
-  const { width, height } = useWindowDimensions()
-  const isNarrow = width < 380
-  const isCompact = height < 760
-  const isWide = width >= 768
-  const imageHeight = isWide ? 300 : isCompact ? 170 : Math.min(250, Math.max(190, height * 0.28))
+  const cachedFeed = getCachedApiData<Book[]>("/books/feed")
+  const cachedPreviewResponses = GLOBAL_PREVIEW_QUERIES.map((query) =>
+    getCachedApiData<Book[]>(getPreviewCacheKey(query)),
+  )
+  const cachedPreview = selectPreviewBooks(cachedPreviewResponses.flatMap((response) => response ?? []))
+  const previewCacheResolved = cachedPreviewResponses.every((response) => response !== undefined)
 
-  const [name, setName] = useState<string | null>(() => cachedProfile?.display_name ?? null)
-  const [community, setCommunity] = useState<string | null>(() => cachedProfile?.community_name ?? null)
-  const [communityLocation, setCommunityLocation] = useState<string | null>(() => cachedProfile?.community_location ?? null)
-  const [isAdmin, setIsAdmin] = useState(() => cachedProfile?.admin ?? false)
-  const [loading, setLoading] = useState(() => !cachedProfile || !cachedInbox)
+  const [profile, setProfile] = useState<Profile | null>(() => cachedProfile ?? null)
+  const profileRef = useRef<Profile | null>(cachedProfile ?? null)
+  const [profileLoading, setProfileLoading] = useState(() => !cachedProfile)
+  const [profileError, setProfileError] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(() => cachedInbox?.unread_count ?? 0)
-  const [quote, setQuote] = useState<Quote>(() => getRandomQuote())
-  const [displayImage, setDisplayImage] = useState(() => getRandomHomeDisplayImage())
+  const [books, setBooks] = useState<Book[]>(() => {
+    if (!cachedProfile) return []
+    return cachedProfile.community_id ? cachedFeed ?? [] : cachedPreview
+  })
+  const [booksLoading, setBooksLoading] = useState(() => {
+    if (!cachedProfile) return true
+    return cachedProfile.community_id ? cachedFeed === undefined : !previewCacheResolved
+  })
+  const [booksError, setBooksError] = useState<string | null>(null)
+  const [reduceMotion, setReduceMotion] = useState(false)
 
-  const loadProfile = useCallback(async () => {
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion)
+    return () => subscription.remove()
+  }, [])
+
+  const loadBooks = useCallback(async (currentProfile: Profile) => {
+    setBooksLoading(true)
+    setBooksError(null)
+
     try {
-      const [profile, inbox] = await Promise.all([getProfile(), getInbox()])
-
-      setName(profile.display_name)
-      setCommunity(profile.community_name)
-      setCommunityLocation(profile.community_location)
-      setIsAdmin(profile.admin)
-      setUnreadCount(inbox.unread_count)
-
-      // Warm the destinations linked from the dashboard. Calls are deduplicated
-      // and use the short-lived cache, so an immediate click reuses this work.
-      void Promise.allSettled([getMyBooks(), getBookFeed(), getMatches()])
-    } catch (err) {
-      console.error("Failed to load profile", err)
+      if (currentProfile.community_id) {
+        setBooks(await getBookFeed())
+      } else {
+        const results = await Promise.allSettled(
+          GLOBAL_PREVIEW_QUERIES.map((query) => searchBooks(query, "all")),
+        )
+        const successful = results.flatMap((result) => result.status === "fulfilled" ? result.value : [])
+        if (results.every((result) => result.status === "rejected")) {
+          throw results[0].status === "rejected" ? results[0].reason : new Error("Preview unavailable")
+        }
+        setBooks(selectPreviewBooks(successful))
+      }
+    } catch (error) {
+      console.error("Failed to load landing-page books", error)
+      setBooks([])
+      setBooksError(
+        currentProfile.community_id
+          ? "We couldn’t open your community shelf right now."
+          : "We couldn’t open the community preview right now.",
+      )
     } finally {
-      setLoading(false)
+      setBooksLoading(false)
     }
   }, [])
 
-  useFocusEffect(
-    useCallback(() => {
-      setQuote(getRandomQuote())
-      setDisplayImage(getRandomHomeDisplayImage())
-      loadProfile()
-    }, [loadProfile])
-  )
+  const loadHome = useCallback(async () => {
+    if (!profileRef.current) setProfileLoading(true)
+    setProfileError(null)
 
-  if (loading) {
+    const [profileResult, inboxResult] = await Promise.allSettled([getProfile(), getInbox()])
+
+    if (inboxResult.status === "fulfilled") {
+      setUnreadCount(inboxResult.value.unread_count)
+    } else {
+      console.error("Failed to load inbox summary", inboxResult.reason)
+    }
+
+    if (profileResult.status === "rejected") {
+      console.error("Failed to load profile", profileResult.reason)
+      if (!profileRef.current) setProfileError("We couldn’t open your reading room right now.")
+      setProfileLoading(false)
+      return
+    }
+
+    const nextProfile = profileResult.value
+    profileRef.current = nextProfile
+    setProfile(nextProfile)
+    setProfileLoading(false)
+    await loadBooks(nextProfile)
+    void Promise.allSettled([getMyBooks(), getMatches()])
+  }, [loadBooks])
+
+  useFocusEffect(useCallback(() => {
+    loadHome()
+  }, [loadHome]))
+
+  const hasCommunity = Boolean(profile?.community_id)
+  const communityName = profile?.community_name || "your community"
+  const availableBooks = useMemo(
+    () => books.filter((book) => book.status === "available"),
+    [books],
+  )
+  const previewRows = useMemo(() => {
+    const visible = availableBooks.slice(0, 10)
+    const midpoint = Math.max(1, Math.ceil(visible.length / 2))
+    return [visible.slice(0, midpoint), visible.slice(midpoint)]
+  }, [availableBooks])
+
+  if (profileLoading && !profile) return <MembershipLoading />
+
+  if (!profile && profileError) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#183153" />
+      <View style={styles.fullState}>
+        <BookDoodles compact />
+        <Text style={styles.stateTitle}>Your shelf is still tucked away.</Text>
+        <Text style={styles.stateText}>{profileError}</Text>
+        <PrimaryAction label="Try again" icon="refresh" onPress={loadHome} />
       </View>
     )
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[
-        styles.container,
-        isCompact && styles.compactContainer,
-        isWide && styles.wideContainer,
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <View style={styles.headerDetails}>
-          <Text style={styles.eyebrow}>Welcome back</Text>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{name ?? "User"}</Text>
-            {isAdmin ? <AdminBadge /> : null}
-          </View>
-          {community ? (
-            <Text style={styles.community}>{community}</Text>
-          ) : (
-            <Pressable onPress={() => router.push("/communities/search")} accessibilityRole="button">
-              <Text style={styles.joinCommunityPrompt}>Not in a community yet? Click here to join one</Text>
-            </Pressable>
-          )}
-          {communityLocation ? (
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={15} color="#6D5D4B" />
-              <Text style={styles.location}>{communityLocation}</Text>
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <HomeHeader
+          profile={profile}
+          unreadCount={unreadCount}
+          onInbox={() => router.push("/inbox")}
+          onSettings={() => router.push("/settings")}
+          onFindCommunity={() => router.push("/communities/search")}
+        />
+
+        <View style={[styles.landingGrid, isWide && styles.landingGridWide]}>
+          <GentleEntrance style={[styles.hero, isWide && styles.heroWide]}>
+            <View style={styles.heroDecor} pointerEvents="none">
+              <View style={styles.heroDot} />
+              <View style={styles.heroDash} />
             </View>
-          ) : null}
-        </View>
+            <View style={styles.heroEyebrowRow}>
+              <Ionicons name={hasCommunity ? "library-outline" : "people-outline"} size={16} color={palette.accentDark} />
+              <Text style={styles.heroEyebrow}>{hasCommunity ? "Your community shelf" : "Books are better shared"}</Text>
+            </View>
 
-        <View style={styles.headerActions}>
-          <Pressable style={styles.settingsButton} onPress={() => router.push("/inbox")} accessibilityLabel="Open inbox">
-            <Ionicons name="mail-outline" size={22} color="#183153" />
-            {unreadCount > 0 ? (
-              <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text></View>
-            ) : null}
-          </Pressable>
-          <Pressable style={styles.settingsButton} onPress={() => router.push("/settings")} accessibilityLabel="Open settings">
-            <Ionicons name="settings-outline" size={22} color="#183153" />
-          </Pressable>
+            {hasCommunity ? (
+              <>
+                <Text style={styles.communityHeroName}>{communityName}</Text>
+                <Text style={styles.heroTitle}>Your next favorite book may already be nearby.</Text>
+                <Text style={styles.heroBody}>Explore books shared by people in {communityName}. Swipe on books you love or search the community shelf.</Text>
+                <View style={[styles.heroActions, isWide && styles.heroActionsWide]}>
+                  <PrimaryAction label="Start swiping" icon="heart" onPress={() => router.push("/explore")} />
+                  <SecondaryAction label="Search books" icon="search" onPress={() => router.push("/search")} />
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.heroTitle}>Find your reading community.</Text>
+                <Text style={styles.heroBody}>Join people who live, work, or study near you. Discover books, make matches, and exchange them in person.</Text>
+                <PrimaryAction label="Find my community" icon="navigate" onPress={() => router.push("/communities/search")} />
+                <View style={styles.communityTypes} accessibilityLabel="Communities can be based around neighborhoods, workplaces, or schools">
+                  <CommunityType icon="home-outline" label="Neighborhood" />
+                  <CommunityType icon="business-outline" label="Workplace" />
+                  <CommunityType icon="school-outline" label="School" />
+                </View>
+              </>
+            )}
+          </GentleEntrance>
+
+          <GentleEntrance delay={120} style={[styles.shelfSection, isWide && styles.shelfSectionWide]}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={styles.sectionHeadingCopy}>
+                <Text style={styles.sectionEyebrow}>{hasCommunity ? "Shared nearby" : "A peek inside"}</Text>
+                <Text style={styles.sectionTitle}>{hasCommunity ? `On shelves in ${communityName}` : "Books finding new readers"}</Text>
+              </View>
+              {hasCommunity && availableBooks.length > 0 ? (
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => router.push("/explore")}
+                  style={({ pressed }) => [styles.textLink, pressed && styles.pressed]}
+                >
+                  <Text style={styles.textLinkLabel}>See all books</Text>
+                  <Ionicons name="arrow-forward" size={16} color={palette.accentDark} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {booksLoading ? (
+              <BookPreviewLoading />
+            ) : booksError ? (
+              <ShelfState
+                icon="cloud-offline-outline"
+                title="The shelf won’t open just yet."
+                body={booksError}
+                actionLabel="Try again"
+                onAction={() => profile && loadBooks(profile)}
+              />
+            ) : availableBooks.length === 0 ? (
+              hasCommunity ? (
+                <ShelfState
+                  icon="library-outline"
+                  title="Your community shelf is waiting for its first story."
+                  body="Add a book to your library and help another reader discover it."
+                  actionLabel="Add a book"
+                  onAction={() => router.push("/books/new")}
+                />
+              ) : (
+                <ShelfState
+                  icon="people-outline"
+                  title="Communities are filling their shelves."
+                  body="Join one to start discovering books near you."
+                  actionLabel="Find my community"
+                  onAction={() => router.push("/communities/search")}
+                />
+              )
+            ) : hasCommunity ? (
+              <View style={styles.railPaper}>
+                <LandingBookRail
+                  books={availableBooks.slice(0, 7)}
+                  reduceMotion={reduceMotion}
+                  onBookPress={() => router.push("/explore")}
+                />
+                <View style={styles.shelfLine} />
+                <Text style={styles.shelfHint}>Tap a book to open your swipe deck</Text>
+              </View>
+            ) : (
+              <View style={styles.previewScene}>
+                <Text style={styles.previewNote}>A glimpse of books being shared across communities</Text>
+                <LandingBookRail
+                  books={previewRows[0]}
+                  direction="left"
+                  reduceMotion={reduceMotion}
+                  showCommunity
+                  onBookPress={() => router.push("/communities/search")}
+                />
+                {previewRows[1].length > 0 ? (
+                  <LandingBookRail
+                    books={previewRows[1]}
+                    direction="right"
+                    reduceMotion={reduceMotion}
+                    showCommunity
+                    onBookPress={() => router.push("/communities/search")}
+                  />
+                ) : null}
+                <View style={styles.previewFooter}>
+                  <Ionicons name="lock-closed-outline" size={14} color={palette.textMuted} />
+                  <Text style={styles.previewFooterText}>Join a community before swiping or exchanging</Text>
+                </View>
+              </View>
+            )}
+          </GentleEntrance>
         </View>
+      </ScrollView>
+    </View>
+  )
+}
+
+function HomeHeader({
+  profile,
+  unreadCount,
+  onInbox,
+  onSettings,
+  onFindCommunity,
+}: {
+  profile: Profile | null
+  unreadCount: number
+  onInbox: () => void
+  onSettings: () => void
+  onFindCommunity: () => void
+}) {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerDetails}>
+        <Text style={styles.headerEyebrow}>CommonShelf</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>Hello, {profile?.display_name || "Reader"}</Text>
+          {profile?.admin ? <AdminBadge /> : null}
+        </View>
+        {profile?.community_name ? <Text style={styles.headerCommunity}>{profile.community_name}</Text> : (
+          <Pressable onPress={onFindCommunity} accessibilityRole="link" style={styles.joinTarget}>
+            <Text style={styles.joinCommunityPrompt}>Find a community near you →</Text>
+          </Pressable>
+        )}
+        {profile?.community_location ? (
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={15} color={palette.textMuted} />
+            <Text numberOfLines={1} style={styles.location}>{profile.community_location}</Text>
+          </View>
+        ) : null}
       </View>
-
-      <View style={styles.quoteCard}>
-        <View style={[styles.quoteImageWrap, { height: imageHeight }]}>
-          <Image source={displayImage} style={styles.quoteImage} resizeMode="cover" />
-          <View style={styles.quoteImageOverlay} />
-          <Text style={styles.quoteLabel}>Shelf Note</Text>
-        </View>
-
-        <View style={[styles.quoteContent, isCompact && styles.compactQuoteContent]}>
-          <Text style={[styles.quoteMark, isCompact && styles.compactQuoteMark]}>{"\u201c"}</Text>
-          <Text style={[styles.quoteText, isCompact && styles.compactQuoteText]}>{quote.quote}</Text>
-          <Text style={[styles.quoteAuthor, isCompact && styles.compactQuoteAuthor]}>- {quote.author}</Text>
-        </View>
+      <View style={styles.headerActions}>
+        <HeaderAction icon="mail-outline" label="Open messages" onPress={onInbox} badge={unreadCount} />
+        <HeaderAction icon="settings-outline" label="Open settings" onPress={onSettings} />
       </View>
+    </View>
+  )
+}
 
-      <View style={styles.buttons}>
-        <View style={[styles.buttonRow, isNarrow && styles.narrowButtonRow]}>
-          <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/explore")}>
-            <Ionicons name="compass-outline" size={20} color="#FFF9F0" />
-            <Text style={styles.buttonText}>Explore</Text>
-          </Pressable>
+function HeaderAction({ icon, label, onPress, badge = 0 }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; badge?: number }) {
+  return (
+    <Pressable style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={onPress} accessibilityLabel={label}>
+      <Ionicons name={icon} size={21} color={palette.ink} />
+      {badge > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text></View> : null}
+    </Pressable>
+  )
+}
 
-          <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/search")}>
-            <Ionicons name="search" size={20} color="#FFF9F0" />
-            <Text style={styles.buttonText}>Search</Text>
-          </Pressable>
-        </View>
+function PrimaryAction({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.primaryAction, pressed && styles.actionPressed]}>
+      <Text style={styles.primaryActionText}>{label}</Text>
+      <Ionicons name={icon} size={19} color={palette.paper} />
+    </Pressable>
+  )
+}
 
-        <View style={[styles.buttonRow, isNarrow && styles.narrowButtonRow]}>
-          <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/library")}>
-            <Ionicons name="library-outline" size={20} color="#FFF9F0" />
-            <Text style={styles.buttonText}>Library</Text>
-          </Pressable>
+function SecondaryAction({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.secondaryAction, pressed && styles.actionPressed]}>
+      <Ionicons name={icon} size={18} color={palette.ink} />
+      <Text style={styles.secondaryActionText}>{label}</Text>
+    </Pressable>
+  )
+}
 
-          <Pressable style={[styles.button, styles.halfButton]} onPress={() => router.push("/matches")}>
-            <Ionicons name="heart-outline" size={20} color="#FFF9F0" />
-            <Text style={styles.buttonText}>Matches</Text>
-          </Pressable>
-        </View>
+function CommunityType({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  return <View style={styles.communityType}><Ionicons name={icon} size={16} color={palette.ink} /><Text style={styles.communityTypeText}>{label}</Text></View>
+}
+
+function MembershipLoading() {
+  return (
+    <View style={styles.fullState} accessibilityLabel="Loading your community membership">
+      <View style={styles.loadingBook}>
+        <View style={styles.loadingBookmark} />
+        <ActivityIndicator color={palette.accentDark} />
       </View>
-    </ScrollView>
+      <Text style={styles.stateTitle}>Opening your reading room…</Text>
+      <Text style={styles.stateText}>Finding your community shelf</Text>
+    </View>
+  )
+}
+
+function BookPreviewLoading() {
+  return (
+    <View style={styles.loadingShelf} accessibilityLabel="Loading books">
+      {[palette.blueSoft, palette.roseSoft, palette.accentSoft].map((color, index) => (
+        <View key={color} style={[styles.skeletonBook, { backgroundColor: color, transform: [{ rotate: index === 1 ? "1deg" : "-1deg" }] }]}>
+          <ActivityIndicator color={palette.textMuted} />
+        </View>
+      ))}
+      <View style={styles.loadingShelfLine} />
+    </View>
+  )
+}
+
+function ShelfState({ icon, title, body, actionLabel, onAction }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string; actionLabel: string; onAction: () => void }) {
+  return (
+    <View style={styles.shelfState}>
+      <View style={styles.stateIllustration}>
+        <Ionicons name={icon} size={31} color={palette.ink} />
+        <View style={styles.stateBookmark} />
+      </View>
+      <Text style={styles.shelfStateTitle}>{title}</Text>
+      <Text style={styles.shelfStateText}>{body}</Text>
+      <SecondaryAction label={actionLabel} icon="arrow-forward" onPress={onAction} />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F2E8",
-  },
-  container: {
-    flexGrow: 1,
-    width: "100%",
-    maxWidth: 760,
-    alignSelf: "center",
-    paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 28,
-    backgroundColor: "#F7F2E8",
-    gap: 24,
-  },
-  compactContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
-    gap: 16,
-  },
-  wideContainer: {
-    paddingHorizontal: 32,
-    paddingTop: 28,
-    paddingBottom: 36,
-    gap: 28,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerDetails: {
-    flex: 1,
-    marginRight: 12,
-  },
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: "#9A6B39",
-    marginBottom: 6,
-  },
-  name: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: "#183153",
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  community: {
-    fontSize: 16,
-    color: "#6D5D4B",
-    marginTop: 6,
-  },
-  joinCommunityPrompt: {
-    fontSize: 14,
-    color: "#8A4522",
-    fontWeight: "700",
-    marginTop: 8,
-    textDecorationLine: "underline",
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 4,
-  },
-  location: {
-    fontSize: 14,
-    color: "#6D5D4B",
-  },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF9F0",
-    borderWidth: 1,
-    borderColor: "#E7D9C5",
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  badge: {
-    position: "absolute",
-    right: -5,
-    top: -5,
-    minWidth: 19,
-    height: 19,
-    paddingHorizontal: 4,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#B54A35",
-    borderWidth: 2,
-    borderColor: "#F7F2E8",
-  },
-  badgeText: {
-    color: "#FFF9F0",
-    fontSize: 9,
-    fontWeight: "800",
-  },
-  quoteCard: {
-    backgroundColor: "#FFF9F0",
-    borderRadius: 28,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E7D9C5",
-    shadowColor: "#74543C",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  quoteImageWrap: {
-    justifyContent: "flex-end",
-    padding: 18,
-    backgroundColor: "#183153",
-  },
-  quoteImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: "100%",
-    height: "100%",
-  },
-  quoteImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(24, 49, 83, 0.34)",
-  },
-  quoteLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    color: "#E7C38A",
-    zIndex: 1,
-  },
-  quoteContent: {
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 24,
-  },
-  compactQuoteContent: {
-    paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 18,
-  },
-  quoteMark: {
-    fontSize: 44,
-    lineHeight: 44,
-    color: "#9A6B39",
-    marginBottom: 8,
-  },
-  compactQuoteMark: {
-    fontSize: 34,
-    lineHeight: 32,
-    marginBottom: 4,
-  },
-  quoteText: {
-    fontSize: 22,
-    lineHeight: 32,
-    color: "#183153",
-    fontWeight: "600",
-  },
-  compactQuoteText: {
-    fontSize: 18,
-    lineHeight: 26,
-  },
-  quoteAuthor: {
-    marginTop: 18,
-    fontSize: 15,
-    color: "#6D5D4B",
-    fontWeight: "600",
-  },
-  compactQuoteAuthor: {
-    marginTop: 12,
-    fontSize: 14,
-  },
-  buttons: {
-    gap: 16,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 14,
-  },
-  narrowButtonRow: {
-    flexDirection: "column",
-  },
-  button: {
-    minHeight: 58,
-    flexDirection: "row",
-    backgroundColor: "#C86C3A",
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    shadowColor: "#8A4522",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  halfButton: {
-    flex: 1,
-  },
-  buttonText: {
-    color: "#FFF9F0",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F7F2E8",
-  },
+  screen: { flex: 1, backgroundColor: palette.background },
+  container: { flexGrow: 1, width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 18, paddingTop: 14, paddingBottom: 112, gap: 20 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
+  headerDetails: { flex: 1, minWidth: 0 },
+  headerEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase", color: palette.accentDark, marginBottom: 4 },
+  nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  name: { fontFamily: typography.serif, fontSize: 25, lineHeight: 31, fontWeight: "700", color: palette.ink },
+  headerCommunity: { fontSize: 14, color: palette.textMuted, marginTop: 3 },
+  joinTarget: { minHeight: 38, justifyContent: "center", alignSelf: "flex-start" },
+  joinCommunityPrompt: { fontSize: 13, color: palette.accentDark, fontWeight: "800", textDecorationLine: "underline" },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2, minWidth: 0 },
+  location: { flexShrink: 1, fontSize: 12, color: palette.textMuted },
+  headerActions: { flexDirection: "row", gap: 7 },
+  iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong },
+  pressed: { transform: [{ scale: 0.94 }] },
+  badge: { position: "absolute", right: -4, top: -4, minWidth: 19, height: 19, paddingHorizontal: 4, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: palette.danger, borderWidth: 2, borderColor: palette.background },
+  badgeText: { color: palette.paper, fontSize: 9, fontWeight: "800" },
+  landingGrid: { gap: 18 },
+  landingGridWide: { flexDirection: "row", alignItems: "stretch", gap: 24, paddingTop: 18 },
+  hero: { position: "relative", overflow: "hidden", backgroundColor: palette.yellow, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, borderCurve: "continuous", padding: 20, ...shadows.soft },
+  heroWide: { flex: 0.84, justifyContent: "center", padding: 30, minHeight: 560 },
+  heroDecor: { position: "absolute", inset: 0 },
+  heroDot: { position: "absolute", width: 90, height: 90, borderRadius: 45, right: -30, top: -28, backgroundColor: palette.rose, opacity: 0.6 },
+  heroDash: { position: "absolute", width: 82, height: 6, borderRadius: 4, right: 22, bottom: 20, backgroundColor: palette.orange, transform: [{ rotate: "-3deg" }], opacity: 0.75 },
+  heroEyebrowRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 10 },
+  heroEyebrow: { fontSize: 11, fontWeight: "900", letterSpacing: 1.3, textTransform: "uppercase", color: palette.accentDark },
+  communityHeroName: { alignSelf: "flex-start", fontSize: 13, lineHeight: 18, fontWeight: "800", color: palette.ink, backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.borderStrong, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 9, transform: [{ rotate: "-1deg" }] },
+  heroTitle: { maxWidth: 540, fontFamily: typography.serif, fontSize: 34, lineHeight: 38, fontWeight: "700", color: palette.ink },
+  heroBody: { maxWidth: 510, marginTop: 12, fontSize: 15, lineHeight: 22, color: palette.textMuted },
+  heroActions: { marginTop: 8 },
+  heroActionsWide: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  primaryAction: { minHeight: 52, marginTop: 16, paddingHorizontal: 19, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: palette.accent, borderWidth: 1.5, borderColor: palette.accentDark, ...shadows.soft },
+  primaryActionText: { color: palette.paper, fontSize: 15, fontWeight: "900" },
+  secondaryAction: { minHeight: 48, marginTop: 10, paddingHorizontal: 16, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong },
+  secondaryActionText: { color: palette.ink, fontSize: 14, fontWeight: "800" },
+  actionPressed: { transform: [{ scale: 0.97 }], shadowOpacity: 0.03 },
+  communityTypes: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  communityType: { minHeight: 34, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 99, backgroundColor: "rgba(255,252,245,0.66)", borderWidth: 1, borderColor: palette.borderStrong },
+  communityTypeText: { color: palette.ink, fontSize: 10, fontWeight: "700" },
+  shelfSection: { minWidth: 0 },
+  shelfSectionWide: { flex: 1.16, justifyContent: "center", minHeight: 560 },
+  sectionHeadingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", gap: 10, marginBottom: 9, paddingHorizontal: 2 },
+  sectionHeadingCopy: { flex: 1, minWidth: 0 },
+  sectionEyebrow: { color: palette.orange, fontSize: 10, fontWeight: "900", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 3 },
+  sectionTitle: { fontFamily: typography.serif, color: palette.ink, fontSize: 21, lineHeight: 26, fontWeight: "700" },
+  textLink: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 4 },
+  textLinkLabel: { color: palette.accentDark, fontSize: 12, fontWeight: "800", textDecorationLine: "underline" },
+  railPaper: { backgroundColor: palette.blueSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, overflow: "hidden", paddingTop: 13, ...shadows.soft },
+  shelfLine: { height: 9, marginTop: 4, marginHorizontal: 10, borderTopWidth: 2, borderColor: palette.borderStrong, backgroundColor: palette.orangeSoft, borderBottomLeftRadius: 5, borderBottomRightRadius: 5 },
+  shelfHint: { textAlign: "center", color: palette.textMuted, fontSize: 11, paddingVertical: 9, fontStyle: "italic" },
+  previewScene: { backgroundColor: palette.roseSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, overflow: "hidden", paddingVertical: 9, ...shadows.soft },
+  previewNote: { paddingHorizontal: 14, paddingVertical: 5, color: palette.textMuted, fontSize: 11, fontStyle: "italic" },
+  previewFooter: { minHeight: 38, marginHorizontal: 10, marginTop: 3, paddingHorizontal: 10, borderTopWidth: 1, borderColor: palette.border, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6 },
+  previewFooterText: { color: palette.textMuted, fontSize: 10, fontWeight: "700" },
+  fullState: { flex: 1, width: "100%", maxWidth: "100%", minWidth: 0, overflow: "hidden", alignItems: "center", justifyContent: "center", gap: 10, padding: 26, backgroundColor: palette.background },
+  loadingBook: { width: 76, height: 58, borderRadius: 9, borderWidth: 1.5, borderColor: palette.borderStrong, backgroundColor: palette.yellow, alignItems: "center", justifyContent: "center", transform: [{ rotate: "-3deg" }] },
+  loadingBookmark: { position: "absolute", top: -2, right: 13, width: 11, height: 24, backgroundColor: palette.orange },
+  stateTitle: { width: "100%", maxWidth: 440, color: palette.ink, fontFamily: typography.serif, fontSize: 20, fontWeight: "700", textAlign: "center" },
+  stateText: { width: "100%", maxWidth: 440, color: palette.textMuted, fontSize: 13, textAlign: "center" },
+  loadingShelf: { height: 244, flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 12, backgroundColor: palette.surfaceMuted, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, paddingBottom: 18, overflow: "hidden" },
+  skeletonBook: { width: 94, height: 180, borderRadius: radii.sm, borderWidth: 1.5, borderColor: palette.border, alignItems: "center", justifyContent: "center" },
+  loadingShelfLine: { position: "absolute", left: 12, right: 12, bottom: 12, height: 7, borderRadius: 3, backgroundColor: palette.orange, borderWidth: 1, borderColor: palette.borderStrong },
+  shelfState: { alignItems: "center", backgroundColor: palette.surfaceMuted, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, padding: 22, ...shadows.soft },
+  stateIllustration: { width: 76, height: 58, alignItems: "center", justifyContent: "center", backgroundColor: palette.blue, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, transform: [{ rotate: "-2deg" }], marginBottom: 12 },
+  stateBookmark: { position: "absolute", width: 10, height: 24, right: 11, top: -3, backgroundColor: palette.rose },
+  shelfStateTitle: { maxWidth: 390, fontFamily: typography.serif, color: palette.ink, fontSize: 20, lineHeight: 25, fontWeight: "700", textAlign: "center" },
+  shelfStateText: { maxWidth: 390, marginTop: 6, color: palette.textMuted, fontSize: 13, lineHeight: 19, textAlign: "center" },
 })
