@@ -42,7 +42,7 @@ export type Book = {
 }
 
 export function getMyBooks() {
-  return apiFetch("/books/me") as Promise<Book[]>
+  return apiFetch("/books/me", { cache: "no-store" }) as Promise<Book[]>
 }
 
 export function getBookFeed() {

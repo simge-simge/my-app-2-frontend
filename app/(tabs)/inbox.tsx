@@ -86,6 +86,14 @@ export default function InboxScreen() {
     }
   }
 
+  const openBorrowMatch = (request: BookBorrowRequest) => {
+    if (request.match_id) {
+      router.push({ pathname: "/matches/[matchId]", params: { matchId: request.match_id } })
+      return
+    }
+    router.push("/matches")
+  }
+
   const handleNotification = async (notification: InboxNotification) => {
     if (!notification.read_at) {
       try {
@@ -144,24 +152,33 @@ export default function InboxScreen() {
               <View style={styles.iconWrap}><Ionicons name="book-outline" size={22} color={palette.accentDark} /></View>
               <View style={styles.cardBody}>
                 <Text style={styles.cardTitle}>
-                  <Text
-                    accessibilityRole="link"
-                    onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: request.requester.id } })}
-                    style={styles.memberLink}
-                  >
-                    {request.requester.display_name || "A reader"}
-                  </Text>{" "}wants to borrow {request.book.title}
+                  {request.status === "pending" ? (
+                    <><Text
+                      accessibilityRole="link"
+                      onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: request.requester.id } })}
+                      style={styles.memberLink}
+                    >
+                      {request.requester.display_name || "A reader"}
+                    </Text>{" "}wants to borrow {request.book.title}</>
+                  ) : `You ${request.status} ${request.requester.display_name || "a reader"}'s borrow request for ${request.book.title}.`}
                 </Text>
                 {request.book.author ? <Text style={styles.message}>by {request.book.author}</Text> : null}
-                <Text style={styles.date}>{formatDate(request.created_at)}</Text>
-                <View style={styles.actions}>
-                  <Pressable style={[styles.actionButton, styles.declineButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "declined")}>
-                    <Text style={styles.declineText}>Decline</Text>
+                <Text style={styles.date}>{formatDate(request.reviewed_at ?? request.created_at)}</Text>
+                {request.status === "pending" ? (
+                  <View style={styles.actions}>
+                    <Pressable style={[styles.actionButton, styles.declineButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "declined")}>
+                      <Text style={styles.declineText}>Decline</Text>
+                    </Pressable>
+                    <Pressable style={[styles.actionButton, styles.approveButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "accepted")}>
+                      <Text style={styles.approveText}>{actingId === request.id ? "Saving..." : "Accept"}</Text>
+                    </Pressable>
+                  </View>
+                ) : request.status === "accepted" ? (
+                  <Pressable style={[styles.matchButton, actingId === request.id && styles.actionDisabled]} onPress={() => openBorrowMatch(request)} disabled={actingId === request.id}>
+                    <Text style={styles.matchButtonText}>Go to My Matches</Text>
+                    <Ionicons name="arrow-forward" size={17} color={palette.white} />
                   </Pressable>
-                  <Pressable style={[styles.actionButton, styles.approveButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "accepted")}>
-                    <Text style={styles.approveText}>{actingId === request.id ? "Saving..." : "Accept"}</Text>
-                  </Pressable>
-                </View>
+                ) : null}
               </View>
             </View>
           ))}
@@ -258,6 +275,9 @@ const styles = StyleSheet.create({
   approveButton: { backgroundColor: palette.success },
   declineText: { color: palette.danger, fontWeight: "700" },
   approveText: { color: palette.white, fontWeight: "700" },
+  matchButton: { minHeight: 44, marginTop: 8, paddingHorizontal: 14, borderRadius: radii.md, backgroundColor: palette.accent, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  matchButtonText: { color: palette.white, fontWeight: "700" },
+  actionDisabled: { opacity: 0.7 },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 10 },
   emptyTitle: { color: palette.text, fontFamily: typography.serif, fontSize: 21, fontWeight: "700" },
   emptyText: { color: palette.textMuted, textAlign: "center", lineHeight: 20 },

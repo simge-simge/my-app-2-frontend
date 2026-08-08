@@ -22,6 +22,12 @@ describe("login", () => {
     expect(mockedSignIn).not.toHaveBeenCalled()
   })
 
+  it("links unregistered users to account creation", () => {
+    render(<Login />)
+    fireEvent.press(screen.getByRole("link", { name: "You are not registered? Create an account" }))
+    expect(router.push).toHaveBeenCalledWith("/signup")
+  })
+
   it("signs in with trimmed email and opens the protected app", async () => {
     mockedSignIn.mockResolvedValue({ data: { user: null, session: null }, error: null } as never)
     render(<Login />)
@@ -32,13 +38,13 @@ describe("login", () => {
     expect(router.replace).toHaveBeenCalledWith("/(tabs)/home")
   })
 
-  it("shows invalid credentials and does not navigate", async () => {
+  it("shows a visible warning when the account may not exist", async () => {
     mockedSignIn.mockResolvedValue({ data: { user: null, session: null }, error: { message: "Invalid login credentials" } } as never)
     render(<Login />)
     fireEvent.changeText(screen.getByLabelText("Email"), "reader@example.com")
     fireEvent.changeText(screen.getByLabelText("Password"), "wrong")
     fireEvent.press(screen.getByRole("button", { name: "Log in" }))
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("Login failed", "Invalid login credentials"))
+    expect(await screen.findByText(/This account doesn't exist, or the password is incorrect/)).toBeOnTheScreen()
     expect(router.replace).not.toHaveBeenCalled()
   })
 

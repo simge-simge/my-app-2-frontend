@@ -8,6 +8,7 @@ import {
   Dimensions,
   Image,
   PanResponder,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -17,6 +18,7 @@ import {
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getBookFeed, type Book } from "@/services/books"
+import { getProfile, type Profile } from "@/services/profile"
 import { createSwipe, type SwipeDirection } from "@/services/swipes"
 
 const SWIPE_THRESHOLD = 120
@@ -24,10 +26,12 @@ const SWIPE_OUT_DURATION = 220
 const STACK_SIZE = 3
 
 export default function Explore() {
+  const cachedProfile = getCachedApiData<Profile>("/profile/me/")
   const cachedBooks = getCachedApiData<Book[]>("/books/feed")
-  const [books, setBooks] = useState<Book[]>(() => cachedBooks ?? [])
-  const [loading, setLoading] = useState(() => cachedBooks === undefined)
-  const hasLoaded = useRef(cachedBooks !== undefined)
+  const [books, setBooks] = useState<Book[]>(() => cachedProfile?.community_id ? cachedBooks ?? [] : [])
+  const [hasCommunity, setHasCommunity] = useState<boolean | null>(() => cachedProfile ? Boolean(cachedProfile.community_id) : null)
+  const [loading, setLoading] = useState(() => !cachedProfile || Boolean(cachedProfile.community_id && cachedBooks === undefined))
+  const hasLoaded = useRef(Boolean(cachedProfile && (!cachedProfile.community_id || cachedBooks !== undefined)))
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -42,11 +46,23 @@ export default function Explore() {
     return () => subscription.remove()
   }, [])
 
-  const loadBooks = useCallback(async (showLoader = false) => {
+  const loadExplore = useCallback(async (showLoader = false) => {
     if (showLoader && !hasLoaded.current) setLoading(true)
 
     try {
       setError(null)
+      const profile = await getProfile()
+      const isCommunityMember = Boolean(profile.community_id)
+      setHasCommunity(isCommunityMember)
+
+      if (!isCommunityMember) {
+        setBooks([])
+        setCurrentIndex(0)
+        setIsAnimatingSwipe(false)
+        position.setValue({ x: 0, y: 0 })
+        return
+      }
+
       const response = await getBookFeed()
       setBooks(response)
       setCurrentIndex(0)
@@ -62,11 +78,11 @@ export default function Explore() {
     }
   }, [position])
 
-  useFocusEffect(useCallback(() => { loadBooks(true) }, [loadBooks]))
+  useFocusEffect(useCallback(() => { loadExplore(true) }, [loadExplore]))
 
   const handleRefresh = () => {
     setRefreshing(true)
-    loadBooks()
+    loadExplore()
   }
 
   const forceSwipe = useCallback((direction: SwipeDirection) => {
@@ -163,8 +179,22 @@ export default function Explore() {
       <Text style={styles.subtitle}>Swipe to move through your community feed</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={[styles.content, books.length === 0 && styles.emptyListContent]}>
-        {books.length === 0 || !activeBook ? (
+      <View style={[styles.content, (hasCommunity === false || books.length === 0) && styles.emptyListContent]}>
+        {hasCommunity === false ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIllustration}><Ionicons name="people-outline" size={36} color={palette.ink} /></View>
+            <Text style={styles.emptyTitle}>Join a community to explore books</Text>
+            <Text style={styles.emptyText}>Find a community near you to discover books shared by its readers.</Text>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => router.push("/communities/search")}
+              style={({ pressed }) => [styles.communityLink, pressed && styles.communityLinkPressed]}
+            >
+              <Text style={styles.communityLinkText}>Find a community</Text>
+              <Ionicons name="arrow-forward" size={17} color={palette.accentDark} />
+            </Pressable>
+          </View>
+        ) : books.length === 0 || !activeBook ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIllustration}><Ionicons name="book-outline" size={36} color={palette.ink} /></View>
             <Text style={styles.emptyTitle}>No books to explore</Text>
@@ -296,6 +326,9 @@ const styles = StyleSheet.create({
   swipeBadgeText: { fontSize: 18, fontWeight: "800", color: palette.text, letterSpacing: 1 },
   emptyTitle: { fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text, marginBottom: 8 },
   emptyText: { fontSize: 14, color: palette.textMuted, textAlign: "center" },
+  communityLink: { minHeight: 48, marginTop: 16, paddingHorizontal: 17, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong },
+  communityLinkPressed: { transform: [{ scale: 0.97 }] },
+  communityLinkText: { color: palette.accentDark, fontSize: 14, fontWeight: "800", textDecorationLine: "underline" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background },
   counter: { marginTop: 22, textAlign: "center", fontSize: 14, fontWeight: "700", color: palette.textMuted },
   refreshText: { marginTop: 14, textAlign: "center", fontSize: 15, fontWeight: "700", color: palette.textSoft },

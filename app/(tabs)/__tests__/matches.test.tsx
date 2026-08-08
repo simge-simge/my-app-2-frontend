@@ -22,7 +22,7 @@ describe("matches", () => {
     jest.mocked(getMatches).mockResolvedValue([match()])
     jest.mocked(revealMatchContact).mockReturnValue(new Promise<void>((resolve) => { finish = resolve }) as never)
     render(<MatchesScreen />)
-    const button = await screen.findByText("Reveal My Contact Info")
+    const button = await screen.findByText("Reveal Contact & Mark My Book Lent")
     fireEvent.press(button)
     expect(await screen.findByText("Revealing...")).toBeVisible()
     finish()

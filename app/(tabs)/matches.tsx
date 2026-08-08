@@ -100,6 +100,7 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
   const borrowLabel = match.my_book ? "You are lending" : "You are borrowing"
   const otherStatusText = match.their_revealed ? `${displayName} revealed contact info.` : `${displayName} hasn't revealed yet.`
   const myStatusText = match.my_revealed ? "Your contact info has been revealed for this match." : "Your contact info is still hidden."
+  const revealButtonText = match.my_book ? "Reveal Contact & Mark My Book Lent" : "Reveal My Contact Info"
 
   return (
     <Pressable
@@ -158,7 +159,7 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
 
         {canReveal ? (
           <Pressable style={[styles.revealButton, revealing && styles.revealButtonDisabled]} onPress={() => onReveal(match.match_id)} disabled={revealing}>
-            <Text style={styles.revealButtonText}>{revealing ? "Revealing..." : "Reveal My Contact Info"}</Text>
+            <Text style={styles.revealButtonText}>{revealing ? "Revealing..." : revealButtonText}</Text>
           </Pressable>
         ) : null}
 

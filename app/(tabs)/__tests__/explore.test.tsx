@@ -4,18 +4,49 @@ import { router } from "expo-router"
 
 import Explore from "../explore"
 import { getBookFeed } from "@/services/books"
+import { getProfile, type Profile } from "@/services/profile"
 import { createSwipe } from "@/services/swipes"
 import { book } from "@/test/factories"
 
 jest.mock("@/services/api", () => ({ getCachedApiData: jest.fn(() => undefined) }))
 jest.mock("@/services/books", () => ({ getBookFeed: jest.fn() }))
+jest.mock("@/services/profile", () => ({ getProfile: jest.fn() }))
 jest.mock("@/services/swipes", () => ({ createSwipe: jest.fn() }))
+
+const profile = (overrides: Partial<Profile> = {}): Profile => ({
+  id: "user-1",
+  display_name: "Current Reader",
+  avatar_url: null,
+  contacts: {},
+  community_id: "community-1",
+  community_name: "North Readers",
+  community_location: "North",
+  community_public: true,
+  admin: false,
+  is_app_admin: false,
+  pending_community_name: null,
+  pending_community_request_id: null,
+  created_at: "2025-01-01T00:00:00Z",
+  ...overrides,
+})
 
 describe("explore", () => {
   beforeEach(() => {
+    jest.mocked(getProfile).mockResolvedValue(profile())
     jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(true)
     jest.spyOn(AccessibilityInfo, "addEventListener").mockReturnValue({ remove: jest.fn() } as never)
     jest.spyOn(Animated, "timing").mockImplementation(() => ({ start: (callback?: (result: { finished: boolean }) => void) => callback?.({ finished: true }), stop: jest.fn(), reset: jest.fn() }) as never)
+  })
+
+  it("offers a community link without loading the feed when the user has no community", async () => {
+    jest.mocked(getProfile).mockResolvedValue(profile({ community_id: null, community_name: null }))
+
+    render(<Explore />)
+
+    expect(await screen.findByText("Join a community to explore books")).toBeVisible()
+    expect(getBookFeed).not.toHaveBeenCalled()
+    fireEvent.press(screen.getByRole("link", { name: "Find a community" }))
+    expect(router.push).toHaveBeenCalledWith("/communities/search")
   })
 
   it("renders the active book and records a pass gesture", async () => {

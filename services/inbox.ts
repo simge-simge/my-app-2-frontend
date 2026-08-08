@@ -29,7 +29,9 @@ export type BookBorrowRequest = {
   book_id: string
   requester_id: string
   owner_id: string
-  status: "pending"
+  status: "pending" | "accepted" | "declined"
+  match_id?: string | null
+  reviewed_at?: string | null
   created_at: string
   book: {
     id: string

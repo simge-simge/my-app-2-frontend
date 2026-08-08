@@ -111,6 +111,7 @@ export default function MatchDetailScreen() {
   const borrowedBook = match.my_book ?? match.their_book
   const otherStatusText = match.their_revealed ? `${displayName} revealed contact info.` : `${displayName} hasn't revealed yet.`
   const myStatusText = match.my_revealed ? "Your contact info has been revealed for this match." : "Your contact info is still hidden."
+  const revealButtonText = match.my_book ? "Reveal Contact & Mark My Book Lent" : "Reveal My Contact Info"
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -143,7 +144,7 @@ export default function MatchDetailScreen() {
           <Text style={styles.statusLine}>{myStatusText}</Text>
         </View>
 
-        {canReveal ? <Pressable style={[styles.revealButton, revealing && styles.actionDisabled]} onPress={handleReveal} disabled={revealing}><Text style={styles.revealButtonText}>{revealing ? "Revealing..." : "Reveal My Contact Info"}</Text></Pressable> : null}
+        {canReveal ? <Pressable style={[styles.revealButton, revealing && styles.actionDisabled]} onPress={handleReveal} disabled={revealing}><Text style={styles.revealButtonText}>{revealing ? "Revealing..." : revealButtonText}</Text></Pressable> : null}
         {match.contacts ? <ContactList contacts={match.contacts} /> : null}
       </View>
 

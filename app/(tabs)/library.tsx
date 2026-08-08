@@ -88,7 +88,7 @@ export default function Library() {
       />
 
       <Pressable accessibilityRole="button" accessibilityLabel="Add book" style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={() => router.push("/books/new")}>
-        <Text style={styles.addButtonText}>+</Text>
+        <Ionicons name="add" size={32} color={palette.white} />
       </Pressable>
     </View>
   )
@@ -168,10 +168,4 @@ const styles = StyleSheet.create({
     ...shadows.lifted,
   },
   addButtonPressed: { transform: [{ scale: 0.94 }] },
-  addButtonText: {
-    color: palette.white,
-    fontSize: 34,
-    lineHeight: 34,
-    fontWeight: "400",
-  },
 })
