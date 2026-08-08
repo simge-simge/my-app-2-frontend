@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
+import PageHeader from "@/components/PageHeader"
 import { getProfile, updateProfile, deleteAccount, type Profile } from "@/services/profile"
 import { signOut } from "@/services/authentication"
 import { ApiError, getCachedApiData } from "@/services/api"
@@ -183,14 +184,16 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={palette.text} />
+      <View style={styles.loadingScreen}>
+        <PageHeader title="Settings" subtitle="Profile, community, and account preferences" />
+        <View style={styles.loadingCenter}><ActivityIndicator size="large" color={palette.text} /></View>
       </View>
     )
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <PageHeader title="Settings" subtitle="Profile, community, and account preferences" />
       <View style={styles.card}>
         <View style={styles.sectionHeader}>
           <View style={styles.profileHeading}>
@@ -329,11 +332,14 @@ export default function Settings() {
 const styles = StyleSheet.create({
   container: {
     padding: 24,
+    gap: 22,
     backgroundColor: palette.background,
     width: "100%",
     maxWidth: layout.readingMax,
     alignSelf: "center",
   },
+  loadingScreen: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 24, backgroundColor: palette.background },
+  loadingCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
   card: {
     backgroundColor: palette.surface,
     borderRadius: radii.lg,

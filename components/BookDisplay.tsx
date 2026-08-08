@@ -4,9 +4,9 @@ import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 import AdminBadge from "@/components/AdminBadge"
 
-type Props = { book: Book; onPress?: () => void; showOwner?: boolean; showCommunity?: boolean; style?: StyleProp<ViewStyle> }
+type Props = { book: Book; onPress?: () => void; onOwnerPress?: () => void; showOwner?: boolean; showCommunity?: boolean; style?: StyleProp<ViewStyle> }
 
-export default function BookDisplay({ book, onPress, showOwner = false, showCommunity = false, style }: Props) {
+export default function BookDisplay({ book, onPress, onOwnerPress, showOwner = false, showCommunity = false, style }: Props) {
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
@@ -26,7 +26,18 @@ export default function BookDisplay({ book, onPress, showOwner = false, showComm
       <View style={styles.content}>
         <Text numberOfLines={2} style={styles.title}>{book.title}</Text>
         <Text numberOfLines={1} style={styles.author}>{book.author || "Unknown author"}</Text>
-        {showOwner ? <View style={styles.ownerRow}><Text numberOfLines={1} style={styles.owner}>Owner: {book.owner_name || "Unknown"}</Text>{book.owner_admin ? <AdminBadge /> : null}</View> : null}
+        {showOwner ? (
+          <Pressable
+            accessibilityRole={onOwnerPress ? "button" : undefined}
+            accessibilityLabel={onOwnerPress ? `View ${book.owner_name || "book owner"}'s library` : undefined}
+            disabled={!onOwnerPress}
+            onPress={(event) => { event.stopPropagation(); onOwnerPress?.() }}
+            style={styles.ownerRow}
+          >
+            <Text numberOfLines={1} style={[styles.owner, onOwnerPress && styles.ownerLink]}>Owner: {book.owner_name || "Unknown"}</Text>
+            {book.owner_admin ? <AdminBadge /> : null}
+          </Pressable>
+        ) : null}
         {showCommunity && book.community_name ? <Text numberOfLines={1} style={styles.community}>{book.community_name}</Text> : null}
         <View style={styles.statusPill}><Text numberOfLines={1} style={styles.status}>{book.status}</Text></View>
       </View>
@@ -48,6 +59,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: typography.serif, fontSize: 17, lineHeight: 21, fontWeight: "700", color: palette.ink },
   author: { fontSize: 12, color: palette.textMuted },
   owner: { flexShrink: 1, fontSize: 11, color: palette.textMuted },
+  ownerLink: { color: palette.accentDark, textDecorationLine: "underline" },
   ownerRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
   community: { fontSize: 11, color: palette.textSoft },
   statusPill: { alignSelf: "flex-start", marginTop: 2, backgroundColor: palette.accentSoft, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 4 },

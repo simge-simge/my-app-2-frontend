@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useFocusEffect } from "expo-router"
+import { router, useFocusEffect } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AccessibilityInfo,
@@ -86,13 +86,17 @@ export default function Explore() {
 
       try {
         setError(null)
-        await createSwipe({
+        const response = await createSwipe({
           target_book_id: activeBook.id,
           target_owner_user_id: activeBook.owner_id,
           direction,
         })
         position.setValue({ x: 0, y: 0 })
         setCurrentIndex((prev) => prev + 1)
+        const createdMatch = response.match?.[0]
+        if (createdMatch) {
+          router.push({ pathname: "/matches/[matchId]", params: { matchId: createdMatch.id } })
+        }
       } catch (err) {
         console.error(`Failed to create ${direction} swipe`, err)
         position.setValue({ x: 0, y: 0 })
@@ -183,6 +187,17 @@ export default function Explore() {
 
               <Animated.View
                 key={activeBook.id}
+                accessible
+                accessibilityLabel={`Swipe ${activeBook.title}`}
+                accessibilityHint="Swipe left to pass or right if interested"
+                accessibilityActions={[
+                  { name: "decrement", label: "Pass" },
+                  { name: "increment", label: "Interested" },
+                ]}
+                onAccessibilityAction={(event) => {
+                  if (event.nativeEvent.actionName === "decrement") forceSwipe("left")
+                  if (event.nativeEvent.actionName === "increment") forceSwipe("right")
+                }}
                 style={[styles.card, styles.topCard, { transform: [...position.getTranslateTransform(), { rotate }] }]}
                 {...panResponder.panHandlers}
               >

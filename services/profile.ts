@@ -1,5 +1,6 @@
 import { apiFetch } from "./api"
 import type { SearchScope } from "./books"
+import type { Book } from "./books"
 
 export type Profile = {
   id: string
@@ -26,6 +27,21 @@ export type ProfileSearchResult = {
   admin: boolean
 }
 
+export type MemberProfile = {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+  community_id: string
+  community_name: string | null
+  admin: boolean
+  created_at: string
+}
+
+export type MemberLibrary = {
+  member: MemberProfile
+  books: Book[]
+}
+
 export function searchProfiles(query: string, scope: SearchScope = "community") {
   return apiFetch(
     `/profile/me/search?q=${encodeURIComponent(query)}&scope=${scope}`,
@@ -34,6 +50,10 @@ export function searchProfiles(query: string, scope: SearchScope = "community") 
 
 export function getProfile() {
   return apiFetch("/profile/me/") as Promise<Profile>
+}
+
+export function getMemberLibrary(memberId: string) {
+  return apiFetch(`/profile/members/${memberId}`, { cache: "no-store" }) as Promise<MemberLibrary>
 }
 
 export function updateProfile(data: Record<string, unknown>) {

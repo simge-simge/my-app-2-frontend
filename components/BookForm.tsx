@@ -231,7 +231,13 @@ export default function BookForm({
         />
 
         {isEditMode && onDelete ? (
-          <Pressable style={styles.deleteButton} onPress={onDelete} disabled={deleting}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: deleting, busy: deleting }}
+            style={styles.deleteButton}
+            onPress={onDelete}
+            disabled={deleting}
+          >
             <Text style={styles.deleteButtonText}>{deleting ? "Deleting..." : "Delete Book"}</Text>
           </Pressable>
         ) : null}

@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
+import { Ionicons } from "@expo/vector-icons"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
@@ -114,7 +115,12 @@ export default function MatchDetailScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.heroCard}>
-        <View style={styles.heroHeader}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`View ${displayName}'s library`}
+          onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: match.other_user.id } })}
+          style={styles.heroHeader}
+        >
           <UserAvatar user={match.other_user} size={72} />
           <View style={styles.heroText}>
             <View style={styles.titleRow}>
@@ -129,7 +135,8 @@ export default function MatchDetailScreen() {
             <Text style={styles.subtitle}>{memberSinceText}</Text>
             <Text style={styles.subtitle}>Matched on {matchedAt}</Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={palette.textMuted} />
+        </Pressable>
 
         <View style={styles.statusBlock}>
           <Text style={styles.statusLine}>{otherStatusText}</Text>

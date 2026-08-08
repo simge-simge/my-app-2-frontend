@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
+import { router } from "expo-router"
 import { useEffect, useState } from "react"
 import {
   ActivityIndicator,
@@ -194,7 +195,9 @@ export default function Search() {
             <View style={styles.bookCell}>
               <BookDisplay
                 book={item}
+                onPress={() => router.push({ pathname: "/books/[bookId]", params: { bookId: item.id } })}
                 showOwner
+                onOwnerPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: item.owner_id } })}
                 showCommunity={scope === "all"}
                 style={styles.bookCard}
               />
@@ -288,7 +291,12 @@ function SegmentedControl<T extends string>({
 function UserResult({ user, showCommunity }: { user: ProfileSearchResult; showCommunity: boolean }) {
   const displayName = user.display_name || "Unknown reader"
   return (
-    <View style={styles.userCard}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View ${displayName}'s library`}
+      onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: user.id } })}
+      style={({ pressed }) => [styles.userCard, pressed && styles.userCardPressed]}
+    >
       {user.avatar_url ? (
         <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
       ) : (
@@ -305,7 +313,8 @@ function UserResult({ user, showCommunity }: { user: ProfileSearchResult; showCo
           <Text numberOfLines={1} style={styles.communityName}>{user.community_name}</Text>
         ) : null}
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={19} color={palette.textMuted} />
+    </Pressable>
   )
 }
 
@@ -405,6 +414,7 @@ const styles = StyleSheet.create({
     borderColor: palette.borderStrong,
     backgroundColor: palette.surface,
   },
+  userCardPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceMuted },
   avatarFallback: { alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 20, fontWeight: "700", color: palette.textSoft },

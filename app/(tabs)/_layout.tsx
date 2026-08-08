@@ -21,8 +21,8 @@ export default function TabLayout() {
       <Tabs.Screen name="search" options={{ title: "Search", headerShown: false }} />
       <Tabs.Screen name="library" options={{ title: "My Library", headerShown: false }} />
       <Tabs.Screen name="matches" options={{ title: "My Matches", headerShown: false }} />
-      <Tabs.Screen name="inbox" options={{ title: "Inbox", href: null }} />
-      <Tabs.Screen name="settings" options={{ title: "Settings", href: null }} />
+      <Tabs.Screen name="inbox" options={{ title: "Inbox", headerShown: false, href: null }} />
+      <Tabs.Screen name="settings" options={{ title: "Settings", headerShown: false, href: null }} />
     </Tabs>
   )
 }

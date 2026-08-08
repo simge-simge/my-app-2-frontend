@@ -13,6 +13,7 @@ import { router, useFocusEffect } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
+import PageHeader from "@/components/PageHeader"
 import { getCachedApiData } from "@/services/api"
 import {
   decideBorrowRequest,
@@ -111,7 +112,12 @@ export default function InboxScreen() {
   }
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
+    return (
+      <View style={styles.loadingScreen}>
+        <PageHeader title="Inbox" subtitle="Community and book swap updates" />
+        <View style={styles.loadingCenter}><ActivityIndicator size="large" color={palette.text} /></View>
+      </View>
+    )
   }
 
   const hasUnread = notifications.some((item) => !item.read_at)
@@ -123,13 +129,11 @@ export default function InboxScreen() {
       contentContainerStyle={[styles.content, isEmpty && styles.emptyContent]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadInbox() }} tintColor={palette.text} />}
     >
-      <View style={styles.headingRow}>
-        <View>
-          <Text style={styles.title}>Inbox</Text>
-          <Text style={styles.subtitle}>Community and book swap updates</Text>
-        </View>
-        {hasUnread ? <Pressable onPress={handleMarkAllRead}><Text style={styles.markRead}>Mark all read</Text></Pressable> : null}
-      </View>
+      <PageHeader
+        title="Inbox"
+        subtitle="Community and book swap updates"
+        trailing={hasUnread ? <Pressable onPress={handleMarkAllRead}><Text style={styles.markRead}>Mark all read</Text></Pressable> : null}
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {borrowRequests.length > 0 ? (
@@ -140,7 +144,13 @@ export default function InboxScreen() {
               <View style={styles.iconWrap}><Ionicons name="book-outline" size={22} color={palette.accentDark} /></View>
               <View style={styles.cardBody}>
                 <Text style={styles.cardTitle}>
-                  {request.requester.display_name || "A reader"} wants to borrow {request.book.title}
+                  <Text
+                    accessibilityRole="link"
+                    onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: request.requester.id } })}
+                    style={styles.memberLink}
+                  >
+                    {request.requester.display_name || "A reader"}
+                  </Text>{" "}wants to borrow {request.book.title}
                 </Text>
                 {request.book.author ? <Text style={styles.message}>by {request.book.author}</Text> : null}
                 <Text style={styles.date}>{formatDate(request.created_at)}</Text>
@@ -165,7 +175,15 @@ export default function InboxScreen() {
             <View key={request.id} style={styles.requestCard}>
               <View style={styles.iconWrap}><Ionicons name="people-outline" size={22} color={palette.accentDark} /></View>
               <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{request.requester.display_name || "A reader"} wants to join</Text>
+                <Text style={styles.cardTitle}>
+                  <Text
+                    accessibilityRole="link"
+                    onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: request.requester.id } })}
+                    style={styles.memberLink}
+                  >
+                    {request.requester.display_name || "A reader"}
+                  </Text>{" "}wants to join
+                </Text>
                 <Text style={styles.date}>{formatDate(request.created_at)}</Text>
                 <View style={styles.actions}>
                   <Pressable style={[styles.actionButton, styles.declineButton]} disabled={actingId === request.id} onPress={() => handleDecision(request, "declined")}>
@@ -219,9 +237,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.background },
   content: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 20, paddingBottom: 36, gap: 22 },
   emptyContent: { flexGrow: 1 },
-  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
-  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
-  subtitle: { fontSize: 14, color: palette.textMuted, marginTop: 5 },
   markRead: { color: palette.accentDark, fontSize: 13, fontWeight: "700" },
   error: { color: palette.danger },
   section: { gap: 12 },
@@ -234,6 +249,7 @@ const styles = StyleSheet.create({
   readDot: { backgroundColor: palette.border },
   cardBody: { flex: 1, gap: 5 },
   cardTitle: { color: palette.text, fontSize: 16, fontWeight: "700" },
+  memberLink: { color: palette.accentDark, textDecorationLine: "underline" },
   message: { color: palette.textMuted, fontSize: 14, lineHeight: 20 },
   date: { color: palette.textMuted, fontSize: 12 },
   actions: { flexDirection: "row", gap: 10, marginTop: 8 },
@@ -245,5 +261,6 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 10 },
   emptyTitle: { color: palette.text, fontFamily: typography.serif, fontSize: 21, fontWeight: "700" },
   emptyText: { color: palette.textMuted, textAlign: "center", lineHeight: 20 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background },
+  loadingScreen: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 20, backgroundColor: palette.background },
+  loadingCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
 })

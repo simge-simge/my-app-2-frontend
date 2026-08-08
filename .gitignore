@@ -3,6 +3,9 @@
 
 # dependencies
 node_modules/
+coverage/
+playwright-report/
+test-results/
 
 # Expo
 .expo/

@@ -107,7 +107,15 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
       onPress={() => router.push({ pathname: "/matches/[matchId]", params: { matchId: match.match_id } })}
     >
       <View style={styles.header}>
-        <View style={styles.userRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`View ${displayName}'s library`}
+          onPress={(event) => {
+            event.stopPropagation()
+            router.push({ pathname: "/members/[memberId]", params: { memberId: match.other_user.id } })
+          }}
+          style={styles.userRow}
+        >
           {match.other_user.avatar_url ? (
             <Image source={{ uri: match.other_user.avatar_url }} style={styles.avatar} />
           ) : (
@@ -123,7 +131,7 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
             </View>
             <Text style={styles.date}>{matchedAt}</Text>
           </View>
-        </View>
+        </Pressable>
 
         <View style={[styles.statusBadge, match.revealed ? styles.revealedBadge : styles.pendingBadge]}>
           <Text style={[styles.statusText, match.revealed ? styles.revealedText : styles.pendingText]}>
