@@ -16,13 +16,15 @@ import { Ionicons } from "@expo/vector-icons"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
 import PageHeader from "@/components/PageHeader"
+import LocationPicker from "@/components/LocationPicker"
 import { getProfile, updateProfile, deleteAccount, type Profile } from "@/services/profile"
 import { signOut } from "@/services/authentication"
 import { ApiError, getCachedApiData } from "@/services/api"
 import { createCommunity } from "@/services/admin"
 import { updateCommunityVisibility } from "@/services/communities"
+import type { Location } from "@/services/locations"
 
-type EditableField = "name" | "phone" | "instagram" | "telegram"
+type EditableField = "name" | "location" | "phone" | "instagram" | "telegram"
 
 export default function Settings() {
   const router = useRouter()
@@ -34,6 +36,9 @@ export default function Settings() {
   const [editingField, setEditingField] = useState<EditableField | null>(null)
 
   const [name, setName] = useState(() => cachedProfile?.display_name ?? "")
+  const [location, setLocation] = useState<Location | null>(() => cachedProfile?.location ?? null)
+  const [savedLocation, setSavedLocation] = useState<Location | null>(() => cachedProfile?.location ?? null)
+  const [locationValid, setLocationValid] = useState(true)
   const [community, setCommunity] = useState(() => cachedProfile?.community_name ?? "")
   const [isAdmin, setIsAdmin] = useState(() => cachedProfile?.admin ?? false)
   const [communityId, setCommunityId] = useState<string | null>(() => cachedProfile?.community_id ?? null)
@@ -42,7 +47,8 @@ export default function Settings() {
   const [isAppAdmin, setIsAppAdmin] = useState(() => cachedProfile?.is_app_admin ?? false)
   const [pendingCommunity, setPendingCommunity] = useState<string | null>(() => cachedProfile?.pending_community_name ?? null)
   const [communityName, setCommunityName] = useState("")
-  const [communityLocation, setCommunityLocation] = useState("")
+  const [communityLocation, setCommunityLocation] = useState<Location | null>(null)
+  const [communityLocationValid, setCommunityLocationValid] = useState(true)
   const [communityAdminEmail, setCommunityAdminEmail] = useState("")
 
   const [contacts, setContacts] = useState(() => ({
@@ -57,6 +63,8 @@ export default function Settings() {
       const profile = await getProfile()
 
       setName(profile.display_name ?? "")
+      setLocation(profile.location)
+      setSavedLocation(profile.location)
       setCommunity(profile.community_name ?? "")
       setIsAdmin(profile.admin)
       setCommunityId(profile.community_id)
@@ -93,6 +101,12 @@ export default function Settings() {
 
       if (field === "name") {
         update = { display_name: name }
+      } else if (field === "location") {
+        if (!locationValid) {
+          Alert.alert("Select a location", "Choose a location from the suggestions or clear the field.")
+          return
+        }
+        update = { location_id: location?.id ?? null }
       } else {
         const filteredContacts = Object.fromEntries(
           Object.entries(contacts).filter(([key, value]) => key !== "email" && value.trim() !== ""),
@@ -101,6 +115,8 @@ export default function Settings() {
       }
 
       const updatedProfile = await updateProfile(update)
+      setLocation(updatedProfile.location)
+      setSavedLocation(updatedProfile.location)
       setCommunity(updatedProfile.community_name ?? "")
       setPendingCommunity(updatedProfile.pending_community_name)
       setEditingField(null)
@@ -114,19 +130,19 @@ export default function Settings() {
   }
 
   const handleCreateCommunity = async () => {
-    if (!communityName.trim() || !communityAdminEmail.trim()) {
-      Alert.alert("Missing details", "Enter a community name and the admin's account email.")
+    if (!communityName.trim() || !communityAdminEmail.trim() || !communityLocation || !communityLocationValid) {
+      Alert.alert("Missing details", "Enter a community name, select its location, and enter the admin's account email.")
       return
     }
     try {
       setSaving(true)
       const created = await createCommunity({
         name: communityName.trim(),
-        location: communityLocation.trim() || undefined,
+        location_id: communityLocation.id,
         admin_email: communityAdminEmail.trim().toLowerCase(),
       })
       setCommunityName("")
-      setCommunityLocation("")
+      setCommunityLocation(null)
       setCommunityAdminEmail("")
       Alert.alert("Community created", `${created.name} was created and its admin was assigned.`)
     } catch (err) {
@@ -215,6 +231,37 @@ export default function Settings() {
             <Ionicons name={editingField === "name" ? "checkmark" : "create-outline"} size={21} color={palette.accentDark} />
           </Pressable>
         </View>
+        <Text style={styles.label}>Location</Text>
+        {editingField === "location" ? (
+          <View style={styles.locationEditor}>
+            <LocationPicker
+              selected={location}
+              onSelect={setLocation}
+              onValidityChange={setLocationValid}
+            />
+            <View style={styles.locationActions}>
+              <Pressable style={styles.locationCancel} onPress={() => { setLocation(savedLocation); setEditingField(null) }} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel location edit">
+                <Text style={styles.locationCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.locationSave} onPress={() => handleSave("location")} disabled={saving || !locationValid} accessibilityRole="button" accessibilityLabel="Save location">
+                <Text style={styles.locationSaveText}>{saving ? "Saving..." : "Save"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.fieldControl}>
+            <TextInput style={[styles.input, styles.inputLocked]} value={location?.display_name ?? ""} editable={false} placeholder="Location not set" placeholderTextColor={palette.textMuted} />
+            <Pressable
+              style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed, editingField !== null && styles.fieldActionDisabled]}
+              onPress={() => setEditingField("location")}
+              disabled={saving || editingField !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Edit location"
+            >
+              <Ionicons name="create-outline" size={21} color={palette.accentDark} />
+            </Pressable>
+          </View>
+        )}
         <Text style={styles.label}>Community</Text>
         <View style={styles.fieldControl}>
           <TextInput style={[styles.input, styles.inputLocked]} value={community} editable={false} placeholder="Not in a community" placeholderTextColor={palette.textMuted} />
@@ -259,7 +306,12 @@ export default function Settings() {
             <Text style={styles.section}>App administration</Text>
             <Text style={styles.adminHint}>Create a community and assign its first admin by account email.</Text>
             <TextInput style={styles.adminInput} value={communityName} onChangeText={setCommunityName} placeholder="Community name" placeholderTextColor={palette.textMuted} />
-            <TextInput style={styles.adminInput} value={communityLocation} onChangeText={setCommunityLocation} placeholder="Location (optional)" placeholderTextColor={palette.textMuted} />
+            <LocationPicker
+              label="Community location"
+              selected={communityLocation}
+              onSelect={setCommunityLocation}
+              onValidityChange={setCommunityLocationValid}
+            />
             <TextInput style={styles.adminInput} value={communityAdminEmail} onChangeText={setCommunityAdminEmail} placeholder="Community admin email" placeholderTextColor={palette.textMuted} autoCapitalize="none" keyboardType="email-address" />
             <Pressable style={({ pressed }) => [styles.primaryAction, pressed && styles.editButtonPressed, saving && styles.fieldActionDisabled]} onPress={handleCreateCommunity} disabled={saving}>
               <Text style={styles.primaryActionText}>{saving ? "Creating..." : "Create community"}</Text>
@@ -392,6 +444,35 @@ const styles = StyleSheet.create({
   fieldControl: {
     position: "relative",
     marginBottom: 18,
+  },
+  locationEditor: {
+    marginBottom: 18,
+    gap: 10,
+  },
+  locationActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  locationCancel: {
+    minHeight: 42,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  locationCancelText: {
+    color: palette.textMuted,
+    fontWeight: "700",
+  },
+  locationSave: {
+    minHeight: 42,
+    justifyContent: "center",
+    borderRadius: radii.md,
+    paddingHorizontal: 18,
+    backgroundColor: palette.accent,
+  },
+  locationSaveText: {
+    color: palette.white,
+    fontWeight: "700",
   },
   fieldAction: {
     position: "absolute",

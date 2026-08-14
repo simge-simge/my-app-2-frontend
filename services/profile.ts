@@ -1,15 +1,18 @@
 import { apiFetch } from "./api"
 import type { SearchScope } from "./books"
 import type { Book } from "./books"
+import type { Location } from "./locations"
 
 export type Profile = {
   id: string
   display_name: string | null
+  location_id: string | null
+  location: Location | null
   avatar_url: string | null
   contacts: Record<string, string>
   community_id: string | null
   community_name: string | null
-  community_location: string | null
+  community_location: Location | null
   community_public: boolean | null
   admin: boolean
   is_app_admin: boolean

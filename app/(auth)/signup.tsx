@@ -6,9 +6,11 @@ import AppButton from "@/components/AppButton"
 import AppInput from "@/components/AppInput"
 import { BookDoodles } from "@/components/BookDoodles"
 import GentleEntrance from "@/components/GentleEntrance"
+import LocationPicker from "@/components/LocationPicker"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { signUp } from "@/services/authentication"
 import { updateProfile } from "@/services/profile"
+import type { Location } from "@/services/locations"
 
 export function generateUsername(email: string) {
   const emailPrefix = email.split("@")[0] ?? ""
@@ -37,6 +39,8 @@ export default function Signup() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
+  const [location, setLocation] = useState<Location | null>(null)
+  const [locationValid, setLocationValid] = useState(true)
   const [phone, setPhone] = useState("")
   const [instagram, setInstagram] = useState("")
   const [telegram, setTelegram] = useState("")
@@ -45,6 +49,7 @@ export default function Signup() {
 
   const handleSignup = async () => {
     if (!email.trim() || !password) { Alert.alert("Create account failed", "Please enter your email and password."); return }
+    if (!locationValid) { Alert.alert("Create account failed", "Select a location from the suggestions or clear the location field."); return }
     try {
       setLoading(true)
       setSignupWarning(null)
@@ -65,10 +70,12 @@ export default function Signup() {
           .filter(([, value]) => value !== ""),
       )
       try {
-        await updateProfile({
+        const profileUpdate: Record<string, unknown> = {
           display_name: name.trim() || generateUsername(normalizedEmail),
           contacts,
-        })
+        }
+        if (location) profileUpdate.location_id = location.id
+        await updateProfile(profileUpdate)
       } catch {
         Alert.alert("Profile setup incomplete", "Your account was created. You can update your optional profile details in Settings.")
       }
@@ -95,6 +102,14 @@ export default function Signup() {
             <AppInput placeholder="Password" value={password} secure onChangeText={(value) => { setPassword(value); setSignupWarning(null) }} />
             <Text style={styles.optionalHint}>Profile details (optional)</Text>
             <AppInput placeholder="Name (optional)" value={name} onChangeText={setName} />
+            <View style={styles.locationField}>
+              <LocationPicker
+                label="Location (optional)"
+                selected={location}
+                onSelect={setLocation}
+                onValidityChange={setLocationValid}
+              />
+            </View>
             <AppInput placeholder="Phone (optional)" value={phone} onChangeText={setPhone} />
             <AppInput placeholder="Instagram (optional)" value={instagram} onChangeText={setInstagram} />
             <AppInput placeholder="Telegram (optional)" value={telegram} onChangeText={setTelegram} />
@@ -124,6 +139,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 7, fontSize: 15, lineHeight: 22, color: palette.textMuted },
   form: { marginTop: 22 },
   optionalHint: { marginTop: 3, marginBottom: 13, color: palette.textMuted, fontSize: 13, fontWeight: "700" },
+  locationField: { marginBottom: 15 },
   warning: { marginTop: 14, padding: 14, gap: 5, borderWidth: 1.5, borderColor: palette.danger, borderRadius: radii.md, backgroundColor: palette.surfaceMuted },
   warningTitle: { color: palette.danger, fontSize: 15, fontWeight: "800" },
   warningText: { color: palette.text, fontSize: 14, lineHeight: 20 },

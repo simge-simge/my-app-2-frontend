@@ -13,6 +13,8 @@ import {
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { ApiError } from "@/services/api"
+import LocationPicker from "@/components/LocationPicker"
+import type { Location } from "@/services/locations"
 import {
   requestCommunityJoin,
   searchCommunities,
@@ -21,7 +23,7 @@ import {
 
 export default function CommunitySearch() {
   const [query, setQuery] = useState("")
-  const [location, setLocation] = useState("")
+  const [location, setLocation] = useState<Location | null>(null)
   const [results, setResults] = useState<CommunitySearchResult[]>([])
   const [loading, setLoading] = useState(true)
   const [joiningId, setJoiningId] = useState<string | null>(null)
@@ -31,7 +33,7 @@ export default function CommunitySearch() {
     const timer = setTimeout(async () => {
       try {
         setLoading(true)
-        const communities = await searchCommunities(query, location)
+        const communities = await searchCommunities(query, location?.id)
         if (active) setResults(communities)
       } catch (err) {
         if (active) {
@@ -47,7 +49,7 @@ export default function CommunitySearch() {
       active = false
       clearTimeout(timer)
     }
-  }, [query, location])
+  }, [query, location?.id])
 
   const handleJoin = async (community: CommunitySearchResult) => {
     if (community.is_member || community.request_pending || joiningId) return
@@ -74,29 +76,18 @@ export default function CommunitySearch() {
           style={styles.searchInput}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by name or location"
+          placeholder="Search communities by name"
           placeholderTextColor={palette.textMuted}
           autoFocus
           returnKeyType="search"
         />
       </View>
 
-      <View style={styles.searchBox}>
-        <Ionicons name="location-outline" size={20} color={palette.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          value={location}
-          onChangeText={setLocation}
-          placeholder="Filter by location"
-          placeholderTextColor={palette.textMuted}
-          returnKeyType="search"
-        />
-        {location ? (
-          <Pressable onPress={() => setLocation("")} accessibilityLabel="Clear location filter">
-            <Ionicons name="close-circle" size={20} color={palette.textMuted} />
-          </Pressable>
-        ) : null}
-      </View>
+      <LocationPicker
+        label="Filter by location"
+        selected={location}
+        onSelect={setLocation}
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -123,7 +114,7 @@ export default function CommunitySearch() {
                   <Text style={styles.communityName}>{item.name}</Text>
                   <View style={styles.metaRow}>
                     <Ionicons name="location-outline" size={14} color={palette.textMuted} />
-                    <Text style={styles.metaText}>{item.location || "Location not specified"}</Text>
+                    <Text style={styles.metaText}>{item.location?.display_name || "Location not specified"}</Text>
                     <Text style={styles.metaDot}>·</Text>
                     <Ionicons name="people-outline" size={14} color={palette.textMuted} />
                     <Text style={styles.metaText}>{item.member_count} {item.member_count === 1 ? "member" : "members"}</Text>

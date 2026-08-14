@@ -344,7 +344,7 @@ function HomeHeader({
         {profile?.community_location ? (
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={15} color={palette.textMuted} />
-            <Text numberOfLines={1} style={styles.location}>{profile.community_location}</Text>
+            <Text numberOfLines={1} style={styles.location}>{profile.community_location.display_name}</Text>
           </View>
         ) : null}
       </View>

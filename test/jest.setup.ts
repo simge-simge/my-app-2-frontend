@@ -6,6 +6,7 @@ process.env.EXPO_PUBLIC_API_URL = "https://api.test"
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useFocusEffect: (callback: () => void | (() => void)) =>
     jest.requireActual("react").useEffect(callback, [callback]),
   useLocalSearchParams: jest.fn(() => ({})),

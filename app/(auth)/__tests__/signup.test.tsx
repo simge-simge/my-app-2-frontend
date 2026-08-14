@@ -6,19 +6,24 @@ import { router } from "expo-router"
 import Signup, { generateUsername } from "../signup"
 import { signUp } from "@/services/authentication"
 import { updateProfile } from "@/services/profile"
+import { searchLocations } from "@/services/locations"
 
 jest.mock("@/services/authentication", () => ({ signUp: jest.fn() }))
 jest.mock("@/services/profile", () => ({ updateProfile: jest.fn() }))
+jest.mock("@/services/locations", () => ({ searchLocations: jest.fn() }))
 jest.mock("@/components/BookDoodles", () => ({ BookDoodles: () => null }))
 jest.mock("@/components/GentleEntrance", () => ({ children }: { children: ReactNode }) => children)
 
 const mockedSignUp = jest.mocked(signUp)
 const mockedUpdateProfile = jest.mocked(updateProfile)
+const mockedSearchLocations = jest.mocked(searchLocations)
+const istanbul = { id: "location-istanbul", name: "İstanbul", display_name: "İstanbul, Türkiye", type: "city" as const, parent_id: "location-tr", country_code: "TR" }
 
 describe("signup", () => {
   beforeEach(() => {
     jest.spyOn(Alert, "alert").mockImplementation(() => {})
     mockedUpdateProfile.mockResolvedValue({} as never)
+    mockedSearchLocations.mockResolvedValue([istanbul])
   })
 
   it("generates a username from the email prefix", () => {
@@ -53,15 +58,33 @@ describe("signup", () => {
     fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com")
     fireEvent.changeText(screen.getByLabelText("Password"), "secret123")
     fireEvent.changeText(screen.getByLabelText("Name (optional)"), "  Ada Reader  ")
+    fireEvent.changeText(screen.getByLabelText("Location (optional)"), "Istan")
+    fireEvent.press(await screen.findByRole("button", { name: "Select İstanbul, Türkiye" }))
     fireEvent.changeText(screen.getByLabelText("Phone (optional)"), "  +1 555 0100  ")
     fireEvent.changeText(screen.getByLabelText("Instagram (optional)"), "  @ada  ")
     fireEvent.press(screen.getByRole("button", { name: "Create account" }))
 
     await waitFor(() => expect(mockedUpdateProfile).toHaveBeenCalledWith({
       display_name: "Ada Reader",
+      location_id: "location-istanbul",
       contacts: { phone: "+1 555 0100", instagram: "@ada" },
     }))
     expect(router.replace).toHaveBeenCalledWith("/(tabs)/home")
+  })
+
+  it("does not accept arbitrary location text", async () => {
+    mockedSearchLocations.mockResolvedValue([])
+    render(<Signup />)
+    fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com")
+    fireEvent.changeText(screen.getByLabelText("Password"), "secret123")
+    fireEvent.changeText(screen.getByLabelText("Location (optional)"), "Not a real location")
+    fireEvent.press(screen.getByRole("button", { name: "Create account" }))
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Create account failed",
+      "Select a location from the suggestions or clear the location field.",
+    )
+    expect(mockedSignUp).not.toHaveBeenCalled()
   })
 
   it("shows a visible warning when the account already exists", async () => {

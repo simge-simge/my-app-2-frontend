@@ -1,9 +1,11 @@
 import { apiFetch } from "./api"
+import type { Location } from "./locations"
 
 export type CommunityAdminResult = {
   id: string
   name: string
-  location: string | null
+  location_id: string
+  location?: Location
   admin: {
     id: string
     display_name: string | null
@@ -12,7 +14,7 @@ export type CommunityAdminResult = {
 
 export function createCommunity(data: {
   name: string
-  location?: string
+  location_id: string
   admin_email: string
 }) {
   return apiFetch("/admin/communities", {
