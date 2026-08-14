@@ -20,13 +20,13 @@ import {
   searchCommunities,
   type CommunitySearchResult,
 } from "@/services/communities"
+import { runInBackground } from "@/utils/backgroundAction"
 
 export default function CommunitySearch() {
   const [query, setQuery] = useState("")
   const [location, setLocation] = useState<Location | null>(null)
   const [results, setResults] = useState<CommunitySearchResult[]>([])
   const [loading, setLoading] = useState(true)
-  const [joiningId, setJoiningId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -51,21 +51,16 @@ export default function CommunitySearch() {
     }
   }, [query, location?.id])
 
-  const handleJoin = async (community: CommunitySearchResult) => {
-    if (community.is_member || community.request_pending || joiningId) return
-    try {
-      setJoiningId(community.id)
-      await requestCommunityJoin(community.id)
-      setResults((current) => current.map((item) => ({
-        ...item,
-        request_pending: item.id === community.id,
-      })))
-    } catch (err) {
-      console.error("Failed to request community membership", err)
-      Alert.alert("Unable to send request", err instanceof ApiError ? err.message : "Please try again")
-    } finally {
-      setJoiningId(null)
-    }
+  const handleJoin = (community: CommunitySearchResult) => {
+    if (community.is_member || community.request_pending) return
+    setResults((current) => current.map((item) => item.id === community.id ? { ...item, request_pending: true } : item))
+    runInBackground(() => requestCommunityJoin(community.id), {
+      onError: (err) => {
+        setResults((current) => current.map((item) => item.id === community.id ? { ...item, request_pending: false } : item))
+        console.error("Failed to request community membership", err)
+        Alert.alert("Unable to send request", err instanceof ApiError ? err.message : "Please try again")
+      },
+    })
   }
 
   return (
@@ -100,14 +95,12 @@ export default function CommunitySearch() {
           contentContainerStyle={results.length ? styles.list : styles.emptyList}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
-            const disabled = item.is_member || item.request_pending || joiningId !== null
+            const disabled = item.is_member || item.request_pending
             const buttonText = item.is_member
               ? "Joined"
               : item.request_pending
                 ? "Request sent"
-                : joiningId === item.id
-                  ? "Sending..."
-                  : "Join"
+                : "Join"
             return (
               <View style={styles.communityRow}>
                 <View style={styles.communityDetails}>

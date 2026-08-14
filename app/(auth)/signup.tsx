@@ -11,6 +11,7 @@ import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { signUp } from "@/services/authentication"
 import { updateProfile } from "@/services/profile"
 import type { Location } from "@/services/locations"
+import { runInBackground } from "@/utils/backgroundAction"
 
 export function generateUsername(email: string) {
   const emailPrefix = email.split("@")[0] ?? ""
@@ -69,17 +70,15 @@ export default function Signup() {
           .map(([key, value]) => [key, value.trim()])
           .filter(([, value]) => value !== ""),
       )
-      try {
-        const profileUpdate: Record<string, unknown> = {
-          display_name: name.trim() || generateUsername(normalizedEmail),
-          contacts,
-        }
-        if (location) profileUpdate.location_id = location.id
-        await updateProfile(profileUpdate)
-      } catch {
-        Alert.alert("Profile setup incomplete", "Your account was created. You can update your optional profile details in Settings.")
+      const profileUpdate: Record<string, unknown> = {
+        display_name: name.trim() || generateUsername(normalizedEmail),
+        contacts,
       }
+      if (location) profileUpdate.location_id = location.id
       router.replace("/(tabs)/home")
+      runInBackground(() => updateProfile(profileUpdate), {
+        onError: () => Alert.alert("Profile setup incomplete", "Your account was created. You can update your optional profile details in Settings."),
+      })
     } catch (error) {
       if (error instanceof Error && isExistingAccountError(error)) {
         setSignupWarning("This account already exists. Please log in.")

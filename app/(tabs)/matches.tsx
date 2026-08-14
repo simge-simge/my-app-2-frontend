@@ -15,6 +15,7 @@ import AdminBadge from "@/components/AdminBadge"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
+import { runInBackground } from "@/utils/backgroundAction"
 
 export default function MatchesScreen() {
   const cachedMatches = getCachedApiData<Match[]>("/matches/")
@@ -22,7 +23,6 @@ export default function MatchesScreen() {
   const [loading, setLoading] = useState(() => cachedMatches === undefined)
   const hasLoaded = useRef(cachedMatches !== undefined)
   const [refreshing, setRefreshing] = useState(false)
-  const [revealingMatchId, setRevealingMatchId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadMatches = useCallback(async (showLoader = false) => {
@@ -49,19 +49,24 @@ export default function MatchesScreen() {
     loadMatches()
   }
 
-  const handleReveal = useCallback(async (matchId: string) => {
-    try {
-      setError(null)
-      setRevealingMatchId(matchId)
-      await revealMatchContact(matchId)
-      await loadMatches()
-    } catch (err) {
-      console.error("Failed to reveal contact info", err)
-      setError("Could not reveal your contact info for that match.")
-    } finally {
-      setRevealingMatchId(null)
-    }
-  }, [loadMatches])
+  const handleReveal = useCallback((matchId: string) => {
+    const previous = matches.find((item) => item.match_id === matchId)
+    setError(null)
+    setMatches((items) => items.map((item) => item.match_id === matchId ? {
+      ...item,
+      my_revealed: true,
+      revealed: item.their_revealed,
+      my_book: item.my_book ? { ...item.my_book, status: "lent" } : null,
+    } : item))
+    runInBackground(() => revealMatchContact(matchId), {
+      onSuccess: () => loadMatches(),
+      onError: (err) => {
+        if (previous) setMatches((items) => items.map((item) => item.match_id === matchId ? previous : item))
+        console.error("Failed to reveal contact info", err)
+        setError("Could not reveal your contact info for that match.")
+      },
+    })
+  }, [loadMatches, matches])
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
@@ -76,7 +81,7 @@ export default function MatchesScreen() {
       <FlatList
         data={matches}
         keyExtractor={(item) => item.match_id}
-        renderItem={({ item }) => <MatchRow match={item} onReveal={handleReveal} revealing={revealingMatchId === item.match_id} />}
+        renderItem={({ item }) => <MatchRow match={item} onReveal={handleReveal} />}
         contentContainerStyle={[styles.listContent, matches.length === 0 && styles.emptyListContent]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.text} />}
@@ -91,7 +96,7 @@ export default function MatchesScreen() {
   )
 }
 
-function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (matchId: string) => void; revealing: boolean }) {
+function MatchRow({ match, onReveal }: { match: Match; onReveal: (matchId: string) => void }) {
   const displayName = match.other_user.display_name || "Unknown reader"
   const matchedAt = formatMatchDate(match.created_at)
   const canReveal = !match.my_revealed
@@ -158,8 +163,8 @@ function MatchRow({ match, onReveal, revealing }: { match: Match; onReveal: (mat
         <Text style={styles.revealHint}>{myStatusText}</Text>
 
         {canReveal ? (
-          <Pressable style={[styles.revealButton, revealing && styles.revealButtonDisabled]} onPress={() => onReveal(match.match_id)} disabled={revealing}>
-            <Text style={styles.revealButtonText}>{revealing ? "Revealing..." : revealButtonText}</Text>
+          <Pressable style={styles.revealButton} onPress={() => onReveal(match.match_id)}>
+            <Text style={styles.revealButtonText}>{revealButtonText}</Text>
           </Pressable>
         ) : null}
 

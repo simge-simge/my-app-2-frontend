@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,7 @@ import BookDisplay from "@/components/BookDisplay"
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getMyBooks, type Book } from "@/services/books"
+import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
 export default function Library() {
   const cachedBooks = getCachedApiData<Book[]>("/books/me")
@@ -48,6 +49,10 @@ export default function Library() {
       loadBooks(true)
     }, [loadBooks])
   )
+
+  useEffect(() => subscribeToBackgroundActions((event) => {
+    if (event === "books") void loadBooks()
+  }), [loadBooks])
 
   const handleRefresh = () => {
     setRefreshing(true)

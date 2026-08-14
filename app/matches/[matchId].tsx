@@ -24,6 +24,7 @@ import {
   type MatchContacts,
   type MatchUser,
 } from "@/services/matches"
+import { runInBackground } from "@/utils/backgroundAction"
 
 export default function MatchDetailScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>()
@@ -32,8 +33,6 @@ export default function MatchDetailScreen() {
   const [match, setMatch] = useState<Match | null>(() => cachedMatch ?? null)
   const [loading, setLoading] = useState(() => cachedMatch === undefined)
   const hasLoaded = useRef(cachedMatch !== undefined)
-  const [revealing, setRevealing] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadMatch = useCallback(async () => {
@@ -54,41 +53,38 @@ export default function MatchDetailScreen() {
 
   useFocusEffect(useCallback(() => { loadMatch() }, [loadMatch]))
 
-  const handleReveal = useCallback(async () => {
-    if (!matchId) return
-    try {
-      setRevealing(true)
-      setError(null)
-      await revealMatchContact(matchId)
-      await loadMatch()
-    } catch (err) {
-      console.error("Failed to reveal contact info", err)
-      Alert.alert("Error", "Could not reveal your contact info for that match.")
-    } finally {
-      setRevealing(false)
-    }
-  }, [loadMatch, matchId])
+  const handleReveal = useCallback(() => {
+    if (!matchId || !match) return
+    const previous = match
+    setError(null)
+    setMatch({ ...match, my_revealed: true, revealed: match.their_revealed, my_book: match.my_book ? { ...match.my_book, status: "lent" } : null })
+    runInBackground(() => revealMatchContact(matchId), {
+      onSuccess: () => loadMatch(),
+      onError: (err) => {
+        setMatch(previous)
+        console.error("Failed to reveal contact info", err)
+        Alert.alert("Change was not saved", "Could not reveal your contact info for that match.")
+      },
+    })
+  }, [loadMatch, match, matchId])
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!matchId) return
-    try {
-      setDeleting(true)
-      await deleteMatch(matchId)
-      router.replace("/matches")
-    } catch (err) {
-      console.error("Failed to delete match", err)
-      Alert.alert("Error", "Could not delete this match.")
-    } finally {
-      setDeleting(false)
-    }
+    router.replace("/matches")
+    runInBackground(() => deleteMatch(matchId), {
+      onError: (err) => {
+        console.error("Failed to delete match", err)
+        Alert.alert("Match was not deleted", "Could not delete this match.")
+      },
+    })
   }, [matchId])
 
   const confirmDelete = useCallback(() => {
     Alert.alert("Delete match", "Remove this match from your list?", [
       { text: "Cancel", style: "cancel" },
-      { text: deleting ? "Deleting..." : "Delete", style: "destructive", onPress: handleDelete },
+      { text: "Delete", style: "destructive", onPress: handleDelete },
     ])
-  }, [deleting, handleDelete])
+  }, [handleDelete])
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
@@ -144,7 +140,7 @@ export default function MatchDetailScreen() {
           <Text style={styles.statusLine}>{myStatusText}</Text>
         </View>
 
-        {canReveal ? <Pressable style={[styles.revealButton, revealing && styles.actionDisabled]} onPress={handleReveal} disabled={revealing}><Text style={styles.revealButtonText}>{revealing ? "Revealing..." : revealButtonText}</Text></Pressable> : null}
+        {canReveal ? <Pressable style={styles.revealButton} onPress={handleReveal}><Text style={styles.revealButtonText}>{revealButtonText}</Text></Pressable> : null}
         {match.contacts ? <ContactList contacts={match.contacts} /> : null}
       </View>
 
@@ -164,8 +160,8 @@ export default function MatchDetailScreen() {
         </>
       ) : null}
 
-      <Pressable style={[styles.deleteButton, deleting && styles.actionDisabled]} onPress={confirmDelete} disabled={deleting}>
-        <Text style={styles.deleteButtonText}>{deleting ? "Deleting..." : "Delete Match"}</Text>
+      <Pressable style={styles.deleteButton} onPress={confirmDelete}>
+        <Text style={styles.deleteButtonText}>Delete Match</Text>
       </Pressable>
     </ScrollView>
   )

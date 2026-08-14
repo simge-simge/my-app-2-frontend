@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -22,7 +22,7 @@ import { getProfile, type Profile } from "@/services/profile"
 import { createSwipe, type SwipeDirection } from "@/services/swipes"
 
 const SWIPE_THRESHOLD = 120
-const SWIPE_OUT_DURATION = 220
+const SWIPE_OUT_DURATION = 170
 const STACK_SIZE = 3
 
 export default function Explore() {
@@ -38,6 +38,8 @@ export default function Explore() {
   const [isAnimatingSwipe, setIsAnimatingSwipe] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
   const position = useRef(new Animated.ValueXY()).current
+  const cardOpacity = useRef(new Animated.Value(1)).current
+  const swipeInFlight = useRef(false)
   const { width } = useWindowDimensions()
 
   useEffect(() => {
@@ -45,6 +47,14 @@ export default function Explore() {
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion)
     return () => subscription.remove()
   }, [])
+
+  // Reset the animated values only after React has replaced the dismissed card.
+  // Resetting them in the animation callback can briefly flash the old card back
+  // at the center of the deck, especially on web.
+  useLayoutEffect(() => {
+    position.setValue({ x: 0, y: 0 })
+    cardOpacity.setValue(1)
+  }, [cardOpacity, currentIndex, position])
 
   const loadExplore = useCallback(async (showLoader = false) => {
     if (showLoader && !hasLoaded.current) setLoading(true)
@@ -59,7 +69,9 @@ export default function Explore() {
         setBooks([])
         setCurrentIndex(0)
         setIsAnimatingSwipe(false)
+        swipeInFlight.current = false
         position.setValue({ x: 0, y: 0 })
+        cardOpacity.setValue(1)
         return
       }
 
@@ -67,7 +79,9 @@ export default function Explore() {
       setBooks(response)
       setCurrentIndex(0)
       setIsAnimatingSwipe(false)
+      swipeInFlight.current = false
       position.setValue({ x: 0, y: 0 })
+      cardOpacity.setValue(1)
     } catch (err) {
       console.error("Failed to load book feed", err)
       setError("Could not load books right now.")
@@ -76,7 +90,7 @@ export default function Explore() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [position])
+  }, [cardOpacity, position])
 
   useFocusEffect(useCallback(() => { loadExplore(true) }, [loadExplore]))
 
@@ -87,41 +101,54 @@ export default function Explore() {
 
   const forceSwipe = useCallback((direction: SwipeDirection) => {
     const activeBook = books[currentIndex]
-    if (!activeBook || isAnimatingSwipe) return
+    if (!activeBook || swipeInFlight.current) return
 
+    swipeInFlight.current = true
     setIsAnimatingSwipe(true)
-    Animated.timing(position, {
-      toValue: { x: direction === "right" ? width + 120 : -width - 120, y: 0 },
-      duration: reduceMotion ? 0 : SWIPE_OUT_DURATION,
-      useNativeDriver: true,
-    }).start(async ({ finished }) => {
+    setError(null)
+    Animated.parallel([
+      Animated.timing(position, {
+        toValue: { x: direction === "right" ? width + 120 : -width - 120, y: 0 },
+        duration: reduceMotion ? 0 : SWIPE_OUT_DURATION,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 0,
+        duration: reduceMotion ? 0 : SWIPE_OUT_DURATION,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
       if (!finished) {
+        position.setValue({ x: 0, y: 0 })
+        cardOpacity.setValue(1)
+        swipeInFlight.current = false
         setIsAnimatingSwipe(false)
         return
       }
 
-      try {
-        setError(null)
-        const response = await createSwipe({
-          target_book_id: activeBook.id,
-          target_owner_user_id: activeBook.owner_id,
-          direction,
+      // Commit the visual swipe before waiting on the network. The next card is
+      // already rendered underneath, so the deck now responds without API lag.
+      setCurrentIndex((prev) => prev + 1)
+      swipeInFlight.current = false
+      setIsAnimatingSwipe(false)
+
+      void createSwipe({
+        target_book_id: activeBook.id,
+        target_owner_user_id: activeBook.owner_id,
+        direction,
+      })
+        .then((response) => {
+          const createdMatch = response.match?.[0]
+          if (createdMatch) {
+            router.push({ pathname: "/matches/[matchId]", params: { matchId: createdMatch.id } })
+          }
         })
-        position.setValue({ x: 0, y: 0 })
-        setCurrentIndex((prev) => prev + 1)
-        const createdMatch = response.match?.[0]
-        if (createdMatch) {
-          router.push({ pathname: "/matches/[matchId]", params: { matchId: createdMatch.id } })
-        }
-      } catch (err) {
-        console.error(`Failed to create ${direction} swipe`, err)
-        position.setValue({ x: 0, y: 0 })
-        setError("Could not save your swipe right now.")
-      } finally {
-        setIsAnimatingSwipe(false)
-      }
+        .catch((err) => {
+          console.error(`Failed to create ${direction} swipe`, err)
+          setError("Could not save your swipe right now.")
+        })
     })
-  }, [books, currentIndex, isAnimatingSwipe, position, reduceMotion, width])
+  }, [books, cardOpacity, currentIndex, position, reduceMotion, width])
 
   const resetPosition = useCallback(() => {
     if (reduceMotion) { position.setValue({ x: 0, y: 0 }); return }
@@ -228,7 +255,7 @@ export default function Explore() {
                   if (event.nativeEvent.actionName === "decrement") forceSwipe("left")
                   if (event.nativeEvent.actionName === "increment") forceSwipe("right")
                 }}
-                style={[styles.card, styles.topCard, { transform: [...position.getTranslateTransform(), { rotate }] }]}
+                style={[styles.card, styles.topCard, { opacity: cardOpacity, transform: [...position.getTranslateTransform(), { rotate }] }]}
                 {...panResponder.panHandlers}
               >
                 <Animated.View style={[styles.swipeBadge, styles.likeBadge, { opacity: likeOpacity }]}>

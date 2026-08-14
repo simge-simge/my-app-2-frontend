@@ -23,6 +23,7 @@ import { ApiError, getCachedApiData } from "@/services/api"
 import { createCommunity } from "@/services/admin"
 import { updateCommunityVisibility } from "@/services/communities"
 import type { Location } from "@/services/locations"
+import { runInBackground } from "@/utils/backgroundAction"
 
 type EditableField = "name" | "location" | "phone" | "instagram" | "telegram"
 
@@ -31,7 +32,6 @@ export default function Settings() {
   const cachedProfile = getCachedApiData<Profile>("/profile/me/")
 
   const [loading, setLoading] = useState(() => cachedProfile === undefined)
-  const [saving, setSaving] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [editingField, setEditingField] = useState<EditableField | null>(null)
 
@@ -43,7 +43,6 @@ export default function Settings() {
   const [isAdmin, setIsAdmin] = useState(() => cachedProfile?.admin ?? false)
   const [communityId, setCommunityId] = useState<string | null>(() => cachedProfile?.community_id ?? null)
   const [communityPublic, setCommunityPublic] = useState(() => Boolean(cachedProfile?.community_public))
-  const [visibilitySaving, setVisibilitySaving] = useState(false)
   const [isAppAdmin, setIsAppAdmin] = useState(() => cachedProfile?.is_app_admin ?? false)
   const [pendingCommunity, setPendingCommunity] = useState<string | null>(() => cachedProfile?.pending_community_name ?? null)
   const [communityName, setCommunityName] = useState("")
@@ -94,77 +93,77 @@ export default function Settings() {
     setContacts((prev) => ({ ...prev, [key]: value }))
   }
 
-  const handleSave = async (field: EditableField) => {
-    try {
-      setSaving(true)
-      let update: Record<string, unknown>
+  const handleSave = (field: EditableField) => {
+    let update: Record<string, unknown>
 
-      if (field === "name") {
-        update = { display_name: name }
-      } else if (field === "location") {
-        if (!locationValid) {
-          Alert.alert("Select a location", "Choose a location from the suggestions or clear the field.")
-          return
-        }
-        update = { location_id: location?.id ?? null }
-      } else {
-        const filteredContacts = Object.fromEntries(
-          Object.entries(contacts).filter(([key, value]) => key !== "email" && value.trim() !== ""),
-        )
-        update = { contacts: filteredContacts }
+    if (field === "name") {
+      update = { display_name: name }
+    } else if (field === "location") {
+      if (!locationValid) {
+        Alert.alert("Select a location", "Choose a location from the suggestions or clear the field.")
+        return
       }
-
-      const updatedProfile = await updateProfile(update)
-      setLocation(updatedProfile.location)
-      setSavedLocation(updatedProfile.location)
-      setCommunity(updatedProfile.community_name ?? "")
-      setPendingCommunity(updatedProfile.pending_community_name)
-      setEditingField(null)
-      Alert.alert("Success", "Field updated successfully")
-    } catch (err) {
-      console.error(err)
-      Alert.alert("Error", err instanceof ApiError ? err.message : "Failed to update profile")
-    } finally {
-      setSaving(false)
+      update = { location_id: location?.id ?? null }
+      setSavedLocation(location)
+    } else {
+      const filteredContacts = Object.fromEntries(
+        Object.entries(contacts).filter(([key, value]) => key !== "email" && value.trim() !== ""),
+      )
+      update = { contacts: filteredContacts }
     }
+
+    setEditingField(null)
+    runInBackground(() => updateProfile(update), {
+      onSuccess: (updatedProfile) => {
+        setLocation(updatedProfile.location)
+        setSavedLocation(updatedProfile.location)
+        setCommunity(updatedProfile.community_name ?? "")
+        setPendingCommunity(updatedProfile.pending_community_name)
+      },
+      onError: (err) => {
+        console.error(err)
+        void loadProfile()
+        Alert.alert("Changes were not saved", err instanceof ApiError ? err.message : "Failed to update profile")
+      },
+    })
   }
 
-  const handleCreateCommunity = async () => {
+  const handleCreateCommunity = () => {
     if (!communityName.trim() || !communityAdminEmail.trim() || !communityLocation || !communityLocationValid) {
       Alert.alert("Missing details", "Enter a community name, select its location, and enter the admin's account email.")
       return
     }
-    try {
-      setSaving(true)
-      const created = await createCommunity({
-        name: communityName.trim(),
-        location_id: communityLocation.id,
-        admin_email: communityAdminEmail.trim().toLowerCase(),
-      })
-      setCommunityName("")
-      setCommunityLocation(null)
-      setCommunityAdminEmail("")
-      Alert.alert("Community created", `${created.name} was created and its admin was assigned.`)
-    } catch (err) {
-      console.error(err)
-      Alert.alert("Error", err instanceof ApiError ? err.message : "Failed to create community")
-    } finally {
-      setSaving(false)
-    }
+    const draft = { name: communityName, location: communityLocation, adminEmail: communityAdminEmail }
+    setCommunityName("")
+    setCommunityLocation(null)
+    setCommunityAdminEmail("")
+    runInBackground(() => createCommunity({
+      name: draft.name.trim(),
+      location_id: draft.location!.id,
+      admin_email: draft.adminEmail.trim().toLowerCase(),
+    }), {
+      onError: (err) => {
+        setCommunityName(draft.name)
+        setCommunityLocation(draft.location)
+        setCommunityAdminEmail(draft.adminEmail)
+        console.error(err)
+        Alert.alert("Community was not created", err instanceof ApiError ? err.message : "Failed to create community")
+      },
+    })
   }
 
-  const handleVisibilityChange = async (nextValue: boolean) => {
+  const handleVisibilityChange = (nextValue: boolean) => {
     if (!communityId) return
-    try {
-      setVisibilitySaving(true)
-      const updated = await updateCommunityVisibility(communityId, nextValue)
-      setCommunityPublic(updated.public)
-    } catch (err) {
-      console.error("Failed to update community visibility", err)
-      Alert.alert("Error", err instanceof ApiError ? err.message : "Failed to update community visibility")
-    } finally {
-      setVisibilitySaving(false)
-    }
+    const previousValue = communityPublic
+    setCommunityPublic(nextValue)
+    runInBackground(() => updateCommunityVisibility(communityId, nextValue), {
+      onSuccess: (updated) => setCommunityPublic(updated.public),
+      onError: (err) => {
+        setCommunityPublic(previousValue)
+        console.error("Failed to update community visibility", err)
+        Alert.alert("Change was not saved", err instanceof ApiError ? err.message : "Failed to update community visibility")
+      },
+    })
   }
 
   const confirmDelete = async () => {
@@ -224,7 +223,7 @@ export default function Settings() {
           <Pressable
             style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed, editingField !== null && editingField !== "name" && styles.fieldActionDisabled]}
             onPress={() => editingField === "name" ? handleSave("name") : setEditingField("name")}
-            disabled={saving || (editingField !== null && editingField !== "name")}
+            disabled={editingField !== null && editingField !== "name"}
             accessibilityRole="button"
             accessibilityLabel={editingField === "name" ? "Save name" : "Edit name"}
           >
@@ -240,11 +239,11 @@ export default function Settings() {
               onValidityChange={setLocationValid}
             />
             <View style={styles.locationActions}>
-              <Pressable style={styles.locationCancel} onPress={() => { setLocation(savedLocation); setEditingField(null) }} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel location edit">
+              <Pressable style={styles.locationCancel} onPress={() => { setLocation(savedLocation); setEditingField(null) }} accessibilityRole="button" accessibilityLabel="Cancel location edit">
                 <Text style={styles.locationCancelText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.locationSave} onPress={() => handleSave("location")} disabled={saving || !locationValid} accessibilityRole="button" accessibilityLabel="Save location">
-                <Text style={styles.locationSaveText}>{saving ? "Saving..." : "Save"}</Text>
+              <Pressable style={styles.locationSave} onPress={() => handleSave("location")} disabled={!locationValid} accessibilityRole="button" accessibilityLabel="Save location">
+                <Text style={styles.locationSaveText}>Save</Text>
               </Pressable>
             </View>
           </View>
@@ -254,7 +253,7 @@ export default function Settings() {
             <Pressable
               style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed, editingField !== null && styles.fieldActionDisabled]}
               onPress={() => setEditingField("location")}
-              disabled={saving || editingField !== null}
+              disabled={editingField !== null}
               accessibilityRole="button"
               accessibilityLabel="Edit location"
             >
@@ -268,7 +267,6 @@ export default function Settings() {
           <Pressable
             style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed]}
             onPress={() => router.push("/communities/search")}
-            disabled={saving}
             accessibilityRole="button"
             accessibilityLabel="Find a community"
           >
@@ -293,7 +291,6 @@ export default function Settings() {
             <Switch
               value={communityPublic}
               onValueChange={handleVisibilityChange}
-              disabled={visibilitySaving}
               trackColor={{ false: palette.border, true: palette.successSoft }}
               thumbColor={communityPublic ? palette.success : palette.textMuted}
               accessibilityLabel="Public community visibility"
@@ -313,8 +310,8 @@ export default function Settings() {
               onValidityChange={setCommunityLocationValid}
             />
             <TextInput style={styles.adminInput} value={communityAdminEmail} onChangeText={setCommunityAdminEmail} placeholder="Community admin email" placeholderTextColor={palette.textMuted} autoCapitalize="none" keyboardType="email-address" />
-            <Pressable style={({ pressed }) => [styles.primaryAction, pressed && styles.editButtonPressed, saving && styles.fieldActionDisabled]} onPress={handleCreateCommunity} disabled={saving}>
-              <Text style={styles.primaryActionText}>{saving ? "Creating..." : "Create community"}</Text>
+            <Pressable style={({ pressed }) => [styles.primaryAction, pressed && styles.editButtonPressed]} onPress={handleCreateCommunity}>
+              <Text style={styles.primaryActionText}>Create community</Text>
             </Pressable>
           </View>
         ) : null}
@@ -333,7 +330,7 @@ export default function Settings() {
           <Pressable
             style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed, editingField !== null && editingField !== "phone" && styles.fieldActionDisabled]}
             onPress={() => editingField === "phone" ? handleSave("phone") : setEditingField("phone")}
-            disabled={saving || (editingField !== null && editingField !== "phone")}
+            disabled={editingField !== null && editingField !== "phone"}
             accessibilityRole="button"
             accessibilityLabel={editingField === "phone" ? "Save phone" : "Edit phone"}
           >
@@ -347,7 +344,7 @@ export default function Settings() {
           <Pressable
             style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed, editingField !== null && editingField !== "instagram" && styles.fieldActionDisabled]}
             onPress={() => editingField === "instagram" ? handleSave("instagram") : setEditingField("instagram")}
-            disabled={saving || (editingField !== null && editingField !== "instagram")}
+            disabled={editingField !== null && editingField !== "instagram"}
             accessibilityRole="button"
             accessibilityLabel={editingField === "instagram" ? "Save Instagram" : "Edit Instagram"}
           >
@@ -361,7 +358,7 @@ export default function Settings() {
           <Pressable
             style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed, editingField !== null && editingField !== "telegram" && styles.fieldActionDisabled]}
             onPress={() => editingField === "telegram" ? handleSave("telegram") : setEditingField("telegram")}
-            disabled={saving || (editingField !== null && editingField !== "telegram")}
+            disabled={editingField !== null && editingField !== "telegram"}
             accessibilityRole="button"
             accessibilityLabel={editingField === "telegram" ? "Save Telegram" : "Edit Telegram"}
           >

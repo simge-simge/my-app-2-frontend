@@ -4,6 +4,7 @@ import type { ImagePickerAsset } from "expo-image-picker"
 
 import BookForm from "@/components/BookForm"
 import { createBook, uploadBookCover } from "@/services/books"
+import { runInBackground } from "@/utils/backgroundAction"
 
 export default function NewBookScreen() {
   const handleSave = async (
@@ -16,26 +17,23 @@ export default function NewBookScreen() {
     },
     coverAsset: ImagePickerAsset | null
   ) => {
-    try {
-      let coverUrl = values.cover_url
-
-      if (coverAsset) {
-        coverUrl = await uploadBookCover(coverAsset)
-      }
-
-      await createBook({
+    router.back()
+    runInBackground(async () => {
+      const coverUrl = coverAsset ? await uploadBookCover(coverAsset) : values.cover_url
+      return createBook({
         title: values.title,
         author: values.author || null,
         description: values.description || null,
         cover_url: coverUrl,
         isbn: values.isbn || null,
       })
-
-      router.back()
-    } catch (err) {
-      console.error("Failed to create book", err)
-      Alert.alert("Error", err instanceof Error ? err.message : "Could not save the book.")
-    }
+    }, {
+      event: "books",
+      onError: (err) => {
+        console.error("Failed to create book", err)
+        Alert.alert("Book was not saved", err instanceof Error ? err.message : "Could not save the book.")
+      },
+    })
   }
 
   return <BookForm mode="create" onSave={handleSave} />

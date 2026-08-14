@@ -40,6 +40,8 @@ describe("explore", () => {
     jest.spyOn(Animated, "timing").mockImplementation(() => ({ start: (callback?: (result: { finished: boolean }) => void) => callback?.({ finished: true }), stop: jest.fn(), reset: jest.fn() }) as never)
   })
 
+  afterEach(() => jest.restoreAllMocks())
+
   it("offers a community link without loading the feed when the user has no community", async () => {
     jest.mocked(getProfile).mockResolvedValue(profile({ community_id: null, community_name: null }))
 
@@ -61,16 +63,31 @@ describe("explore", () => {
     expect(await screen.findByText("No books to explore")).toBeVisible()
   })
 
-  it("prevents duplicate gestures while a swipe is processing", async () => {
+  it("shows the next card without waiting for the swipe request", async () => {
     let finish!: (value: { swipe: []; match: null }) => void
-    jest.mocked(getBookFeed).mockResolvedValue([book()])
+    jest.mocked(getBookFeed).mockResolvedValue([
+      book(),
+      book({ id: "10000000-0000-0000-0000-000000000002", title: "The Dispossessed" }),
+    ])
     jest.mocked(createSwipe).mockReturnValue(new Promise((resolve) => { finish = resolve }) as never)
     render(<Explore />)
     const card = await screen.findByLabelText("Swipe The Left Hand of Darkness")
     fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } })
-    fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } })
     expect(createSwipe).toHaveBeenCalledTimes(1)
+    expect(await screen.findByLabelText("Swipe The Dispossessed")).toBeVisible()
     await act(async () => finish({ swipe: [], match: null }))
+  })
+
+  it("prevents a second gesture while the exit animation is running", async () => {
+    const start = jest.fn()
+    jest.spyOn(Animated, "parallel").mockReturnValue({ start, stop: jest.fn(), reset: jest.fn() } as never)
+    jest.mocked(getBookFeed).mockResolvedValue([book()])
+    render(<Explore />)
+    const card = await screen.findByLabelText("Swipe The Left Hand of Darkness")
+    fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } })
+    fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } })
+    expect(start).toHaveBeenCalledTimes(1)
+    expect(createSwipe).not.toHaveBeenCalled()
   })
 
   it("opens a newly-created match after an interested gesture", async () => {

@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import PageHeader from "@/components/PageHeader"
 import { getCachedApiData } from "@/services/api"
+import { runInBackground } from "@/utils/backgroundAction"
 import {
   decideBorrowRequest,
   decideCommunityRequest,
@@ -35,7 +36,6 @@ export default function InboxScreen() {
   const [loading, setLoading] = useState(() => cachedInbox === undefined)
   const hasLoaded = useRef(cachedInbox !== undefined)
   const [refreshing, setRefreshing] = useState(false)
-  const [actingId, setActingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadInbox = useCallback(async (showLoader = false) => {
@@ -58,32 +58,30 @@ export default function InboxScreen() {
 
   useFocusEffect(useCallback(() => { loadInbox(true) }, [loadInbox]))
 
-  const handleDecision = async (request: CommunityJoinRequest, decision: "approved" | "declined") => {
-    try {
-      setActingId(request.id)
-      setError(null)
-      await decideCommunityRequest(request.id, decision)
-      await loadInbox()
-    } catch (err) {
-      console.error("Failed to review community request", err)
-      Alert.alert("Error", "Could not review this request.")
-    } finally {
-      setActingId(null)
-    }
+  const handleDecision = (request: CommunityJoinRequest, decision: "approved" | "declined") => {
+    setError(null)
+    setRequests((items) => items.filter((item) => item.id !== request.id))
+    runInBackground(() => decideCommunityRequest(request.id, decision), {
+      onSuccess: () => loadInbox(),
+      onError: (err) => {
+        setRequests((items) => items.some((item) => item.id === request.id) ? items : [request, ...items])
+        console.error("Failed to review community request", err)
+        Alert.alert("Update was not saved", "Could not review this request.")
+      },
+    })
   }
 
-  const handleBorrowDecision = async (request: BookBorrowRequest, decision: "accepted" | "declined") => {
-    try {
-      setActingId(request.id)
-      setError(null)
-      await decideBorrowRequest(request.id, decision)
-      await loadInbox()
-    } catch (err) {
-      console.error("Failed to review borrow request", err)
-      Alert.alert("Error", "Could not review this borrow request.")
-    } finally {
-      setActingId(null)
-    }
+  const handleBorrowDecision = (request: BookBorrowRequest, decision: "accepted" | "declined") => {
+    setError(null)
+    setBorrowRequests((items) => items.map((item) => item.id === request.id ? { ...item, status: decision } : item))
+    runInBackground(() => decideBorrowRequest(request.id, decision), {
+      onSuccess: () => loadInbox(),
+      onError: (err) => {
+        setBorrowRequests((items) => items.map((item) => item.id === request.id ? request : item))
+        console.error("Failed to review borrow request", err)
+        Alert.alert("Update was not saved", "Could not review this borrow request.")
+      },
+    })
   }
 
   const openBorrowMatch = (request: BookBorrowRequest) => {
@@ -94,29 +92,33 @@ export default function InboxScreen() {
     router.push("/matches")
   }
 
-  const handleNotification = async (notification: InboxNotification) => {
+  const handleNotification = (notification: InboxNotification) => {
     if (!notification.read_at) {
-      try {
-        await markNotificationRead(notification.id)
-        setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item))
-      } catch (err) {
-        console.error("Failed to mark notification read", err)
-      }
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item))
+      runInBackground(() => markNotificationRead(notification.id), {
+        onError: (err) => {
+          setNotifications((items) => items.map((item) => item.id === notification.id ? notification : item))
+          console.error("Failed to mark notification read", err)
+          Alert.alert("Update was not saved", "Could not mark this notification as read.")
+        },
+      })
     }
     if (notification.metadata?.match_id) {
       router.push({ pathname: "/matches/[matchId]", params: { matchId: notification.metadata.match_id } })
     }
   }
 
-  const handleMarkAllRead = async () => {
-    try {
-      await markAllNotificationsRead()
-      const readAt = new Date().toISOString()
-      setNotifications((items) => items.map((item) => ({ ...item, read_at: item.read_at ?? readAt })))
-    } catch (err) {
-      console.error("Failed to mark inbox read", err)
-      setError("Could not update your inbox.")
-    }
+  const handleMarkAllRead = () => {
+    const previous = notifications
+    const readAt = new Date().toISOString()
+    setNotifications((items) => items.map((item) => ({ ...item, read_at: item.read_at ?? readAt })))
+    runInBackground(markAllNotificationsRead, {
+      onError: (err) => {
+        setNotifications(previous)
+        console.error("Failed to mark inbox read", err)
+        Alert.alert("Update was not saved", "Could not mark your inbox as read.")
+      },
+    })
   }
 
   if (loading) {
@@ -166,15 +168,15 @@ export default function InboxScreen() {
                 <Text style={styles.date}>{formatDate(request.reviewed_at ?? request.created_at)}</Text>
                 {request.status === "pending" ? (
                   <View style={styles.actions}>
-                    <Pressable style={[styles.actionButton, styles.declineButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "declined")}>
+                    <Pressable style={[styles.actionButton, styles.declineButton]} onPress={() => handleBorrowDecision(request, "declined")}>
                       <Text style={styles.declineText}>Decline</Text>
                     </Pressable>
-                    <Pressable style={[styles.actionButton, styles.approveButton]} disabled={actingId === request.id} onPress={() => handleBorrowDecision(request, "accepted")}>
-                      <Text style={styles.approveText}>{actingId === request.id ? "Saving..." : "Accept"}</Text>
+                    <Pressable style={[styles.actionButton, styles.approveButton]} onPress={() => handleBorrowDecision(request, "accepted")}>
+                      <Text style={styles.approveText}>Accept</Text>
                     </Pressable>
                   </View>
                 ) : request.status === "accepted" ? (
-                  <Pressable style={[styles.matchButton, actingId === request.id && styles.actionDisabled]} onPress={() => openBorrowMatch(request)} disabled={actingId === request.id}>
+                  <Pressable style={styles.matchButton} onPress={() => openBorrowMatch(request)}>
                     <Text style={styles.matchButtonText}>Go to My Matches</Text>
                     <Ionicons name="arrow-forward" size={17} color={palette.white} />
                   </Pressable>
@@ -203,11 +205,11 @@ export default function InboxScreen() {
                 </Text>
                 <Text style={styles.date}>{formatDate(request.created_at)}</Text>
                 <View style={styles.actions}>
-                  <Pressable style={[styles.actionButton, styles.declineButton]} disabled={actingId === request.id} onPress={() => handleDecision(request, "declined")}>
+                  <Pressable style={[styles.actionButton, styles.declineButton]} onPress={() => handleDecision(request, "declined")}>
                     <Text style={styles.declineText}>Decline</Text>
                   </Pressable>
-                  <Pressable style={[styles.actionButton, styles.approveButton]} disabled={actingId === request.id} onPress={() => handleDecision(request, "approved")}>
-                    <Text style={styles.approveText}>{actingId === request.id ? "Saving..." : "Approve"}</Text>
+                  <Pressable style={[styles.actionButton, styles.approveButton]} onPress={() => handleDecision(request, "approved")}>
+                    <Text style={styles.approveText}>Approve</Text>
                   </Pressable>
                 </View>
               </View>

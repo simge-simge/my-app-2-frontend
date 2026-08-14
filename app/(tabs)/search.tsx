@@ -18,6 +18,7 @@ import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { requestToBorrowBook, searchBooks, type Book, type SearchScope } from "@/services/books"
 import { searchProfiles, type ProfileSearchResult } from "@/services/profile"
 import { supabase } from "@/utils/supabase"
+import { runInBackground } from "@/utils/backgroundAction"
 
 const SEARCH_DELAY_MS = 300
 
@@ -42,7 +43,6 @@ export default function Search() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [requestingBookIds, setRequestingBookIds] = useState<Set<string>>(() => new Set())
   const [requestedBookIds, setRequestedBookIds] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
@@ -99,21 +99,19 @@ export default function Search() {
     }
   }, [mode, query, scope])
 
-  const handleBorrowRequest = async (book: Book) => {
-    setRequestingBookIds((ids) => new Set(ids).add(book.id))
-    try {
-      await requestToBorrowBook(book.id)
-      setRequestedBookIds((ids) => new Set(ids).add(book.id))
-    } catch (err) {
-      console.error("Failed to send borrow request", err)
-      Alert.alert("Request not sent", err instanceof Error ? err.message : "Please try again.")
-    } finally {
-      setRequestingBookIds((ids) => {
-        const next = new Set(ids)
-        next.delete(book.id)
-        return next
-      })
-    }
+  const handleBorrowRequest = (book: Book) => {
+    setRequestedBookIds((ids) => new Set(ids).add(book.id))
+    runInBackground(() => requestToBorrowBook(book.id), {
+      onError: (err) => {
+        setRequestedBookIds((ids) => {
+          const next = new Set(ids)
+          next.delete(book.id)
+          return next
+        })
+        console.error("Failed to send borrow request", err)
+        Alert.alert("Request not sent", err instanceof Error ? err.message : "Please try again.")
+      },
+    })
   }
 
   const searchTerm = query.trim()
@@ -206,7 +204,6 @@ export default function Search() {
                 accessibilityLabel={`Ask to borrow ${item.title}`}
                 disabled={
                   item.owner_id === currentUserId ||
-                  requestingBookIds.has(item.id) ||
                   item.borrow_requested || requestedBookIds.has(item.id)
                 }
                 onPress={() => handleBorrowRequest(item)}
@@ -216,17 +213,13 @@ export default function Search() {
                   pressed && styles.borrowButtonPressed,
                 ]}
               >
-                {requestingBookIds.has(item.id) ? (
-                  <ActivityIndicator size="small" color={palette.white} />
-                ) : (
-                  <Text style={styles.borrowButtonText}>
-                    {item.owner_id === currentUserId
-                      ? "Your book"
-                      : item.borrow_requested || requestedBookIds.has(item.id)
-                        ? "Request sent"
-                        : "Ask to borrow"}
-                  </Text>
-                )}
+                <Text style={styles.borrowButtonText}>
+                  {item.owner_id === currentUserId
+                    ? "Your book"
+                    : item.borrow_requested || requestedBookIds.has(item.id)
+                      ? "Request sent"
+                      : "Ask to borrow"}
+                </Text>
               </Pressable>
             </View>
           )}

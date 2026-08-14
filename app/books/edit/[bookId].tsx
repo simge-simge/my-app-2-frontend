@@ -13,6 +13,7 @@ import {
   uploadBookCover,
 } from "@/services/books"
 import { supabase } from "@/utils/supabase"
+import { runInBackground } from "@/utils/backgroundAction"
 
 export default function EditBookScreen() {
   const { bookId } = useLocalSearchParams<{ bookId: string }>()
@@ -20,8 +21,6 @@ export default function EditBookScreen() {
   const cachedBook = getCachedApiData<Book>(cachePath)
   const [book, setBook] = useState<Book | null>(() => cachedBook ?? null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const loadBook = useCallback(async () => {
     if (!bookId) return
@@ -53,37 +52,35 @@ export default function EditBookScreen() {
     coverAsset: ImagePickerAsset | null,
   ) => {
     if (!bookId || !book) return
-    try {
-      setSaving(true)
+    router.back()
+    runInBackground(async () => {
       const coverUrl = coverAsset ? await uploadBookCover(coverAsset) : values.cover_url
-      await updateBook(bookId, {
+      return updateBook(bookId, {
         author: values.author || null,
         description: values.description || null,
         cover_url: coverUrl,
         isbn: values.isbn || null,
         status: book.status,
       })
-      router.back()
-    } catch (err) {
-      console.error("Failed to update book", err)
-      Alert.alert("Error", err instanceof Error ? err.message : "Could not update the book.")
-    } finally {
-      setSaving(false)
-    }
+    }, {
+      event: "books",
+      onError: (err) => {
+        console.error("Failed to update book", err)
+        Alert.alert("Changes were not saved", err instanceof Error ? err.message : "Could not update the book.")
+      },
+    })
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!bookId) return
-    try {
-      setDeleting(true)
-      await deleteBook(bookId)
-      router.replace("/library")
-    } catch (err) {
-      console.error("Failed to delete book", err)
-      Alert.alert("Error", err instanceof Error ? err.message : "Could not delete the book.")
-    } finally {
-      setDeleting(false)
-    }
+    router.replace("/library")
+    runInBackground(() => deleteBook(bookId), {
+      event: "books",
+      onError: (err) => {
+        console.error("Failed to delete book", err)
+        Alert.alert("Book was not deleted", err instanceof Error ? err.message : "Could not delete the book.")
+      },
+    })
   }
 
   const confirmDelete = () => {
@@ -98,8 +95,6 @@ export default function EditBookScreen() {
       mode="edit"
       initialBook={book ?? undefined}
       loading={loading}
-      saving={saving}
-      deleting={deleting}
       onSave={handleSave}
       onDelete={confirmDelete}
     />
