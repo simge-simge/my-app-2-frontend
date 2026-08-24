@@ -12,6 +12,7 @@ import { signUp } from "@/services/authentication"
 import { updateProfile } from "@/services/profile"
 import type { Location } from "@/services/locations"
 import { runInBackground } from "@/utils/backgroundAction"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export function generateUsername(email: string) {
   const emailPrefix = email.split("@")[0] ?? ""
@@ -37,6 +38,7 @@ function isExistingAccountError(error: { message: string; code?: string }) {
 }
 
 export default function Signup() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
@@ -49,8 +51,8 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
 
   const handleSignup = async () => {
-    if (!email.trim() || !password) { Alert.alert("Create account failed", "Please enter your email and password."); return }
-    if (!locationValid) { Alert.alert("Create account failed", "Select a location from the suggestions or clear the location field."); return }
+    if (!email.trim() || !password) { Alert.alert(t("createAccountFailed"), t("enterEmailPassword")); return }
+    if (!locationValid) { Alert.alert(t("createAccountFailed"), t("selectOrClearLocation")); return }
     try {
       setLoading(true)
       setSignupWarning(null)
@@ -58,9 +60,9 @@ export default function Signup() {
       const { error } = await signUp(normalizedEmail, password)
       if (error) {
         if (isExistingAccountError(error)) {
-          setSignupWarning("This account already exists. Please log in.")
+          setSignupWarning(t("accountExists"))
         } else {
-          setSignupWarning(error.message || "Account creation failed. Please try again.")
+          setSignupWarning(error.message || t("accountCreationFailed"))
         }
         return
       }
@@ -77,13 +79,13 @@ export default function Signup() {
       if (location) profileUpdate.location_id = location.id
       router.replace("/(tabs)/home")
       runInBackground(() => updateProfile(profileUpdate), {
-        onError: () => Alert.alert("Profile setup incomplete", "Your account was created. You can update your optional profile details in Settings."),
+        onError: () => Alert.alert(t("profileIncomplete"), t("profileIncompleteMessage")),
       })
     } catch (error) {
       if (error instanceof Error && isExistingAccountError(error)) {
-        setSignupWarning("This account already exists. Please log in.")
+        setSignupWarning(t("accountExists"))
       } else {
-        setSignupWarning(error instanceof Error ? error.message : "Account creation failed. Please try again.")
+        setSignupWarning(error instanceof Error ? error.message : t("accountCreationFailed"))
       }
     } finally { setLoading(false) }
   }
@@ -93,35 +95,35 @@ export default function Signup() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <GentleEntrance style={styles.card}>
           <BookDoodles compact />
-          <Text style={styles.eyebrow}>CommonShelf · Join the circle</Text>
-          <Text style={styles.title}>Make room for a new story.</Text>
-          <Text style={styles.subtitle}>Build your shelf and meet readers in your community.</Text>
+          <Text style={styles.eyebrow}>{t("joinCircle")}</Text>
+          <Text style={styles.title}>{t("makeRoom")}</Text>
+          <Text style={styles.subtitle}>{t("signupSubtitle")}</Text>
           <View style={styles.form}>
-            <AppInput placeholder="Email" value={email} onChangeText={(value) => { setEmail(value); setSignupWarning(null) }} />
-            <AppInput placeholder="Password" value={password} secure onChangeText={(value) => { setPassword(value); setSignupWarning(null) }} />
-            <Text style={styles.optionalHint}>Profile details (optional)</Text>
-            <AppInput placeholder="Name (optional)" value={name} onChangeText={setName} />
+            <AppInput placeholder={t("email")} value={email} onChangeText={(value) => { setEmail(value); setSignupWarning(null) }} />
+            <AppInput placeholder={t("password")} value={password} secure onChangeText={(value) => { setPassword(value); setSignupWarning(null) }} />
+            <Text style={styles.optionalHint}>{t("profileOptional")}</Text>
+            <AppInput placeholder={t("nameOptional")} value={name} onChangeText={setName} />
             <View style={styles.locationField}>
               <LocationPicker
-                label="Location (optional)"
+                label={t("locationOptional")}
                 selected={location}
                 onSelect={setLocation}
                 onValidityChange={setLocationValid}
               />
             </View>
-            <AppInput placeholder="Phone (optional)" value={phone} onChangeText={setPhone} />
-            <AppInput placeholder="Instagram (optional)" value={instagram} onChangeText={setInstagram} />
-            <AppInput placeholder="Telegram (optional)" value={telegram} onChangeText={setTelegram} />
-            <AppButton title="Create account" onPress={handleSignup} loading={loading} />
+            <AppInput placeholder={t("phoneOptional")} value={phone} onChangeText={setPhone} />
+            <AppInput placeholder={t("instagramOptional")} value={instagram} onChangeText={setInstagram} />
+            <AppInput placeholder={t("telegramOptional")} value={telegram} onChangeText={setTelegram} />
+            <AppButton title={t("createAccountAction")} onPress={handleSignup} loading={loading} />
             {signupWarning ? (
               <View style={styles.warning} accessibilityRole="alert">
-                <Text style={styles.warningTitle}>Account already exists</Text>
+                <Text style={styles.warningTitle}>{t("accountAlreadyExists")}</Text>
                 <Text style={styles.warningText}>{signupWarning}</Text>
               </View>
             ) : null}
           </View>
           <Pressable style={styles.linkTarget} onPress={() => router.push("/login")} accessibilityRole="link">
-            <Text style={styles.link}>Already have an account? Log in</Text>
+            <Text style={styles.link}>{t("alreadyAccount")}</Text>
           </Pressable>
         </GentleEntrance>
       </ScrollView>

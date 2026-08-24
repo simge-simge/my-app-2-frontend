@@ -19,22 +19,22 @@ import { requestToBorrowBook, searchBooks, type Book, type SearchScope } from "@
 import { searchProfiles, type ProfileSearchResult } from "@/services/profile"
 import { supabase } from "@/utils/supabase"
 import { runInBackground } from "@/utils/backgroundAction"
+import { useTranslation } from "@/localization/LanguageContext"
 
 const SEARCH_DELAY_MS = 300
 
 type SearchMode = "books" | "users"
 
-const SEARCH_MODES: { label: string; value: SearchMode }[] = [
-  { label: "Search Books", value: "books" },
-  { label: "Search Users", value: "users" },
-]
-
-const SEARCH_SCOPES: { label: string; value: SearchScope }[] = [
-  { label: "Community", value: "community" },
-  { label: "All", value: "all" },
-]
-
 export default function Search() {
+  const { t } = useTranslation()
+  const searchModes: { label: string; value: SearchMode }[] = [
+    { label: t("searchBooks"), value: "books" },
+    { label: t("searchUsers"), value: "users" },
+  ]
+  const searchScopes: { label: string; value: SearchScope }[] = [
+    { label: t("community"), value: "community" },
+    { label: t("all"), value: "all" },
+  ]
   const [mode, setMode] = useState<SearchMode>("books")
   const [scope, setScope] = useState<SearchScope>("community")
   const [query, setQuery] = useState("")
@@ -86,7 +86,7 @@ export default function Search() {
         if (!cancelled) {
           setBooks([])
           setUsers([])
-          setError(`Could not search ${mode} right now.`)
+          setError(t("searchFailed", { type: t(mode) }))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -97,7 +97,7 @@ export default function Search() {
       cancelled = true
       clearTimeout(timeout)
     }
-  }, [mode, query, scope])
+  }, [mode, query, scope, t])
 
   const handleBorrowRequest = (book: Book) => {
     setRequestedBookIds((ids) => new Set(ids).add(book.id))
@@ -109,7 +109,7 @@ export default function Search() {
           return next
         })
         console.error("Failed to send borrow request", err)
-        Alert.alert("Request not sent", err instanceof Error ? err.message : "Please try again.")
+        Alert.alert(t("requestNotSent"), err instanceof Error ? err.message : t("tryAgain"))
       },
     })
   }
@@ -123,31 +123,33 @@ export default function Search() {
         color={palette.textSoft}
       />
       <Text style={styles.emptyTitle}>
-        {searchTerm ? `No matching ${mode}` : `Search ${mode}`}
+        {searchTerm
+          ? t("noMatching", { type: t(mode) })
+          : t("searchTypePrompt", { type: t(mode) })}
       </Text>
       <Text style={styles.emptyText}>
         {searchTerm
-          ? `No ${mode} match "${searchTerm}" in this scope.`
-          : `Enter a search term to search ${scope === "community" ? "your community" : "public communities"}.`}
+          ? t("noMatchesScope", { type: t(mode), query: searchTerm })
+          : t("enterSearch", { scope: t(scope === "community" ? "yourCommunity" : "publicCommunities") })}
       </Text>
     </View>
   )
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Search</Text>
-      <Text style={styles.subtitle}>Find books and readers in your community</Text>
+      <Text style={styles.title}>{t("search")}</Text>
+      <Text style={styles.subtitle}>{t("searchSubtitle")}</Text>
 
       <SegmentedControl
-        accessibilityLabel="Search type"
-        options={SEARCH_MODES}
+        accessibilityLabel={t("searchType")}
+        options={searchModes}
         selected={mode}
         onSelect={setMode}
       />
 
       <SegmentedControl
-        accessibilityLabel="Search scope"
-        options={SEARCH_SCOPES}
+        accessibilityLabel={t("searchScope")}
+        options={searchScopes}
         selected={scope}
         onSelect={setScope}
       />
@@ -159,7 +161,7 @@ export default function Search() {
           autoCorrect={false}
           autoFocus
           onChangeText={setQuery}
-          placeholder={mode === "books" ? "Search books..." : "Search users..."}
+          placeholder={mode === "books" ? t("searchBooksPlaceholder") : t("searchUsersPlaceholder")}
           placeholderTextColor={palette.textMuted}
           returnKeyType="search"
           style={styles.input}
@@ -167,7 +169,7 @@ export default function Search() {
         />
         {query ? (
           <Pressable
-            accessibilityLabel="Clear search"
+            accessibilityLabel={t("clearSearch")}
             hitSlop={10}
             onPress={() => setQuery("")}
             style={styles.clearButton}
@@ -201,7 +203,7 @@ export default function Search() {
               />
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Ask to borrow ${item.title}`}
+                accessibilityLabel={t("askBorrowBook", { title: item.title })}
                 disabled={
                   item.owner_id === currentUserId ||
                   item.borrow_requested || requestedBookIds.has(item.id)
@@ -215,10 +217,10 @@ export default function Search() {
               >
                 <Text style={styles.borrowButtonText}>
                   {item.owner_id === currentUserId
-                    ? "Your book"
+                    ? t("yourBook")
                     : item.borrow_requested || requestedBookIds.has(item.id)
-                      ? "Request sent"
-                      : "Ask to borrow"}
+                      ? t("requestSent")
+                      : t("askBorrow")}
                 </Text>
               </Pressable>
             </View>
@@ -282,11 +284,12 @@ function SegmentedControl<T extends string>({
 }
 
 function UserResult({ user, showCommunity }: { user: ProfileSearchResult; showCommunity: boolean }) {
-  const displayName = user.display_name || "Unknown reader"
+  const { t } = useTranslation()
+  const displayName = user.display_name || t("unknownReader")
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`View ${displayName}'s library`}
+      accessibilityLabel={t("viewLibrary", { name: displayName })}
       onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: user.id } })}
       style={({ pressed }) => [styles.userCard, pressed && styles.userCardPressed]}
     >

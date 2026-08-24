@@ -3,36 +3,42 @@ import { router } from "expo-router"
 
 import AppButton from "@/components/AppButton"
 import GentleEntrance from "@/components/GentleEntrance"
+import LanguageSwitch from "@/components/LanguageSwitch"
 import { layout, palette, spacing, typography } from "@/constants/theme"
+import { useTranslation } from "@/localization/LanguageContext"
 
 const heroArt = require("../assets/images/welcome-hero.png")
 
 export default function Index() {
+  const { t } = useTranslation()
   const { width, height } = useWindowDimensions()
   const isWide = width >= 800
   const isCompact = height < 720
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.container, isWide && styles.wideContainer]} showsVerticalScrollIndicator={false}>
+      <View style={[styles.languageAnchor, isWide && styles.wideLanguageAnchor]}>
+        <LanguageSwitch />
+      </View>
       <View style={[styles.content, isWide && styles.wideContent]}>
         <GentleEntrance style={[styles.artColumn, isWide && styles.wideArtColumn]}>
           <View style={[styles.skyDot, styles.skyDotOne]} />
           <View style={[styles.skyDot, styles.skyDotTwo]} />
           <View style={styles.artHalo} />
-          <Image accessibilityLabel="Two readers sharing a book" source={heroArt} style={[styles.heroArt, isCompact && !isWide && styles.compactArt]} resizeMode="contain" />
+          <Image accessibilityLabel={t("heroImageLabel")} source={heroArt} style={[styles.heroArt, isCompact && !isWide && styles.compactArt]} resizeMode="contain" />
           <View style={styles.scribble} />
         </GentleEntrance>
 
         <GentleEntrance delay={110} style={[styles.copyColumn, !isWide && { maxWidth: width - 40 }, isWide && styles.wideCopyColumn]}>
           <View style={styles.brandRow}><View style={styles.brandMark} /><Text style={styles.eyebrow}>CommonShelf</Text></View>
-          <Text style={[styles.title, !isWide && styles.mobileTitle]}>Good books find their way to good company.</Text>
-          <Text style={styles.subtitle}>Share your shelf, discover reads nearby, and turn a match into a conversation.</Text>
+          <Text style={[styles.title, !isWide && styles.mobileTitle]}>{t("heroTitle")}</Text>
+          <Text style={styles.subtitle}>{t("heroSubtitle")}</Text>
 
           <View style={styles.actions}>
-            <AppButton title="Log in" onPress={() => router.push("/login")} />
-            <AppButton title="Create an account" variant="secondary" onPress={() => router.push("/signup")} />
+            <AppButton title={t("login")} onPress={() => router.push("/login")} />
+            <AppButton title={t("createAccount")} variant="secondary" onPress={() => router.push("/signup")} />
           </View>
-          <Text style={styles.note}>Made for curious readers and generous shelves.</Text>
+          <Text style={styles.note}>{t("heroNote")}</Text>
         </GentleEntrance>
       </View>
     </ScrollView>
@@ -41,7 +47,7 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.background },
-  container: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 20, paddingVertical: 20 },
+  container: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 20, paddingVertical: 20, position: "relative" },
   wideContainer: { paddingHorizontal: 48, paddingVertical: 36 },
   content: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center" },
   wideContent: { flexDirection: "row", alignItems: "center", gap: 64 },
@@ -56,6 +62,8 @@ const styles = StyleSheet.create({
   scribble: { position: "absolute", bottom: 18, width: "62%", height: 6, borderRadius: 99, backgroundColor: palette.green, opacity: 0.7, transform: [{ rotate: "-2deg" }] },
   copyColumn: { width: "100%", maxWidth: 520, alignSelf: "center" },
   wideCopyColumn: { flex: 0.95 },
+  languageAnchor: { position: "absolute", top: 16, right: 20, zIndex: 10 },
+  wideLanguageAnchor: { top: 28, right: 48 },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
   brandMark: { width: 15, height: 22, borderRadius: 4, backgroundColor: palette.orange, borderWidth: 1.5, borderColor: palette.borderStrong, transform: [{ rotate: "-6deg" }] },
   eyebrow: { fontSize: 12, fontWeight: "800", color: palette.accentDark, textTransform: "uppercase", letterSpacing: 1.5 },

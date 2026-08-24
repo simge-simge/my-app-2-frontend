@@ -25,6 +25,7 @@ import {
   type MatchUser,
 } from "@/services/matches"
 import { runInBackground } from "@/utils/backgroundAction"
+import { useBookStatusLabel } from "@/localization/bookStatus"
 
 export default function MatchDetailScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>()
@@ -178,13 +179,14 @@ function UserAvatar({ user, size }: { user: MatchUser; size: number }) {
 }
 
 function BookDetails({ book }: { book: MatchBook }) {
+  const bookStatusLabel = useBookStatusLabel()
   return (
     <View style={styles.bookCard}>
       {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="cover" /> : <View style={[styles.cover, styles.coverFallback]}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>}
       <Text style={styles.bookTitle}>{book.title}</Text>
       <InfoRow label="Author" value={book.author || "Unknown"} />
       <InfoRow label="ISBN" value={book.isbn || "Not provided"} />
-      <InfoRow label="Status" value={book.status || "Unknown"} />
+      <InfoRow label="Status" value={bookStatusLabel(book.status)} />
       <InfoRow label="Added" value={book.created_at ? formatMatchDate(book.created_at) : "Unknown"} />
       <InfoRow label="Description" value={book.description || "No description provided."} multiline />
     </View>

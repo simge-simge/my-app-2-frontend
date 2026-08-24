@@ -8,24 +8,26 @@ import { BookDoodles } from "@/components/BookDoodles"
 import GentleEntrance from "@/components/GentleEntrance"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { signIn } from "@/services/authentication"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export default function Login() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loginWarning, setLoginWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
-    if (!email.trim() || !password) { Alert.alert("Login failed", "Please enter your email and password."); return }
+    if (!email.trim() || !password) { Alert.alert(t("loginFailed"), t("enterEmailPassword")); return }
     try {
       setLoading(true)
       setLoginWarning(null)
       const { error } = await signIn(email.trim(), password)
       if (error) {
         if (error.code === "invalid_credentials" || error.message.toLowerCase().includes("invalid login credentials")) {
-          setLoginWarning("This account doesn't exist, or the password is incorrect. Please check your details or create an account.")
+          setLoginWarning(t("invalidAccount"))
         } else {
-          Alert.alert("Login failed", error.message)
+          Alert.alert(t("loginFailed"), error.message)
         }
         return
       }
@@ -38,22 +40,22 @@ export default function Login() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <GentleEntrance style={styles.card}>
           <BookDoodles compact />
-          <Text style={styles.eyebrow}>CommonShelf · Welcome back</Text>
-          <Text style={styles.title}>Return to your shelf.</Text>
-          <Text style={styles.subtitle}>Your next bookish conversation is waiting.</Text>
+          <Text style={styles.eyebrow}>{t("welcomeBack")}</Text>
+          <Text style={styles.title}>{t("returnShelf")}</Text>
+          <Text style={styles.subtitle}>{t("loginSubtitle")}</Text>
           <View style={styles.form}>
-            <AppInput placeholder="Email" value={email} onChangeText={(value) => { setEmail(value); setLoginWarning(null) }} />
-            <AppInput placeholder="Password" value={password} secure onChangeText={(value) => { setPassword(value); setLoginWarning(null) }} />
-            <AppButton title="Log in" onPress={handleLogin} loading={loading} />
+            <AppInput placeholder={t("email")} value={email} onChangeText={(value) => { setEmail(value); setLoginWarning(null) }} />
+            <AppInput placeholder={t("password")} value={password} secure onChangeText={(value) => { setPassword(value); setLoginWarning(null) }} />
+            <AppButton title={t("login")} onPress={handleLogin} loading={loading} />
             {loginWarning ? (
               <View style={styles.warning} accessibilityRole="alert">
-                <Text style={styles.warningTitle}>Account not found</Text>
+                <Text style={styles.warningTitle}>{t("accountNotFound")}</Text>
                 <Text style={styles.warningText}>{loginWarning}</Text>
               </View>
             ) : null}
           </View>
           <Pressable style={styles.linkTarget} onPress={() => router.push("/signup")} accessibilityRole="link">
-            <Text style={styles.link}>You are not registered? Create an account</Text>
+            <Text style={styles.link}>{t("notRegistered")}</Text>
           </Pressable>
         </GentleEntrance>
       </ScrollView>

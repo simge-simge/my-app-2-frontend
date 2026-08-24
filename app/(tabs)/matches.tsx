@@ -16,8 +16,10 @@ import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
 import { runInBackground } from "@/utils/backgroundAction"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export default function MatchesScreen() {
+  const { t } = useTranslation()
   const cachedMatches = getCachedApiData<Match[]>("/matches/")
   const [matches, setMatches] = useState<Match[]>(() => cachedMatches ?? [])
   const [loading, setLoading] = useState(() => cachedMatches === undefined)
@@ -34,13 +36,13 @@ export default function MatchesScreen() {
       setMatches(response)
     } catch (err) {
       console.error("Failed to load matches", err)
-      setError("Could not load your matches.")
+      setError(t("couldNotLoadMatches"))
     } finally {
       hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [t])
 
   useFocusEffect(useCallback(() => { loadMatches(true) }, [loadMatches]))
 
@@ -63,10 +65,10 @@ export default function MatchesScreen() {
       onError: (err) => {
         if (previous) setMatches((items) => items.map((item) => item.match_id === matchId ? previous : item))
         console.error("Failed to reveal contact info", err)
-        setError("Could not reveal your contact info for that match.")
+        setError(t("revealContactError"))
       },
     })
-  }, [loadMatches, matches])
+  }, [loadMatches, matches, t])
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
@@ -74,8 +76,8 @@ export default function MatchesScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Matches</Text>
-      <Text style={styles.subtitle}>Book swaps and accepted borrow requests</Text>
+      <Text style={styles.title}>{t("myMatches")}</Text>
+      <Text style={styles.subtitle}>{t("matchSubtitle")}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <FlatList
@@ -87,8 +89,8 @@ export default function MatchesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.text} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No matches yet</Text>
-            <Text style={styles.emptyText}>Book swaps and accepted borrow requests will show up here.</Text>
+            <Text style={styles.emptyTitle}>{t("noMatchesYet")}</Text>
+            <Text style={styles.emptyText}>{t("noMatchesHint")}</Text>
           </View>
         }
       />
@@ -97,15 +99,16 @@ export default function MatchesScreen() {
 }
 
 function MatchRow({ match, onReveal }: { match: Match; onReveal: (matchId: string) => void }) {
-  const displayName = match.other_user.display_name || "Unknown reader"
-  const matchedAt = formatMatchDate(match.created_at)
+  const { language, t } = useTranslation()
+  const displayName = match.other_user.display_name || t("unknownReader")
+  const matchedAt = formatMatchDate(match.created_at, language === "tr" ? "tr-TR" : "en-US", t("recentlyMatched"))
   const canReveal = !match.my_revealed
   const isBorrowMatch = !match.my_book || !match.their_book
   const borrowedBook = match.my_book ?? match.their_book
-  const borrowLabel = match.my_book ? "You are lending" : "You are borrowing"
-  const otherStatusText = match.their_revealed ? `${displayName} revealed contact info.` : `${displayName} hasn't revealed yet.`
-  const myStatusText = match.my_revealed ? "Your contact info has been revealed for this match." : "Your contact info is still hidden."
-  const revealButtonText = match.my_book ? "Reveal Contact & Mark My Book Lent" : "Reveal My Contact Info"
+  const borrowLabel = match.my_book ? t("youAreLending") : t("youAreBorrowing")
+  const otherStatusText = match.their_revealed ? t("personRevealedContact", { name: displayName }) : t("personNotRevealed", { name: displayName })
+  const myStatusText = match.my_revealed ? t("yourContactRevealed") : t("yourContactHidden")
+  const revealButtonText = match.my_book ? t("revealAndMarkLent") : t("revealMyContact")
 
   return (
     <Pressable
@@ -115,7 +118,7 @@ function MatchRow({ match, onReveal }: { match: Match; onReveal: (matchId: strin
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`View ${displayName}'s library`}
+          accessibilityLabel={t("viewLibrary", { name: displayName })}
           onPress={(event) => {
             event.stopPropagation()
             router.push({ pathname: "/members/[memberId]", params: { memberId: match.other_user.id } })
@@ -141,7 +144,7 @@ function MatchRow({ match, onReveal }: { match: Match; onReveal: (matchId: strin
 
         <View style={[styles.statusBadge, match.revealed ? styles.revealedBadge : styles.pendingBadge]}>
           <Text style={[styles.statusText, match.revealed ? styles.revealedText : styles.pendingText]}>
-            {match.revealed ? "Revealed" : "Pending"}
+            {match.revealed ? t("revealed") : t("pending")}
           </Text>
         </View>
       </View>
@@ -149,12 +152,12 @@ function MatchRow({ match, onReveal }: { match: Match; onReveal: (matchId: strin
       {isBorrowMatch && borrowedBook ? (
         <View style={styles.borrowMatchBlock}>
           <Text style={styles.borrowMatchLabel}>{borrowLabel}</Text>
-          <BookSummary label={match.my_book ? "Your book" : `${displayName}'s book`} book={borrowedBook} />
+          <BookSummary label={match.my_book ? t("yourBook") : t("personsBook", { name: displayName })} book={borrowedBook} />
         </View>
       ) : match.my_book && match.their_book ? (
         <View style={styles.booksRow}>
-          <BookSummary label="Your book" book={match.my_book} />
-          <BookSummary label="Their book" book={match.their_book} />
+          <BookSummary label={t("yourBook")} book={match.my_book} />
+          <BookSummary label={t("theirBook")} book={match.their_book} />
         </View>
       ) : null}
 
@@ -185,29 +188,30 @@ function BookSummary({ label, book }: { label: string; book: MatchBook }) {
 }
 
 function ContactList({ contacts }: { contacts: MatchContacts }) {
+  const { t } = useTranslation()
   const rows = [
-    { label: "Email", value: contacts.email },
-    { label: "Phone", value: contacts.phone },
+    { label: t("email"), value: contacts.email },
+    { label: t("phone"), value: contacts.phone },
     { label: "Instagram", value: contacts.instagram },
     { label: "Telegram", value: contacts.telegram },
   ].filter((item) => Boolean(item.value))
 
   if (rows.length === 0) {
-    return <View style={styles.contactsCard}><Text style={styles.contactsTitle}>Contact Info</Text><Text style={styles.contactsEmpty}>No contact details shared yet.</Text></View>
+    return <View style={styles.contactsCard}><Text style={styles.contactsTitle}>{t("contactInfo")}</Text><Text style={styles.contactsEmpty}>{t("noContactInfo")}</Text></View>
   }
 
   return (
     <View style={styles.contactsCard}>
-      <Text style={styles.contactsTitle}>Contact Info</Text>
+      <Text style={styles.contactsTitle}>{t("contactInfo")}</Text>
       {rows.map((row) => <View key={row.label} style={styles.contactRow}><Text style={styles.contactLabel}>{row.label}</Text><Text style={styles.contactValue}>{row.value}</Text></View>)}
     </View>
   )
 }
 
-function formatMatchDate(value: string) {
+function formatMatchDate(value: string, locale: string, fallback: string) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "Recently matched"
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(date)
+  if (Number.isNaN(date.getTime())) return fallback
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", year: "numeric" }).format(date)
 }
 
 const styles = StyleSheet.create({

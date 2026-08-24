@@ -14,6 +14,8 @@ import { Ionicons } from "@expo/vector-icons"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import PageHeader from "@/components/PageHeader"
+import { useTranslation } from "@/localization/LanguageContext"
+import { localizeInboxNotification } from "@/localization/inboxNotification"
 import { getCachedApiData } from "@/services/api"
 import { runInBackground } from "@/utils/backgroundAction"
 import {
@@ -29,6 +31,7 @@ import {
 } from "@/services/inbox"
 
 export default function InboxScreen() {
+  const { language, t } = useTranslation()
   const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
   const [notifications, setNotifications] = useState<InboxNotification[]>(() => cachedInbox?.notifications ?? [])
   const [requests, setRequests] = useState<CommunityJoinRequest[]>(() => cachedInbox?.join_requests ?? [])
@@ -48,13 +51,13 @@ export default function InboxScreen() {
       setBorrowRequests(inbox.borrow_requests ?? [])
     } catch (err) {
       console.error("Failed to load inbox", err)
-      setError("Could not load your inbox.")
+      setError(t("couldNotLoadInbox"))
     } finally {
       hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [t])
 
   useFocusEffect(useCallback(() => { loadInbox(true) }, [loadInbox]))
 
@@ -66,7 +69,7 @@ export default function InboxScreen() {
       onError: (err) => {
         setRequests((items) => items.some((item) => item.id === request.id) ? items : [request, ...items])
         console.error("Failed to review community request", err)
-        Alert.alert("Update was not saved", "Could not review this request.")
+        Alert.alert(t("updateNotSaved"), t("reviewCommunityError"))
       },
     })
   }
@@ -79,7 +82,7 @@ export default function InboxScreen() {
       onError: (err) => {
         setBorrowRequests((items) => items.map((item) => item.id === request.id ? request : item))
         console.error("Failed to review borrow request", err)
-        Alert.alert("Update was not saved", "Could not review this borrow request.")
+        Alert.alert(t("updateNotSaved"), t("reviewBorrowError"))
       },
     })
   }
@@ -99,7 +102,7 @@ export default function InboxScreen() {
         onError: (err) => {
           setNotifications((items) => items.map((item) => item.id === notification.id ? notification : item))
           console.error("Failed to mark notification read", err)
-          Alert.alert("Update was not saved", "Could not mark this notification as read.")
+          Alert.alert(t("updateNotSaved"), t("markNotificationError"))
         },
       })
     }
@@ -116,7 +119,7 @@ export default function InboxScreen() {
       onError: (err) => {
         setNotifications(previous)
         console.error("Failed to mark inbox read", err)
-        Alert.alert("Update was not saved", "Could not mark your inbox as read.")
+        Alert.alert(t("updateNotSaved"), t("markInboxError"))
       },
     })
   }
@@ -124,7 +127,7 @@ export default function InboxScreen() {
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
-        <PageHeader title="Inbox" subtitle="Community and book swap updates" />
+        <PageHeader title={t("inbox")} subtitle={t("inboxSubtitle")} />
         <View style={styles.loadingCenter}><ActivityIndicator size="large" color={palette.text} /></View>
       </View>
     )
@@ -140,15 +143,15 @@ export default function InboxScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadInbox() }} tintColor={palette.text} />}
     >
       <PageHeader
-        title="Inbox"
-        subtitle="Community and book swap updates"
-        trailing={hasUnread ? <Pressable onPress={handleMarkAllRead}><Text style={styles.markRead}>Mark all read</Text></Pressable> : null}
+        title={t("inbox")}
+        subtitle={t("inboxSubtitle")}
+        trailing={hasUnread ? <Pressable onPress={handleMarkAllRead}><Text style={styles.markRead}>{t("markAllRead")}</Text></Pressable> : null}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {borrowRequests.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Borrow requests</Text>
+          <Text style={styles.sectionTitle}>{t("borrowRequests")}</Text>
           {borrowRequests.map((request) => (
             <View key={request.id} style={styles.requestCard}>
               <View style={styles.iconWrap}><Ionicons name="book-outline" size={22} color={palette.accentDark} /></View>
@@ -160,24 +163,27 @@ export default function InboxScreen() {
                       onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: request.requester.id } })}
                       style={styles.memberLink}
                     >
-                      {request.requester.display_name || "A reader"}
-                    </Text>{" "}wants to borrow {request.book.title}</>
-                  ) : `You ${request.status} ${request.requester.display_name || "a reader"}'s borrow request for ${request.book.title}.`}
+                      {request.requester.display_name || t("aReader")}
+                    </Text>{" "}{t("wantsToBorrow", { book: request.book.title })}</>
+                  ) : t(request.status === "accepted" ? "youAcceptedBorrow" : "youDeclinedBorrow", {
+                    name: request.requester.display_name || t("aReader"),
+                    book: request.book.title,
+                  })}
                 </Text>
-                {request.book.author ? <Text style={styles.message}>by {request.book.author}</Text> : null}
-                <Text style={styles.date}>{formatDate(request.reviewed_at ?? request.created_at)}</Text>
+                {request.book.author ? <Text style={styles.message}>{t("byAuthor", { author: request.book.author })}</Text> : null}
+                <Text style={styles.date}>{formatDate(request.reviewed_at ?? request.created_at, language === "tr" ? "tr-TR" : "en-US", t("recently"))}</Text>
                 {request.status === "pending" ? (
                   <View style={styles.actions}>
                     <Pressable style={[styles.actionButton, styles.declineButton]} onPress={() => handleBorrowDecision(request, "declined")}>
-                      <Text style={styles.declineText}>Decline</Text>
+                      <Text style={styles.declineText}>{t("decline")}</Text>
                     </Pressable>
                     <Pressable style={[styles.actionButton, styles.approveButton]} onPress={() => handleBorrowDecision(request, "accepted")}>
-                      <Text style={styles.approveText}>Accept</Text>
+                      <Text style={styles.approveText}>{t("accept")}</Text>
                     </Pressable>
                   </View>
                 ) : request.status === "accepted" ? (
                   <Pressable style={styles.matchButton} onPress={() => openBorrowMatch(request)}>
-                    <Text style={styles.matchButtonText}>Go to My Matches</Text>
+                    <Text style={styles.matchButtonText}>{t("goToMatches")}</Text>
                     <Ionicons name="arrow-forward" size={17} color={palette.white} />
                   </Pressable>
                 ) : null}
@@ -189,7 +195,7 @@ export default function InboxScreen() {
 
       {requests.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Community requests</Text>
+          <Text style={styles.sectionTitle}>{t("communityRequests")}</Text>
           {requests.map((request) => (
             <View key={request.id} style={styles.requestCard}>
               <View style={styles.iconWrap}><Ionicons name="people-outline" size={22} color={palette.accentDark} /></View>
@@ -200,16 +206,16 @@ export default function InboxScreen() {
                     onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: request.requester.id } })}
                     style={styles.memberLink}
                   >
-                    {request.requester.display_name || "A reader"}
-                  </Text>{" "}wants to join
+                    {request.requester.display_name || t("aReader")}
+                  </Text>{" "}{t("wantsToJoin")}
                 </Text>
-                <Text style={styles.date}>{formatDate(request.created_at)}</Text>
+                <Text style={styles.date}>{formatDate(request.created_at, language === "tr" ? "tr-TR" : "en-US", t("recently"))}</Text>
                 <View style={styles.actions}>
                   <Pressable style={[styles.actionButton, styles.declineButton]} onPress={() => handleDecision(request, "declined")}>
-                    <Text style={styles.declineText}>Decline</Text>
+                    <Text style={styles.declineText}>{t("decline")}</Text>
                   </Pressable>
                   <Pressable style={[styles.actionButton, styles.approveButton]} onPress={() => handleDecision(request, "approved")}>
-                    <Text style={styles.approveText}>Approve</Text>
+                    <Text style={styles.approveText}>{t("approve")}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -220,36 +226,39 @@ export default function InboxScreen() {
 
       {notifications.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          {notifications.map((notification) => (
-            <Pressable key={notification.id} style={[styles.notificationCard, !notification.read_at && styles.unreadCard]} onPress={() => handleNotification(notification)}>
-              <View style={[styles.dot, notification.read_at && styles.readDot]} />
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{notification.title}</Text>
-                <Text style={styles.message}>{notification.message}</Text>
-                <Text style={styles.date}>{formatDate(notification.created_at)}</Text>
-              </View>
-              {notification.metadata?.match_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
-            </Pressable>
-          ))}
+          <Text style={styles.sectionTitle}>{t("notifications")}</Text>
+          {notifications.map((notification) => {
+            const copy = localizeInboxNotification(notification, language, t)
+            return (
+              <Pressable key={notification.id} style={[styles.notificationCard, !notification.read_at && styles.unreadCard]} onPress={() => handleNotification(notification)}>
+                <View style={[styles.dot, notification.read_at && styles.readDot]} />
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle}>{copy.title}</Text>
+                  <Text style={styles.message}>{copy.message}</Text>
+                  <Text style={styles.date}>{formatDate(notification.created_at, language === "tr" ? "tr-TR" : "en-US", t("recently"))}</Text>
+                </View>
+                {notification.metadata?.match_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
+              </Pressable>
+            )
+          })}
         </View>
       ) : null}
 
       {isEmpty ? (
         <View style={styles.emptyState}>
           <Ionicons name="mail-open-outline" size={44} color={palette.textSoft} />
-          <Text style={styles.emptyTitle}>Your inbox is clear</Text>
-          <Text style={styles.emptyText}>Community decisions and book swap updates will appear here.</Text>
+          <Text style={styles.emptyTitle}>{t("inboxClear")}</Text>
+          <Text style={styles.emptyText}>{t("inboxClearHint")}</Text>
         </View>
       ) : null}
     </ScrollView>
   )
 }
 
-function formatDate(value: string) {
+function formatDate(value: string, locale: string, fallback: string) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "Recently"
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date)
+  if (Number.isNaN(date.getTime())) return fallback
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date)
 }
 
 const styles = StyleSheet.create({

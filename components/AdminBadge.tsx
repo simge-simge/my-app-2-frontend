@@ -2,12 +2,14 @@ import { StyleSheet, Text, View } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 
 import { palette } from "@/constants/theme"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export default function AdminBadge() {
+  const { t } = useTranslation()
   return (
-    <View style={styles.badge} accessibilityLabel="Community admin">
+    <View style={styles.badge} accessibilityLabel={t("communityAdmin")}>
       <Ionicons name="book" size={12} color={palette.ink} />
-      <Text style={styles.text}>Admin</Text>
+      <Text style={styles.text}>{t("admin")}</Text>
     </View>
   )
 }

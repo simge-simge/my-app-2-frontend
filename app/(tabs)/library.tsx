@@ -16,8 +16,10 @@ import { palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getMyBooks, type Book } from "@/services/books"
 import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export default function Library() {
+  const { t } = useTranslation()
   const cachedBooks = getCachedApiData<Book[]>("/books/me")
   const [books, setBooks] = useState<Book[]>(() => cachedBooks ?? [])
   const [loading, setLoading] = useState(() => cachedBooks === undefined)
@@ -69,8 +71,8 @@ export default function Library() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Library</Text>
-      <Text style={styles.subtitle}>Books you have added to your shelf</Text>
+      <Text style={styles.title}>{t("myLibrary")}</Text>
+      <Text style={styles.subtitle}>{t("booksAddedSubtitle")}</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -86,13 +88,13 @@ export default function Library() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIllustration}><Ionicons name="library-outline" size={34} color={palette.ink} /></View>
-            <Text style={styles.emptyTitle}>No books yet</Text>
-            <Text style={styles.emptyText}>Add your first book and begin a shelf worth sharing.</Text>
+            <Text style={styles.emptyTitle}>{t("noBooks")}</Text>
+            <Text style={styles.emptyText}>{t("noBooksHint")}</Text>
           </View>
         }
       />
 
-      <Pressable accessibilityRole="button" accessibilityLabel="Add book" style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={() => router.push("/books/new")}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("addBookLabel")} style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={() => router.push("/books/new")}>
         <Ionicons name="add" size={32} color={palette.white} />
       </Pressable>
     </View>

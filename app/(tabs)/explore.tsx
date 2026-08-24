@@ -16,6 +16,8 @@ import {
 } from "react-native"
 
 import { palette, radii, shadows, typography } from "@/constants/theme"
+import { useTranslation } from "@/localization/LanguageContext"
+import { useBookStatusLabel } from "@/localization/bookStatus"
 import { getCachedApiData } from "@/services/api"
 import { getBookFeed, type Book } from "@/services/books"
 import { getProfile, type Profile } from "@/services/profile"
@@ -26,6 +28,7 @@ const SWIPE_OUT_DURATION = 170
 const STACK_SIZE = 3
 
 export default function Explore() {
+  const { t } = useTranslation()
   const cachedProfile = getCachedApiData<Profile>("/profile/me/")
   const cachedBooks = getCachedApiData<Book[]>("/books/feed")
   const [books, setBooks] = useState<Book[]>(() => cachedProfile?.community_id ? cachedBooks ?? [] : [])
@@ -202,30 +205,30 @@ export default function Explore() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Explore</Text>
-      <Text style={styles.subtitle}>Swipe to move through your community feed</Text>
+      <Text style={styles.title}>{t("explore")}</Text>
+      <Text style={styles.subtitle}>{t("exploreSubtitle")}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={[styles.content, (hasCommunity === false || books.length === 0) && styles.emptyListContent]}>
         {hasCommunity === false ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIllustration}><Ionicons name="people-outline" size={36} color={palette.ink} /></View>
-            <Text style={styles.emptyTitle}>Join a community to explore books</Text>
-            <Text style={styles.emptyText}>Find a community near you to discover books shared by its readers.</Text>
+            <Text style={styles.emptyTitle}>{t("joinToExplore")}</Text>
+            <Text style={styles.emptyText}>{t("joinToExploreHint")}</Text>
             <Pressable
               accessibilityRole="link"
               onPress={() => router.push("/communities/search")}
               style={({ pressed }) => [styles.communityLink, pressed && styles.communityLinkPressed]}
             >
-              <Text style={styles.communityLinkText}>Find a community</Text>
+              <Text style={styles.communityLinkText}>{t("findCommunity")}</Text>
               <Ionicons name="arrow-forward" size={17} color={palette.accentDark} />
             </Pressable>
           </View>
         ) : books.length === 0 || !activeBook ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIllustration}><Ionicons name="book-outline" size={36} color={palette.ink} /></View>
-            <Text style={styles.emptyTitle}>No books to explore</Text>
-            <Text style={styles.emptyText}>You have seen every available book in your feed for now.</Text>
+            <Text style={styles.emptyTitle}>{t("noExploreBooks")}</Text>
+            <Text style={styles.emptyText}>{t("noExploreBooksHint")}</Text>
           </View>
         ) : (
           <View style={styles.deckSection}>
@@ -259,10 +262,10 @@ export default function Explore() {
                 {...panResponder.panHandlers}
               >
                 <Animated.View style={[styles.swipeBadge, styles.likeBadge, { opacity: likeOpacity }]}>
-                  <Text style={styles.swipeBadgeText}>RIGHT</Text>
+                  <Text style={styles.swipeBadgeText}>{t("right")}</Text>
                 </Animated.View>
                 <Animated.View style={[styles.swipeBadge, styles.nopeBadge, { opacity: nopeOpacity }]}>
-                  <Text style={styles.swipeBadgeText}>LEFT</Text>
+                  <Text style={styles.swipeBadgeText}>{t("left")}</Text>
                 </Animated.View>
                 <BookCard book={activeBook} />
               </Animated.View>
@@ -270,7 +273,7 @@ export default function Explore() {
 
             <Text style={styles.counter}>{currentIndex + 1} / {books.length}</Text>
             <Text style={styles.refreshText} onPress={refreshing ? undefined : handleRefresh}>
-              {refreshing ? "Refreshing..." : "Refresh deck"}
+              {refreshing ? t("refreshing") : t("refreshDeck")}
             </Text>
           </View>
         )}
@@ -280,6 +283,8 @@ export default function Explore() {
 }
 
 function BookCard({ book }: { book: Book }) {
+  const { t } = useTranslation()
+  const bookStatusLabel = useBookStatusLabel()
   const coverHeight = Math.min(Dimensions.get("window").width * 0.78, 330)
 
   return (
@@ -294,11 +299,11 @@ function BookCard({ book }: { book: Book }) {
 
       <View style={styles.cardContent}>
         <View style={styles.metaRow}>
-          <Text style={styles.status}>{book.status}</Text>
-          <Text style={styles.author}>{book.author || "Unknown author"}</Text>
+          <Text style={styles.status}>{bookStatusLabel(book.status)}</Text>
+          <Text style={styles.author}>{book.author || t("unknownAuthor")}</Text>
         </View>
         <Text style={styles.cardTitle}>{book.title}</Text>
-        <Text numberOfLines={4} style={styles.description}>{book.description || "No description yet for this book."}</Text>
+        <Text numberOfLines={4} style={styles.description}>{book.description || t("noDescription")}</Text>
       </View>
     </View>
   )

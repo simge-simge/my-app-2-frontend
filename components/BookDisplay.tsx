@@ -3,14 +3,19 @@ import { Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyl
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 import AdminBadge from "@/components/AdminBadge"
+import { useTranslation } from "@/localization/LanguageContext"
+import { useBookStatusLabel } from "@/localization/bookStatus"
 
 type Props = { book: Book; onPress?: () => void; onOwnerPress?: () => void; showOwner?: boolean; showCommunity?: boolean; style?: StyleProp<ViewStyle> }
 
 export default function BookDisplay({ book, onPress, onOwnerPress, showOwner = false, showCommunity = false, style }: Props) {
+  const { t } = useTranslation()
+  const bookStatusLabel = useBookStatusLabel()
+  const ownerName = book.owner_name || t("unknown")
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={`${book.title} by ${book.author || "Unknown author"}`}
+      accessibilityLabel={t("bookBy", { title: book.title, author: book.author || t("unknownAuthor") })}
       style={({ pressed }) => [styles.card, pressed && styles.pressed, style]}
       onPress={onPress}
     >
@@ -25,21 +30,21 @@ export default function BookDisplay({ book, onPress, onOwnerPress, showOwner = f
       </View>
       <View style={styles.content}>
         <Text numberOfLines={2} style={styles.title}>{book.title}</Text>
-        <Text numberOfLines={1} style={styles.author}>{book.author || "Unknown author"}</Text>
+        <Text numberOfLines={1} style={styles.author}>{book.author || t("unknownAuthor")}</Text>
         {showOwner ? (
           <Pressable
             accessibilityRole={onOwnerPress ? "button" : undefined}
-            accessibilityLabel={onOwnerPress ? `View ${book.owner_name || "book owner"}'s library` : undefined}
+            accessibilityLabel={onOwnerPress ? t("viewLibrary", { name: ownerName }) : undefined}
             disabled={!onOwnerPress}
             onPress={(event) => { event.stopPropagation(); onOwnerPress?.() }}
             style={styles.ownerRow}
           >
-            <Text numberOfLines={1} style={[styles.owner, onOwnerPress && styles.ownerLink]}>Owner: {book.owner_name || "Unknown"}</Text>
+            <Text numberOfLines={1} style={[styles.owner, onOwnerPress && styles.ownerLink]}>{t("owner", { name: ownerName })}</Text>
             {book.owner_admin ? <AdminBadge /> : null}
           </Pressable>
         ) : null}
         {showCommunity && book.community_name ? <Text numberOfLines={1} style={styles.community}>{book.community_name}</Text> : null}
-        <View style={styles.statusPill}><Text numberOfLines={1} style={styles.status}>{book.status}</Text></View>
+        <View style={styles.statusPill}><Text numberOfLines={1} style={styles.status}>{bookStatusLabel(book.status)}</Text></View>
       </View>
     </Pressable>
   )

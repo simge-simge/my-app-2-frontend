@@ -16,8 +16,10 @@ import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getBook, type Book } from "@/services/books"
 import { supabase } from "@/utils/supabase"
+import { useBookStatusLabel } from "@/localization/bookStatus"
 
 export default function BookDetailsScreen() {
+  const bookStatusLabel = useBookStatusLabel()
   const { bookId } = useLocalSearchParams<{ bookId: string }>()
   const cachePath = bookId ? `/books/${bookId}` : ""
   const cachedBook = getCachedApiData<Book>(cachePath)
@@ -116,7 +118,7 @@ export default function BookDetailsScreen() {
             <Text style={styles.author}>{book.author || "Unknown author"}</Text>
             <View style={styles.statusPill}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusText}>{book.status}</Text>
+              <Text style={styles.statusText}>{bookStatusLabel(book.status)}</Text>
             </View>
           </View>
         </View>

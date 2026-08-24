@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Text, TextInput, StyleSheet, View } from "react-native"
 import { palette, radii } from "@/constants/theme"
+import { useTranslation } from "@/localization/LanguageContext"
 
 type Props = {
   placeholder: string
@@ -10,8 +11,9 @@ type Props = {
 }
 
 export default function AppInput({ placeholder, value, onChangeText, secure }: Props) {
+  const { t } = useTranslation()
   const [focused, setFocused] = useState(false)
-  const inputMode = placeholder.toLowerCase().includes("email") ? "email" : "text"
+  const inputMode = placeholder === t("email") ? "email" : "text"
 
   return (
     <View style={styles.field}>
@@ -19,7 +21,7 @@ export default function AppInput({ placeholder, value, onChangeText, secure }: P
       <TextInput
         accessibilityLabel={placeholder}
         style={[styles.input, focused && styles.inputFocused]}
-        placeholder={`Enter your ${placeholder.toLowerCase()}`}
+        placeholder={t("enterValue", { value: placeholder.toLocaleLowerCase() })}
         placeholderTextColor={palette.textMuted}
         value={value}
         secureTextEntry={secure}

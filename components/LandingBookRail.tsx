@@ -4,6 +4,7 @@ import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native
 
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
+import { useBookStatusLabel } from "@/localization/bookStatus"
 
 type Props = {
   books: Book[]
@@ -82,6 +83,7 @@ function LandingBookCard({
   onInteractionStart: () => void
   onInteractionEnd: () => void
 }) {
+  const bookStatusLabel = useBookStatusLabel()
   const tilt = index % 3 === 0 ? "-1.5deg" : index % 3 === 1 ? "1deg" : "-0.4deg"
 
   return (
@@ -123,7 +125,7 @@ function LandingBookCard({
         ) : (
           <View style={styles.statusRow}>
             <View style={styles.statusDot} />
-            <Text style={styles.status}>{book.status}</Text>
+            <Text style={styles.status}>{bookStatusLabel(book.status)}</Text>
           </View>
         )}
       </View>

@@ -22,6 +22,7 @@ import { getBookFeed, getMyBooks, searchBooks, type Book } from "@/services/book
 import { getInbox, type InboxResponse } from "@/services/inbox"
 import { getMatches } from "@/services/matches"
 import { getProfile, type Profile } from "@/services/profile"
+import { useTranslation } from "@/localization/LanguageContext"
 
 const GLOBAL_PREVIEW_QUERIES = ["a", "e", "i"] as const
 
@@ -57,6 +58,7 @@ function selectPreviewBooks(results: Book[]) {
 }
 
 export default function Home() {
+  const { t } = useTranslation()
   const router = useRouter()
   const { width } = useWindowDimensions()
   const isWide = width >= 880
@@ -170,9 +172,9 @@ export default function Home() {
     return (
       <View style={styles.fullState}>
         <BookDoodles compact />
-        <Text style={styles.stateTitle}>Your shelf is still tucked away.</Text>
+        <Text style={styles.stateTitle}>{t("shelfTucked")}</Text>
         <Text style={styles.stateText}>{profileError}</Text>
-        <PrimaryAction label="Try again" icon="refresh" onPress={loadHome} />
+        <PrimaryAction label={t("tryAgainAction")} icon="refresh" onPress={loadHome} />
       </View>
     )
   }
@@ -200,28 +202,28 @@ export default function Home() {
             </View>
             <View style={styles.heroEyebrowRow}>
               <Ionicons name={hasCommunity ? "library-outline" : "people-outline"} size={16} color={palette.accentDark} />
-              <Text style={styles.heroEyebrow}>{hasCommunity ? "Your community shelf" : "Books are better shared"}</Text>
+              <Text style={styles.heroEyebrow}>{hasCommunity ? t("communityShelf") : t("booksShared")}</Text>
             </View>
 
             {hasCommunity ? (
               <>
                 <Text style={styles.communityHeroName}>{communityName}</Text>
-                <Text style={styles.heroTitle}>Your next favorite book may already be nearby.</Text>
-                <Text style={styles.heroBody}>Explore books shared by people in {communityName}. Swipe on books you love or search the community shelf.</Text>
+                <Text style={styles.heroTitle}>{t("nextFavorite")}</Text>
+                <Text style={styles.heroBody}>{t("exploreCommunity", { name: communityName })}</Text>
                 <View style={[styles.heroActions, isWide && styles.heroActionsWide]}>
-                  <PrimaryAction label="Start swiping" icon="heart" onPress={() => router.push("/explore")} />
-                  <SecondaryAction label="Search books" icon="search" onPress={() => router.push("/search")} />
+                  <PrimaryAction label={t("startSwiping")} icon="heart" onPress={() => router.push("/explore")} />
+                  <SecondaryAction label={t("searchBooks")} icon="search" onPress={() => router.push("/search")} />
                 </View>
               </>
             ) : (
               <>
-                <Text style={styles.heroTitle}>Find your reading community.</Text>
-                <Text style={styles.heroBody}>Join people who live, work, or study near you. Discover books, make matches, and exchange them in person.</Text>
-                <PrimaryAction label="Find my community" icon="navigate" onPress={() => router.push("/communities/search")} />
-                <View style={styles.communityTypes} accessibilityLabel="Communities can be based around neighborhoods, workplaces, or schools">
-                  <CommunityType icon="home-outline" label="Neighborhood" />
-                  <CommunityType icon="business-outline" label="Workplace" />
-                  <CommunityType icon="school-outline" label="School" />
+                <Text style={styles.heroTitle}>{t("findReadingCommunity")}</Text>
+                <Text style={styles.heroBody}>{t("joinCommunityBody")}</Text>
+                <PrimaryAction label={t("findMyCommunity")} icon="navigate" onPress={() => router.push("/communities/search")} />
+                <View style={styles.communityTypes} accessibilityLabel={t("communityTypesLabel")}>
+                  <CommunityType icon="home-outline" label={t("neighborhood")} />
+                  <CommunityType icon="business-outline" label={t("workplace")} />
+                  <CommunityType icon="school-outline" label={t("school")} />
                 </View>
               </>
             )}
@@ -230,8 +232,8 @@ export default function Home() {
           <GentleEntrance delay={120} style={[styles.shelfSection, isWide && styles.shelfSectionWide]}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionHeadingCopy}>
-                <Text style={styles.sectionEyebrow}>{hasCommunity ? "Shared nearby" : "A peek inside"}</Text>
-                <Text style={styles.sectionTitle}>{hasCommunity ? `On shelves in ${communityName}` : "Books finding new readers"}</Text>
+                <Text style={styles.sectionEyebrow}>{hasCommunity ? t("sharedNearby") : t("peekInside")}</Text>
+                <Text style={styles.sectionTitle}>{hasCommunity ? t("shelvesIn", { name: communityName }) : t("booksFindingReaders")}</Text>
               </View>
               {hasCommunity && availableBooks.length > 0 ? (
                 <Pressable
@@ -239,7 +241,7 @@ export default function Home() {
                   onPress={() => router.push("/explore")}
                   style={({ pressed }) => [styles.textLink, pressed && styles.pressed]}
                 >
-                  <Text style={styles.textLinkLabel}>See all books</Text>
+                  <Text style={styles.textLinkLabel}>{t("seeAllBooks")}</Text>
                   <Ionicons name="arrow-forward" size={16} color={palette.accentDark} />
                 </Pressable>
               ) : null}
@@ -281,11 +283,11 @@ export default function Home() {
                   onBookPress={() => router.push("/explore")}
                 />
                 <View style={styles.shelfLine} />
-                <Text style={styles.shelfHint}>Tap a book to open your swipe deck</Text>
+                <Text style={styles.shelfHint}>{t("tapBook")}</Text>
               </View>
             ) : (
               <View style={styles.previewScene}>
-                <Text style={styles.previewNote}>A glimpse of books being shared across communities</Text>
+                <Text style={styles.previewNote}>{t("previewBooks")}</Text>
                 <LandingBookRail
                   books={previewRows[0]}
                   direction="left"
@@ -304,7 +306,7 @@ export default function Home() {
                 ) : null}
                 <View style={styles.previewFooter}>
                   <Ionicons name="lock-closed-outline" size={14} color={palette.textMuted} />
-                  <Text style={styles.previewFooterText}>Join a community before swiping or exchanging</Text>
+                  <Text style={styles.previewFooterText}>{t("joinBeforeExchange")}</Text>
                 </View>
               </View>
             )}
@@ -328,17 +330,18 @@ function HomeHeader({
   onSettings: () => void
   onFindCommunity: () => void
 }) {
+  const { t } = useTranslation()
   return (
     <View style={styles.header}>
       <View style={styles.headerDetails}>
         <Text style={styles.headerEyebrow}>CommonShelf</Text>
         <View style={styles.nameRow}>
-          <Text style={styles.name}>Hello, {profile?.display_name || "Reader"}</Text>
+          <Text style={styles.name}>{t("helloReader", { name: profile?.display_name || t("reader") })}</Text>
           {profile?.admin ? <AdminBadge /> : null}
         </View>
         {profile?.community_name ? <Text style={styles.headerCommunity}>{profile.community_name}</Text> : (
           <Pressable onPress={onFindCommunity} accessibilityRole="link" style={styles.joinTarget}>
-            <Text style={styles.joinCommunityPrompt}>Find a community near you →</Text>
+            <Text style={styles.joinCommunityPrompt}>{t("findCommunityNear")}</Text>
           </Pressable>
         )}
         {profile?.community_location ? (
@@ -349,8 +352,8 @@ function HomeHeader({
         ) : null}
       </View>
       <View style={styles.headerActions}>
-        <HeaderAction icon="mail-outline" label="Open messages" onPress={onInbox} badge={unreadCount} />
-        <HeaderAction icon="settings-outline" label="Open settings" onPress={onSettings} />
+        <HeaderAction icon="mail-outline" label={t("openMessages")} onPress={onInbox} badge={unreadCount} />
+        <HeaderAction icon="settings-outline" label={t("openSettings")} onPress={onSettings} />
       </View>
     </View>
   )
@@ -388,23 +391,25 @@ function CommunityType({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; 
 }
 
 function MembershipLoading() {
+  const { t } = useTranslation()
   return (
-    <View style={styles.fullState} accessibilityLabel="Loading your community membership">
+    <View style={styles.fullState} accessibilityLabel={t("loadingMembership")}>
       <View style={styles.loadingBook}>
         <View style={styles.loadingBookmark} />
         <ActivityIndicator color={palette.accentDark} />
       </View>
-      <Text style={styles.stateTitle}>Opening your reading room…</Text>
-      <Text style={styles.stateText}>Finding your community shelf</Text>
+      <Text style={styles.stateTitle}>{t("openingRoom")}</Text>
+      <Text style={styles.stateText}>{t("findingShelf")}</Text>
     </View>
   )
 }
 
 function BookPreviewLoading() {
+  const { t } = useTranslation()
   return (
-    <View style={styles.loadingShelf} accessibilityLabel="Loading books">
+    <View style={styles.loadingShelf} accessibilityLabel={t("loadingBooks")}>
       {[palette.blueSoft, palette.roseSoft, palette.accentSoft].map((color, index) => (
-        <View key={color} style={[styles.skeletonBook, { backgroundColor: color, transform: [{ rotate: index === 1 ? "1deg" : "-1deg" }] }]}>
+        <View key={index} style={[styles.skeletonBook, { backgroundColor: color, transform: [{ rotate: index === 1 ? "1deg" : "-1deg" }] }]}>
           <ActivityIndicator color={palette.textMuted} />
         </View>
       ))}

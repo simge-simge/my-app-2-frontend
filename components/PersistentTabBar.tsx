@@ -5,19 +5,21 @@ import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, useWindowDime
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { layout, palette, radii, shadows } from "@/constants/theme"
+import { useTranslation } from "@/localization/LanguageContext"
 
 const tabs = {
-  home: { label: "Home", outline: "home-outline", filled: "home" },
-  explore: { label: "Explore", outline: "compass-outline", filled: "compass" },
-  search: { label: "Search", outline: "search-outline", filled: "search" },
-  library: { label: "Library", outline: "library-outline", filled: "library" },
-  matches: { label: "Matches", outline: "heart-outline", filled: "heart" },
+  home: { labelKey: "home", outline: "home-outline", filled: "home" },
+  explore: { labelKey: "explore", outline: "compass-outline", filled: "compass" },
+  search: { labelKey: "search", outline: "search-outline", filled: "search" },
+  library: { labelKey: "library", outline: "library-outline", filled: "library" },
+  matches: { labelKey: "matches", outline: "heart-outline", filled: "heart" },
 } as const
 
 type TabName = keyof typeof tabs
 
 export default function PersistentTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
+  const { t } = useTranslation()
   const { width } = useWindowDimensions()
   const activeRoute = state.routes[state.index]
 
@@ -30,6 +32,7 @@ export default function PersistentTabBar({ state, descriptors, navigation }: Bot
           const routeIndex = state.routes.findIndex((item) => item.key === route.key)
           const focused = state.index === routeIndex
           const config = tabs[route.name as TabName]
+          const label = t(config.labelKey)
           const options = descriptors[route.key]?.options
 
           const onPress = () => {
@@ -41,14 +44,14 @@ export default function PersistentTabBar({ state, descriptors, navigation }: Bot
             <Pressable
               key={route.key}
               accessibilityRole="tab"
-              accessibilityLabel={options?.tabBarAccessibilityLabel ?? config.label}
+              accessibilityLabel={options?.tabBarAccessibilityLabel ?? label}
               accessibilityState={{ selected: focused }}
               onPress={onPress}
               onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
               style={({ pressed }) => [styles.item, pressed && styles.pressed]}
             >
               <AnimatedTabIcon focused={focused} outline={config.outline} filled={config.filled} />
-              <Text numberOfLines={1} style={[styles.label, focused && styles.activeLabel]}>{config.label}</Text>
+              <Text numberOfLines={1} style={[styles.label, focused && styles.activeLabel]}>{label}</Text>
             </Pressable>
           )
         })}

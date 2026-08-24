@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons"
 
 import { palette, radii } from "@/constants/theme"
 import { searchLocations, type Location } from "@/services/locations"
+import { useTranslation } from "@/localization/LanguageContext"
 
 type Props = {
   label?: string
@@ -16,12 +17,14 @@ type Props = {
 
 export default function LocationPicker({
   label,
-  placeholder = "Type a city or district",
+  placeholder,
   selected,
   onSelect,
   onValidityChange,
   disabled = false,
 }: Props) {
+  const { t } = useTranslation()
+  const resolvedPlaceholder = placeholder ?? t("typeLocation")
   const [query, setQuery] = useState(selected?.display_name ?? "")
   const [results, setResults] = useState<Location[]>([])
   const [loading, setLoading] = useState(false)
@@ -101,24 +104,24 @@ export default function LocationPicker({
       <View style={[styles.inputRow, !valid && styles.inputInvalid, disabled && styles.disabled]}>
         <Ionicons name="location-outline" size={19} color={palette.textMuted} />
         <TextInput
-          accessibilityLabel={label || "Location"}
+          accessibilityLabel={label || t("location")}
           style={styles.input}
           value={query}
           onChangeText={handleChange}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           placeholderTextColor={palette.textMuted}
           editable={!disabled}
           autoCapitalize="words"
         />
         {loading ? <ActivityIndicator size="small" color={palette.accent} /> : null}
         {!loading && query && !disabled ? (
-          <Pressable onPress={handleClear} accessibilityLabel="Clear location">
+          <Pressable onPress={handleClear} accessibilityLabel={t("clearLocation")}>
             <Ionicons name="close-circle" size={20} color={palette.textMuted} />
           </Pressable>
         ) : null}
       </View>
 
-      {!valid ? <Text style={styles.hint}>Select a location from the suggestions.</Text> : null}
+      {!valid ? <Text style={styles.hint}>{t("selectSuggestion")}</Text> : null}
 
       {results.length ? (
         <View style={styles.results}>
@@ -128,7 +131,7 @@ export default function LocationPicker({
               style={({ pressed }) => [styles.result, pressed && styles.resultPressed]}
               onPress={() => handleSelect(location)}
               accessibilityRole="button"
-              accessibilityLabel={`Select ${location.display_name}`}
+              accessibilityLabel={t("selectNamed", { name: location.display_name })}
             >
               <View style={styles.resultText}>
                 <Text style={styles.resultName}>{location.name}</Text>
