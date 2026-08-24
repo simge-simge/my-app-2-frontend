@@ -11,7 +11,7 @@ import type { ImagePickerAsset } from "expo-image-picker"
 import BookForm, { type BookFormValues } from "@/components/BookForm"
 import IsbnCameraScanner from "@/components/IsbnCameraScanner"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
-import { createBook, lookupBookByIsbn, uploadBookCover, type IsbnBookLookup } from "@/services/books"
+import { createBook, lookupBookByIsbn, uploadBookCover, type Book, type IsbnBookLookup } from "@/services/books"
 import { runInBackground } from "@/utils/backgroundAction"
 
 type AddMethod = "choose" | "manual" | "isbn" | "scan" | "details"
@@ -36,6 +36,7 @@ export default function NewBookScreen() {
   const [scanLocked, setScanLocked] = useState(false)
   const [scannerReady, setScannerReady] = useState(false)
   const [cameraError, setCameraError] = useState<string | undefined>()
+  const [torchEnabled, setTorchEnabled] = useState(false)
   const [permission, requestPermission] = useCameraPermissions()
   const initialValues = useMemo<BookFormValues | undefined>(() => draft ? ({
     title: draft.title,
@@ -46,7 +47,19 @@ export default function NewBookScreen() {
   }) : undefined, [draft])
 
   const handleSave = async (values: BookFormValues, coverAsset: ImagePickerAsset | null) => {
-    router.back()
+    const optimisticBook: Book = {
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      owner_id: "pending",
+      community_id: "pending",
+      title: values.title,
+      author: values.author || null,
+      description: values.description || null,
+      cover_url: coverAsset?.uri ?? values.cover_url,
+      isbn: values.isbn || null,
+      status: "available",
+      created_at: new Date().toISOString(),
+    }
+
     runInBackground(async () => {
       const coverUrl = coverAsset ? await uploadBookCover(coverAsset) : values.cover_url
       return createBook({
@@ -55,11 +68,13 @@ export default function NewBookScreen() {
       })
     }, {
       event: "books",
+      optimisticResult: optimisticBook,
       onError: (err) => {
         console.error("Failed to create book", err)
         Alert.alert("Book was not saved", err instanceof Error ? err.message : "Could not save the book.")
       },
     })
+    router.back()
   }
 
   const findBook = async (rawIsbn: string, source: IsbnSource) => {
@@ -182,15 +197,23 @@ export default function NewBookScreen() {
               {permission?.granted ? (
                 <IsbnCameraScanner
                   active={!scanLocked}
+                  torchEnabled={torchEnabled}
                   onDetected={handleBarcode}
                   onReady={() => setScannerReady(true)}
                   onError={(message: string) => setCameraError(message)}
                 />
               ) : null}
-              <View pointerEvents="none" style={styles.cameraTopBar}>
-                <View style={styles.cameraModePill}>
+              <View style={styles.cameraTopBar}>
+                <View pointerEvents="none" style={styles.cameraModePill}>
                   <Ionicons name="barcode-outline" size={17} color={palette.paper} />
                   <Text style={styles.cameraModeText}>ISBN SCANNER</Text>
+                </View>
+                <View style={styles.cameraControls}>
+                  {Platform.OS !== "web" ? (
+                    <Pressable accessibilityRole="button" accessibilityLabel={torchEnabled ? "Turn flashlight off" : "Turn flashlight on"} accessibilityState={{ selected: torchEnabled }} onPress={() => setTorchEnabled((enabled) => !enabled)} style={[styles.torchButton, torchEnabled && styles.torchButtonActive]}>
+                      <Ionicons name={torchEnabled ? "flash" : "flash-outline"} size={20} color={palette.paper} />
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
               <View pointerEvents="none" style={styles.scanTarget}>
@@ -198,13 +221,13 @@ export default function NewBookScreen() {
                 <View style={[styles.corner, styles.cornerBottomLeft]} /><View style={[styles.corner, styles.cornerBottomRight]} /><View style={styles.scanLine} />
               </View>
               <View pointerEvents="none" style={styles.cameraBottomBar}>
-                <Text style={styles.cameraInstruction}>Align the full barcode inside the frame</Text>
+                <Text style={styles.cameraInstruction}>Keep the complete barcode sharp, level, and inside the guide</Text>
               </View>
               {lookingUp ? <View style={styles.scanLoading}><ActivityIndicator color={palette.paper} size="large" /><Text style={styles.scanLoadingText}>Looking up this book…</Text></View> : null}
               {cameraError ? <View style={styles.cameraMessage}><Ionicons name="warning-outline" size={24} color={palette.paper} /><Text style={styles.cameraMessageText}>Camera unavailable</Text><Text style={styles.cameraMessageDetail}>{cameraError}</Text></View> : null}
             </View>
             {!cameraError ? <Text style={styles.scannerStatus}>{scannerReady ? "Camera ready · Looking for an ISBN barcode" : "Starting camera…"}</Text> : null}
-            <View style={styles.scanTip}><Ionicons name="sunny-outline" size={20} color={palette.orange} /><Text style={styles.scanTipText}>Use good lighting and keep the book steady.</Text></View>
+            <View style={styles.scanTip}><Ionicons name="scan-outline" size={20} color={palette.orange} /><Text style={styles.scanTipText}>Keep all barcode lines visible, then pause for autofocus.</Text></View>
             <Pressable accessibilityRole="button" onPress={() => setMethod("isbn")} style={styles.textButton}><Text style={styles.textButtonText}>Can’t scan it? Enter ISBN instead</Text></Pressable>
           </View>
         ) : null}
@@ -238,10 +261,13 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.7 },
   scannerCard: { marginTop: 25, width: "100%" },
   cameraFrame: { width: "100%", maxWidth: 400, aspectRatio: 3 / 4, alignSelf: "center", overflow: "hidden", borderRadius: radii.xl, backgroundColor: palette.surfaceStrong, borderWidth: 3, borderColor: palette.surface, ...shadows.lifted },
-  cameraTopBar: { position: "absolute", top: 0, left: 0, right: 0, height: 78, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(12, 14, 11, 0.24)" },
+  cameraTopBar: { position: "absolute", top: 0, left: 0, right: 0, height: 78, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(12, 14, 11, 0.24)" },
   cameraModePill: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radii.round, backgroundColor: "rgba(18, 21, 16, 0.62)" },
   cameraModeText: { color: palette.paper, fontSize: 11, fontWeight: "800", letterSpacing: 1 },
-  scanTarget: { position: "absolute", left: 28, right: 28, top: "36%", height: 148 },
+  cameraControls: { flexDirection: "row", alignItems: "center", gap: 7 },
+  torchButton: { width: 42, height: 42, borderRadius: radii.round, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(18, 21, 16, 0.62)", borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.32)" },
+  torchButtonActive: { backgroundColor: palette.orange, borderColor: palette.paper },
+  scanTarget: { position: "absolute", left: 14, right: 14, top: "34%", height: 172 },
   corner: { position: "absolute", width: 36, height: 36, borderColor: palette.paper },
   cornerTopLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 9 },
   cornerTopRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 9 },

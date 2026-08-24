@@ -1,9 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native"
 import { router } from "expo-router"
+import { Image } from "react-native"
 
 import Library from "../library"
 import { getMyBooks } from "@/services/books"
 import { book } from "@/test/factories"
+import { runInBackground } from "@/utils/backgroundAction"
 
 jest.mock("@/services/api", () => ({ getCachedApiData: jest.fn(() => undefined) }))
 jest.mock("@/services/books", () => ({ getMyBooks: jest.fn() }))
@@ -33,5 +35,54 @@ describe("library", () => {
     await waitFor(() => expect(getMyBooks).toHaveBeenCalled())
     fireEvent.press(screen.getByRole("button", { name: "Add book" }))
     expect(router.push).toHaveBeenCalledWith("/books/new")
+  })
+
+  it("merges a saved background book without refetching or accepting a stale response", async () => {
+    let finishInitialLoad!: (books: ReturnType<typeof book>[]) => void
+    jest.mocked(getMyBooks).mockImplementationOnce(() => new Promise((resolve) => {
+      finishInitialLoad = resolve
+    }))
+    const savedBook = book({ id: "saved-book", owner_id: "current-user", title: "Just Saved" })
+
+    render(<Library />)
+    runInBackground(() => Promise.resolve(savedBook), {
+      event: "books",
+      onError: jest.fn(),
+    })
+    await waitFor(() => expect(finishInitialLoad).toBeDefined())
+    finishInitialLoad([])
+
+    expect(await screen.findByText("Just Saved")).toBeVisible()
+    expect(getMyBooks).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows an optimistic book immediately and keeps it visually stable after saving", async () => {
+    jest.mocked(getMyBooks).mockResolvedValue([])
+    render(<Library />)
+    await waitFor(() => expect(getMyBooks).toHaveBeenCalledTimes(1))
+
+    let finishSave!: (savedBook: ReturnType<typeof book>) => void
+    const optimisticBook = book({ id: "pending-book", title: "Saving Book", cover_url: "file:///local-cover.jpg" })
+    const savedBook = book({ id: "saved-book", title: "Saving Book", cover_url: "https://cdn.test/remote-cover.jpg" })
+    act(() => {
+      runInBackground(() => new Promise((resolve) => { finishSave = resolve }), {
+        event: "books",
+        optimisticResult: optimisticBook,
+        onError: jest.fn(),
+      })
+    })
+
+    expect(screen.getByLabelText("Saving Book by Ursula K. Le Guin").props.accessibilityState)
+      .toMatchObject({ disabled: true })
+    expect(screen.UNSAFE_getByType(Image).props.source).toEqual({ uri: "file:///local-cover.jpg" })
+
+    await waitFor(() => expect(finishSave).toBeDefined())
+    await act(async () => { finishSave(savedBook) })
+    await waitFor(() => expect(
+      screen.getByRole("button", { name: "Saving Book by Ursula K. Le Guin" }).props.accessibilityState,
+    ).toMatchObject({ disabled: false }))
+    expect(screen.UNSAFE_getByType(Image).props.source).toEqual({ uri: "file:///local-cover.jpg" })
+    expect(screen.getAllByLabelText("Saving Book by Ursula K. Le Guin")).toHaveLength(1)
+    expect(getMyBooks).toHaveBeenCalledTimes(1)
   })
 })

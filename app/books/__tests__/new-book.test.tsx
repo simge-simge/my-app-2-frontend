@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native"
+import { router } from "expo-router"
 
 import NewBookScreen from "../new"
 import { lookupBookByIsbn } from "@/services/books"
+import { runInBackground } from "@/utils/backgroundAction"
 
 jest.mock("expo-camera", () => ({
   CameraView: () => null,
@@ -13,6 +15,7 @@ jest.mock("@/services/books", () => ({
   uploadBookCover: jest.fn(),
   lookupBookByIsbn: jest.fn(),
 }))
+jest.mock("@/utils/backgroundAction", () => ({ runInBackground: jest.fn() }))
 
 describe("NewBookScreen", () => {
   it("offers scan, ISBN, and manual entry", () => {
@@ -44,5 +47,26 @@ describe("NewBookScreen", () => {
     expect(log).toHaveBeenCalledWith("ISBN entered:", "9780156012195")
     expect(screen.getByDisplayValue("Antoine de Saint-Exupéry")).toBeVisible()
     expect(lookupBookByIsbn).toHaveBeenCalledWith("9780156012195")
+  })
+
+  it("publishes an optimistic book before returning to the library", () => {
+    render(<NewBookScreen />)
+
+    fireEvent.press(screen.getByRole("button", { name: "Add details manually" }))
+    fireEvent.changeText(screen.getByPlaceholderText("Book title"), "Instant Book")
+    fireEvent.changeText(screen.getByPlaceholderText("Author name"), "Fast Author")
+    fireEvent.press(screen.getByRole("button", { name: "Save Book" }))
+
+    expect(runInBackground).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({
+      event: "books",
+      optimisticResult: expect.objectContaining({
+        id: expect.stringMatching(/^pending-/),
+        title: "Instant Book",
+        author: "Fast Author",
+        status: "available",
+      }),
+    }))
+    expect(jest.mocked(runInBackground).mock.invocationCallOrder[0])
+      .toBeLessThan(jest.mocked(router.back).mock.invocationCallOrder[0])
   })
 })

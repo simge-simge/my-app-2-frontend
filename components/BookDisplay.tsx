@@ -6,9 +6,9 @@ import AdminBadge from "@/components/AdminBadge"
 import { useTranslation } from "@/localization/LanguageContext"
 import { useBookStatusLabel } from "@/localization/bookStatus"
 
-type Props = { book: Book; onPress?: () => void; onOwnerPress?: () => void; showOwner?: boolean; showCommunity?: boolean; style?: StyleProp<ViewStyle> }
+type Props = { book: Book; disabled?: boolean; onPress?: () => void; onOwnerPress?: () => void; showOwner?: boolean; showCommunity?: boolean; style?: StyleProp<ViewStyle> }
 
-export default function BookDisplay({ book, onPress, onOwnerPress, showOwner = false, showCommunity = false, style }: Props) {
+export default function BookDisplay({ book, disabled = false, onPress, onOwnerPress, showOwner = false, showCommunity = false, style }: Props) {
   const { t } = useTranslation()
   const bookStatusLabel = useBookStatusLabel()
   const ownerName = book.owner_name || t("unknown")
@@ -16,6 +16,8 @@ export default function BookDisplay({ book, onPress, onOwnerPress, showOwner = f
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={t("bookBy", { title: book.title, author: book.author || t("unknownAuthor") })}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       style={({ pressed }) => [styles.card, pressed && styles.pressed, style]}
       onPress={onPress}
     >

@@ -18,16 +18,27 @@ import { getMyBooks, type Book } from "@/services/books"
 import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 import { useTranslation } from "@/localization/LanguageContext"
 
+function isBook(value: unknown): value is Book {
+  if (!value || typeof value !== "object") return false
+  const candidate = value as Partial<Book>
+  return typeof candidate.id === "string"
+    && typeof candidate.owner_id === "string"
+    && typeof candidate.title === "string"
+}
+
 export default function Library() {
   const { t } = useTranslation()
   const cachedBooks = getCachedApiData<Book[]>("/books/me")
   const [books, setBooks] = useState<Book[]>(() => cachedBooks ?? [])
   const [loading, setLoading] = useState(() => cachedBooks === undefined)
   const hasLoaded = useRef(cachedBooks !== undefined)
+  const booksRevision = useRef(0)
+  const [pendingBookIds, setPendingBookIds] = useState(() => new Set<string>())
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadBooks = useCallback(async (showLoader = false) => {
+    const revisionAtStart = booksRevision.current
     if (showLoader && !hasLoaded.current) {
       setLoading(true)
     }
@@ -35,10 +46,14 @@ export default function Library() {
     try {
       setError(null)
       const response = await getMyBooks()
-      setBooks(response)
+      if (revisionAtStart === booksRevision.current) {
+        setBooks(response)
+      }
     } catch (err) {
       console.error("Failed to load books", err)
-      setError("Could not load your library.")
+      if (revisionAtStart === booksRevision.current) {
+        setError("Could not load your library.")
+      }
     } finally {
       hasLoaded.current = true
       setLoading(false)
@@ -52,8 +67,74 @@ export default function Library() {
     }, [loadBooks])
   )
 
-  useEffect(() => subscribeToBackgroundActions((event) => {
-    if (event === "books") void loadBooks()
+  useEffect(() => subscribeToBackgroundActions((update) => {
+    if (update.event !== "books") return
+
+    const optimisticBook = isBook(update.optimisticResult)
+      ? update.optimisticResult
+      : undefined
+
+    if (update.status === "pending" && isBook(update.result)) {
+      const pendingBook = update.result
+      booksRevision.current += 1
+      setPendingBookIds((currentIds) => new Set(currentIds).add(pendingBook.id))
+      setBooks((currentBooks) => [
+        pendingBook,
+        ...currentBooks.filter((book) => book.id !== pendingBook.id),
+      ])
+      return
+    }
+
+    if (update.status === "failed") {
+      if (!optimisticBook) return
+      booksRevision.current += 1
+      setPendingBookIds((currentIds) => {
+        const nextIds = new Set(currentIds)
+        nextIds.delete(optimisticBook.id)
+        return nextIds
+      })
+      setBooks((currentBooks) => currentBooks.filter((book) => book.id !== optimisticBook.id))
+      return
+    }
+
+    if (update.status !== "completed") return
+
+    if (!isBook(update.result)) {
+      void loadBooks()
+      return
+    }
+    const savedBook = update.result
+    const displayedBook = optimisticBook
+      ? {
+          ...savedBook,
+          title: optimisticBook.title,
+          author: optimisticBook.author,
+          description: optimisticBook.description,
+          cover_url: optimisticBook.cover_url,
+          isbn: optimisticBook.isbn,
+          status: optimisticBook.status,
+        }
+      : savedBook
+
+    booksRevision.current += 1
+    if (optimisticBook) {
+      setPendingBookIds((currentIds) => {
+        const nextIds = new Set(currentIds)
+        nextIds.delete(optimisticBook.id)
+        return nextIds
+      })
+    }
+    setBooks((currentBooks) => {
+      const withoutOptimisticBook = optimisticBook
+        ? currentBooks.filter((book) => book.id !== optimisticBook.id)
+        : currentBooks
+      const existingIndex = withoutOptimisticBook.findIndex((book) => book.id === displayedBook.id)
+      if (existingIndex === -1) return [displayedBook, ...withoutOptimisticBook]
+
+      const updatedBooks = [...withoutOptimisticBook]
+      updatedBooks[existingIndex] = displayedBook
+      return updatedBooks
+    })
   }), [loadBooks])
 
   const handleRefresh = () => {
@@ -80,7 +161,16 @@ export default function Library() {
         data={books}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        renderItem={({ item }) => <BookDisplay book={item} onPress={() => router.push(`/books/${item.id}`)} />}
+        renderItem={({ item }) => {
+          const pending = pendingBookIds.has(item.id)
+          return (
+            <BookDisplay
+              book={item}
+              disabled={pending}
+              onPress={pending ? undefined : () => router.push(`/books/${item.id}`)}
+            />
+          )
+        }}
         contentContainerStyle={[styles.listContent, books.length === 0 && styles.emptyListContent]}
         columnWrapperStyle={books.length > 1 ? styles.row : undefined}
         showsVerticalScrollIndicator={false}

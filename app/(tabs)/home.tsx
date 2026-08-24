@@ -18,9 +18,8 @@ import GentleEntrance from "@/components/GentleEntrance"
 import LandingBookRail from "@/components/LandingBookRail"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
-import { getBookFeed, getMyBooks, searchBooks, type Book } from "@/services/books"
+import { getBookFeed, searchBooks, type Book } from "@/services/books"
 import { getInbox, type InboxResponse } from "@/services/inbox"
-import { getMatches } from "@/services/matches"
 import { getProfile, type Profile } from "@/services/profile"
 import { useTranslation } from "@/localization/LanguageContext"
 
@@ -127,27 +126,23 @@ export default function Home() {
     if (!profileRef.current) setProfileLoading(true)
     setProfileError(null)
 
-    const [profileResult, inboxResult] = await Promise.allSettled([getProfile(), getInbox()])
-
-    if (inboxResult.status === "fulfilled") {
-      setUnreadCount(inboxResult.value.unread_count)
-    } else {
-      console.error("Failed to load inbox summary", inboxResult.reason)
-    }
-
-    if (profileResult.status === "rejected") {
-      console.error("Failed to load profile", profileResult.reason)
+    let nextProfile: Profile
+    try {
+      nextProfile = await getProfile()
+    } catch (error) {
+      console.error("Failed to load profile", error)
       if (!profileRef.current) setProfileError("We couldn’t open your reading room right now.")
       setProfileLoading(false)
       return
     }
 
-    const nextProfile = profileResult.value
     profileRef.current = nextProfile
     setProfile(nextProfile)
     setProfileLoading(false)
     await loadBooks(nextProfile)
-    void Promise.allSettled([getMyBooks(), getMatches()])
+    void getInbox()
+      .then((inbox) => setUnreadCount(inbox.unread_count))
+      .catch((error) => console.error("Failed to load inbox summary", error))
   }, [loadBooks])
 
   useFocusEffect(useCallback(() => {
