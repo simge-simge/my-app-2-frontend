@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,7 +18,7 @@ import AppButton from "@/components/AppButton"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 
-type BookFormValues = {
+export type BookFormValues = {
   title: string
   author: string
   description: string
@@ -28,6 +29,7 @@ type BookFormValues = {
 type Props = {
   mode: "create" | "edit"
   initialBook?: Book
+  initialValues?: Partial<BookFormValues>
   loading?: boolean
   saving?: boolean
   deleting?: boolean
@@ -38,29 +40,30 @@ type Props = {
 export default function BookForm({
   mode,
   initialBook,
+  initialValues,
   loading = false,
   saving = false,
   deleting = false,
   onSave,
   onDelete,
 }: Props) {
-  const [title, setTitle] = useState(initialBook?.title ?? "")
-  const [author, setAuthor] = useState(initialBook?.author ?? "")
-  const [description, setDescription] = useState(initialBook?.description ?? "")
-  const [isbn, setIsbn] = useState(initialBook?.isbn ?? "")
-  const [coverUri, setCoverUri] = useState(initialBook?.cover_url ?? null)
+  const [title, setTitle] = useState(initialBook?.title ?? initialValues?.title ?? "")
+  const [author, setAuthor] = useState(initialBook?.author ?? initialValues?.author ?? "")
+  const [description, setDescription] = useState(initialBook?.description ?? initialValues?.description ?? "")
+  const [isbn, setIsbn] = useState(initialBook?.isbn ?? initialValues?.isbn ?? "")
+  const [coverUri, setCoverUri] = useState(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
   const [coverAsset, setCoverAsset] = useState<ImagePickerAsset | null>(null)
 
   const isEditMode = mode === "edit"
 
   useEffect(() => {
-    setTitle(initialBook?.title ?? "")
-    setAuthor(initialBook?.author ?? "")
-    setDescription(initialBook?.description ?? "")
-    setIsbn(initialBook?.isbn ?? "")
-    setCoverUri(initialBook?.cover_url ?? null)
+    setTitle(initialBook?.title ?? initialValues?.title ?? "")
+    setAuthor(initialBook?.author ?? initialValues?.author ?? "")
+    setDescription(initialBook?.description ?? initialValues?.description ?? "")
+    setIsbn(initialBook?.isbn ?? initialValues?.isbn ?? "")
+    setCoverUri(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
     setCoverAsset(null)
-  }, [initialBook])
+  }, [initialBook, initialValues])
 
   const storeSelectedImage = (asset: ImagePickerAsset) => {
     setCoverAsset(asset)
@@ -206,6 +209,7 @@ export default function BookForm({
 
         <View style={styles.field}>
           <Text style={styles.label}>Cover Image</Text>
+          {coverUri ? <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" /> : null}
           <Pressable style={styles.coverButton} onPress={handleCoverImage}>
             <Text style={styles.coverButtonText}>Choose or Capture Cover</Text>
           </Pressable>
@@ -310,6 +314,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadows.soft,
+  },
+  coverPreview: {
+    width: 104,
+    height: 148,
+    borderRadius: radii.sm,
+    marginBottom: 12,
+    backgroundColor: palette.surfaceMuted,
   },
   coverButtonText: {
     color: palette.text,

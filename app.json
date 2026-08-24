@@ -40,6 +40,12 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow camera access to scan a book's ISBN barcode."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

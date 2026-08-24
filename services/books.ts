@@ -45,6 +45,17 @@ export function getMyBooks() {
   return apiFetch("/books/me", { cache: "no-store" }) as Promise<Book[]>
 }
 
+export type IsbnBookLookup = Pick<
+  Book,
+  "title" | "author" | "description" | "cover_url" | "isbn"
+>
+
+export function lookupBookByIsbn(isbn: string) {
+  return apiFetch(`/books/isbn/${encodeURIComponent(isbn)}`, {
+    cache: "no-store",
+  }) as Promise<IsbnBookLookup>
+}
+
 export function getBookFeed() {
   return apiFetch("/books/feed") as Promise<Book[]>
 }
