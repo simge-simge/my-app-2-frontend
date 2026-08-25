@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useRef, useState } from "react"
-import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native"
+import { Animated, Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from "react-native"
 
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
@@ -11,6 +11,7 @@ type Props = {
   direction?: "left" | "right"
   reduceMotion: boolean
   showCommunity?: boolean
+  coverSources?: Record<string, ImageSourcePropType>
   onBookPress: (book: Book) => void
 }
 
@@ -21,6 +22,7 @@ export default function LandingBookRail({
   direction = "left",
   reduceMotion,
   showCommunity = false,
+  coverSources,
   onBookPress,
 }: Props) {
   const travel = useRef(new Animated.Value(direction === "left" ? 8 : -38)).current
@@ -58,6 +60,7 @@ export default function LandingBookRail({
             book={book}
             index={index}
             showCommunity={showCommunity}
+            coverSource={coverSources?.[book.id]}
             onPress={() => onBookPress(book)}
             onInteractionStart={() => setPaused(true)}
             onInteractionEnd={() => setPaused(false)}
@@ -72,6 +75,7 @@ function LandingBookCard({
   book,
   index,
   showCommunity,
+  coverSource,
   onPress,
   onInteractionStart,
   onInteractionEnd,
@@ -79,6 +83,7 @@ function LandingBookCard({
   book: Book
   index: number
   showCommunity: boolean
+  coverSource?: ImageSourcePropType
   onPress: () => void
   onInteractionStart: () => void
   onInteractionEnd: () => void
@@ -102,8 +107,8 @@ function LandingBookCard({
     >
       <View style={styles.coverWrap}>
         <View style={styles.spine} />
-        {book.cover_url ? (
-          <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="cover" />
+        {coverSource || book.cover_url ? (
+          <Image source={coverSource ?? { uri: book.cover_url! }} style={styles.cover} resizeMode="cover" />
         ) : (
           <View style={[styles.cover, styles.coverFallback]}>
             <Ionicons name="book-outline" size={24} color={palette.ink} />

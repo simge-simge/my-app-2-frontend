@@ -16,6 +16,12 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: jest.fn(() => ({})),
 }))
 
+jest.mock("expo-linking", () => ({
+  createURL: jest.fn((path: string) => `booktinder://${path.replace(/^\//, "")}`),
+  getInitialURL: jest.fn().mockResolvedValue(null),
+  useURL: jest.fn(() => null),
+}))
+
 jest.mock("react-native-safe-area-context", () => ({
   SafeAreaProvider: ({ children }: { children: ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),

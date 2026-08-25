@@ -1,58 +1,62 @@
 const mockSignIn = jest.fn()
 const mockSignUp = jest.fn()
 const mockSignOut = jest.fn()
+const mockResend = jest.fn()
+const mockSetSession = jest.fn()
+const mockExchangeCode = jest.fn()
 const mockClearCache = jest.fn()
 
 jest.mock("@/utils/supabase", () => ({
-  supabase: { auth: { signUp: (...args: unknown[]) => mockSignUp(...args), signInWithPassword: (...args: unknown[]) => mockSignIn(...args), signOut: (...args: unknown[]) => mockSignOut(...args) } },
+  supabase: { auth: {
+    signUp: (...args: unknown[]) => mockSignUp(...args),
+    signInWithPassword: (...args: unknown[]) => mockSignIn(...args),
+    signOut: (...args: unknown[]) => mockSignOut(...args),
+    resend: (...args: unknown[]) => mockResend(...args),
+    setSession: (...args: unknown[]) => mockSetSession(...args),
+    exchangeCodeForSession: (...args: unknown[]) => mockExchangeCode(...args),
+  } },
 }))
 jest.mock("../api", () => ({ clearApiCache: () => mockClearCache() }))
 
-import { signIn, signOut, signUp } from "../authentication"
+import { createSessionFromUrl, resendSignupVerification, signIn, signOut, signUp } from "../authentication"
 
 describe("authentication boundary", () => {
-  it("keeps the session returned when account creation signs the user in", async () => {
-    const response = { data: { session: { access_token: "token" } }, error: null }
+  it("requests email verification and preserves onboarding metadata", async () => {
+    const response = { data: { user: { id: "user-1" }, session: null }, error: null }
     mockSignUp.mockResolvedValue(response)
+    const metadata = { display_name: "New Reader", contacts: {}, onboarding_profile: true as const }
 
-    await expect(signUp("new@example.com", "secret")).resolves.toBe(response)
-    expect(mockSignUp).toHaveBeenCalledWith({ email: "new@example.com", password: "secret" })
+    await expect(signUp("new@example.com", "password", metadata)).resolves.toBe(response)
+    expect(mockSignUp).toHaveBeenCalledWith({
+      email: "new@example.com",
+      password: "password",
+      options: { emailRedirectTo: "booktinder://auth/callback", data: metadata },
+    })
     expect(mockSignIn).not.toHaveBeenCalled()
   })
 
-  it("signs in after account creation when Supabase does not return a session", async () => {
-    mockSignUp.mockResolvedValue({ data: { session: null }, error: null })
-    const response = { data: { session: { access_token: "token" } }, error: null }
-    mockSignIn.mockResolvedValue(response)
-
-    await expect(signUp("new@example.com", "secret")).resolves.toBe(response)
-    expect(mockSignIn).toHaveBeenCalledWith({ email: "new@example.com", password: "secret" })
+  it("resends signup verification to the same callback", async () => {
+    mockResend.mockResolvedValue({ data: {}, error: null })
+    await resendSignupVerification("new@example.com")
+    expect(mockResend).toHaveBeenCalledWith({
+      type: "signup",
+      email: "new@example.com",
+      options: { emailRedirectTo: "booktinder://auth/callback" },
+    })
   })
 
-  it("detects Supabase's obfuscated response for an existing account", async () => {
-    mockSignUp.mockResolvedValue({ data: { user: { identities: [] }, session: null }, error: null })
-
-    await expect(signUp("existing@example.com", "secret")).resolves.toEqual(expect.objectContaining({
-      error: { message: "This account already exists. Please log in.", code: "user_already_exists" },
-    }))
-    expect(mockSignIn).not.toHaveBeenCalled()
+  it("creates a session from implicit-flow callback tokens", async () => {
+    const session = { access_token: "access" }
+    mockSetSession.mockResolvedValue({ data: { session }, error: null })
+    await expect(createSessionFromUrl("booktinder://auth/callback#access_token=access&refresh_token=refresh")).resolves.toBe(session)
+    expect(mockSetSession).toHaveBeenCalledWith({ access_token: "access", refresh_token: "refresh" })
   })
 
-  it("converts a failed duplicate-account sign-in into an existing-account error", async () => {
-    mockSignUp.mockResolvedValue({ data: { user: null, session: null }, error: null })
-    mockSignIn.mockResolvedValue({ data: { session: null }, error: { message: "Invalid login credentials", code: "invalid_credentials" } })
-
-    await expect(signUp("existing@example.com", "wrong")).resolves.toEqual(expect.objectContaining({
-      error: { message: "This account already exists. Please log in.", code: "user_already_exists" },
-    }))
-  })
-
-  it("normalizes password-first signup errors to the existing-account warning", async () => {
-    mockSignUp.mockResolvedValue({ data: { user: null, session: null }, error: { message: "Password should be at least 6 characters", code: "weak_password" } })
-
-    await expect(signUp("existing@example.com", "bad")).resolves.toEqual(expect.objectContaining({
-      error: { message: "This account already exists. Please log in.", code: "user_already_exists" },
-    }))
+  it("exchanges a PKCE callback code when present", async () => {
+    const session = { access_token: "access" }
+    mockExchangeCode.mockResolvedValue({ data: { session }, error: null })
+    await expect(createSessionFromUrl("booktinder://auth/callback?code=auth-code")).resolves.toBe(session)
+    expect(mockExchangeCode).toHaveBeenCalledWith("auth-code")
   })
 
   it("passes credentials to Supabase and clears user-scoped API state", async () => {

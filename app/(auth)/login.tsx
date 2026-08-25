@@ -6,8 +6,9 @@ import AppButton from "@/components/AppButton"
 import AppInput from "@/components/AppInput"
 import { BookDoodles } from "@/components/BookDoodles"
 import GentleEntrance from "@/components/GentleEntrance"
+import { AuthDivider, GoogleAuthButton } from "@/components/SocialAuth"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
-import { signIn } from "@/services/authentication"
+import { resendSignupVerification, signIn, signInWithGoogle } from "@/services/authentication"
 import { useTranslation } from "@/localization/LanguageContext"
 
 export default function Login() {
@@ -16,15 +17,43 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [loginWarning, setLoginWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [resending, setResending] = useState(false)
+
+  const handleResend = async () => {
+    try {
+      setResending(true)
+      const { error } = await resendSignupVerification(email.trim())
+      if (error) Alert.alert(t("emailNotSent"), error.message)
+      else Alert.alert(t("emailSent"), t("verificationResent"))
+    } finally { setResending(false) }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      setGoogleLoading(true)
+      setLoginWarning(null)
+      const result = await signInWithGoogle()
+      if (result.error) Alert.alert(t("googleLoginFailed"), result.error.message)
+      else if (result.data.session) router.replace("/(tabs)/home")
+    } catch (error) {
+      Alert.alert(t("googleLoginFailed"), error instanceof Error ? error.message : t("tryAgain"))
+    } finally { setGoogleLoading(false) }
+  }
 
   const handleLogin = async () => {
     if (!email.trim() || !password) { Alert.alert(t("loginFailed"), t("enterEmailPassword")); return }
     try {
       setLoading(true)
       setLoginWarning(null)
+      setNeedsVerification(false)
       const { error } = await signIn(email.trim(), password)
       if (error) {
-        if (error.code === "invalid_credentials" || error.message.toLowerCase().includes("invalid login credentials")) {
+        if (error.code === "email_not_confirmed" || error.message.toLowerCase().includes("email not confirmed")) {
+          setNeedsVerification(true)
+          setLoginWarning(t("verifyBeforeLogin"))
+        } else if (error.code === "invalid_credentials" || error.message.toLowerCase().includes("invalid login credentials")) {
           setLoginWarning(t("invalidAccount"))
         } else {
           Alert.alert(t("loginFailed"), error.message)
@@ -44,13 +73,16 @@ export default function Login() {
           <Text style={styles.title}>{t("returnShelf")}</Text>
           <Text style={styles.subtitle}>{t("loginSubtitle")}</Text>
           <View style={styles.form}>
-            <AppInput placeholder={t("email")} value={email} onChangeText={(value) => { setEmail(value); setLoginWarning(null) }} />
-            <AppInput placeholder={t("password")} value={password} secure onChangeText={(value) => { setPassword(value); setLoginWarning(null) }} />
+            <GoogleAuthButton onPress={handleGoogleLogin} loading={googleLoading} />
+            <AuthDivider />
+            <AppInput placeholder={t("email")} value={email} onChangeText={(value) => { setEmail(value); setLoginWarning(null); setNeedsVerification(false) }} />
+            <AppInput placeholder={t("password")} value={password} secure onChangeText={(value) => { setPassword(value); setLoginWarning(null); setNeedsVerification(false) }} />
             <AppButton title={t("login")} onPress={handleLogin} loading={loading} />
             {loginWarning ? (
               <View style={styles.warning} accessibilityRole="alert">
-                <Text style={styles.warningTitle}>{t("accountNotFound")}</Text>
+                <Text style={styles.warningTitle}>{needsVerification ? t("checkYourEmail") : t("accountNotFound")}</Text>
                 <Text style={styles.warningText}>{loginWarning}</Text>
+                {needsVerification ? <AppButton title={t("resendVerification")} variant="secondary" onPress={handleResend} loading={resending} /> : null}
               </View>
             ) : null}
           </View>

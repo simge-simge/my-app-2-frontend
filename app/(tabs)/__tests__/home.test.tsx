@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react-native"
 
 import Home from "../home"
-import { getBookFeed, getMyBooks } from "@/services/books"
+import { getBookFeed, getMyBooks, searchBooks } from "@/services/books"
 import { getInbox } from "@/services/inbox"
 import { getMatches } from "@/services/matches"
 import { getProfile, type Profile } from "@/services/profile"
@@ -61,5 +61,26 @@ describe("home performance flow", () => {
     await waitFor(() => expect(getInbox).toHaveBeenCalledTimes(1))
     expect(getMyBooks).not.toHaveBeenCalled()
     expect(getMatches).not.toHaveBeenCalled()
+  })
+
+  it("shows the local bilingual preview without searching for books", async () => {
+    jest.mocked(getProfile).mockResolvedValue({
+      ...profile,
+      community_id: null,
+      community_name: null,
+    })
+    jest.mocked(getInbox).mockResolvedValue({
+      notifications: [],
+      join_requests: [],
+      borrow_requests: [],
+      unread_count: 0,
+    })
+
+    render(<Home />)
+
+    expect(await screen.findByText("Kürk Mantolu Madonna")).toBeTruthy()
+    expect(screen.getByText("The Left Hand of Darkness")).toBeTruthy()
+    expect(searchBooks).not.toHaveBeenCalled()
+    expect(getBookFeed).not.toHaveBeenCalled()
   })
 })

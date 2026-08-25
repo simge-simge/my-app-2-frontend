@@ -7,8 +7,9 @@ import AppInput from "@/components/AppInput"
 import { BookDoodles } from "@/components/BookDoodles"
 import GentleEntrance from "@/components/GentleEntrance"
 import LocationPicker from "@/components/LocationPicker"
+import { AuthDivider, GoogleAuthButton } from "@/components/SocialAuth"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
-import { signUp } from "@/services/authentication"
+import { resendSignupVerification, signInWithGoogle, signUp } from "@/services/authentication"
 import { updateProfile } from "@/services/profile"
 import type { Location } from "@/services/locations"
 import { runInBackground } from "@/utils/backgroundAction"
@@ -26,17 +27,6 @@ export function generateUsername(email: string) {
   return `${base}_${suffix}`
 }
 
-function isExistingAccountError(error: { message: string; code?: string }) {
-  return error.code === "user_already_exists"
-    || error.code === "email_exists"
-    || error.code === "invalid_credentials"
-    || error.code === "email_not_confirmed"
-    || error.code === "weak_password"
-    || /already (registered|exists)/i.test(error.message)
-    || error.message.toLowerCase().includes("invalid login credentials")
-    || error.message.toLowerCase().includes("email not confirmed")
-}
-
 export default function Signup() {
   const { t } = useTranslation()
   const [email, setEmail] = useState("")
@@ -49,6 +39,31 @@ export default function Signup() {
   const [telegram, setTelegram] = useState("")
   const [signupWarning, setSignupWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null)
+  const [resending, setResending] = useState(false)
+
+  const handleGoogleSignup = async () => {
+    try {
+      setGoogleLoading(true)
+      setSignupWarning(null)
+      const result = await signInWithGoogle()
+      if (result.error) setSignupWarning(result.error.message)
+      else if (result.data.session) router.replace("/(tabs)/home")
+    } catch (error) {
+      setSignupWarning(error instanceof Error ? error.message : t("tryAgain"))
+    } finally { setGoogleLoading(false) }
+  }
+
+  const handleResend = async () => {
+    if (!verificationEmail) return
+    try {
+      setResending(true)
+      const { error } = await resendSignupVerification(verificationEmail)
+      if (error) Alert.alert(t("emailNotSent"), error.message)
+      else Alert.alert(t("emailSent"), t("verificationResent"))
+    } finally { setResending(false) }
+  }
 
   const handleSignup = async () => {
     if (!email.trim() || !password) { Alert.alert(t("createAccountFailed"), t("enterEmailPassword")); return }
@@ -57,16 +72,7 @@ export default function Signup() {
       setLoading(true)
       setSignupWarning(null)
       const normalizedEmail = email.trim()
-      const { error } = await signUp(normalizedEmail, password)
-      if (error) {
-        if (isExistingAccountError(error)) {
-          setSignupWarning(t("accountExists"))
-        } else {
-          setSignupWarning(error.message || t("accountCreationFailed"))
-        }
-        return
-      }
-
+      if (password.length < 8) { setSignupWarning(t("passwordRequirements")); return }
       const contacts = Object.fromEntries(
         Object.entries({ phone, instagram, telegram })
           .map(([key, value]) => [key, value.trim()])
@@ -77,16 +83,33 @@ export default function Signup() {
         contacts,
       }
       if (location) profileUpdate.location_id = location.id
+
+      const { data, error } = await signUp(normalizedEmail, password, {
+        display_name: profileUpdate.display_name as string,
+        contacts,
+        ...(location ? { location_id: location.id } : {}),
+        onboarding_profile: true,
+      })
+      if (error) {
+        if (error.code === "user_already_exists" || error.code === "email_exists") {
+          // Match Supabase's anti-enumeration behavior: do not disclose whether
+          // an address is already registered.
+          setVerificationEmail(normalizedEmail)
+          return
+        }
+        setSignupWarning(error.message || t("accountCreationFailed"))
+        return
+      }
+      if (!data.session) {
+        setVerificationEmail(normalizedEmail)
+        return
+      }
       router.replace("/(tabs)/home")
       runInBackground(() => updateProfile(profileUpdate), {
         onError: () => Alert.alert(t("profileIncomplete"), t("profileIncompleteMessage")),
       })
     } catch (error) {
-      if (error instanceof Error && isExistingAccountError(error)) {
-        setSignupWarning(t("accountExists"))
-      } else {
-        setSignupWarning(error instanceof Error ? error.message : t("accountCreationFailed"))
-      }
+      setSignupWarning(error instanceof Error ? error.message : t("accountCreationFailed"))
     } finally { setLoading(false) }
   }
 
@@ -95,36 +118,49 @@ export default function Signup() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <GentleEntrance style={styles.card}>
           <BookDoodles compact />
-          <Text style={styles.eyebrow}>{t("joinCircle")}</Text>
-          <Text style={styles.title}>{t("makeRoom")}</Text>
-          <Text style={styles.subtitle}>{t("signupSubtitle")}</Text>
-          <View style={styles.form}>
-            <AppInput placeholder={t("email")} value={email} onChangeText={(value) => { setEmail(value); setSignupWarning(null) }} />
-            <AppInput placeholder={t("password")} value={password} secure onChangeText={(value) => { setPassword(value); setSignupWarning(null) }} />
-            <Text style={styles.optionalHint}>{t("profileOptional")}</Text>
-            <AppInput placeholder={t("nameOptional")} value={name} onChangeText={setName} />
-            <View style={styles.locationField}>
-              <LocationPicker
-                label={t("locationOptional")}
-                selected={location}
-                onSelect={setLocation}
-                onValidityChange={setLocationValid}
-              />
+          {verificationEmail ? (
+            <View accessibilityRole="alert">
+              <Text style={styles.eyebrow}>{t("oneMoreStep")}</Text>
+              <Text style={styles.title}>{t("checkYourEmail")}</Text>
+              <Text style={styles.subtitle}>{t("verificationSentTo", { email: verificationEmail })}</Text>
+              <Text style={styles.verificationHint}>{t("verificationHint")}</Text>
+              <AppButton title={t("resendVerification")} variant="secondary" onPress={handleResend} loading={resending} />
+              <Pressable style={styles.linkTarget} onPress={() => router.replace("/login")} accessibilityRole="link">
+                <Text style={styles.link}>{t("backToLogin")}</Text>
+              </Pressable>
             </View>
-            <AppInput placeholder={t("phoneOptional")} value={phone} onChangeText={setPhone} />
-            <AppInput placeholder={t("instagramOptional")} value={instagram} onChangeText={setInstagram} />
-            <AppInput placeholder={t("telegramOptional")} value={telegram} onChangeText={setTelegram} />
-            <AppButton title={t("createAccountAction")} onPress={handleSignup} loading={loading} />
-            {signupWarning ? (
-              <View style={styles.warning} accessibilityRole="alert">
-                <Text style={styles.warningTitle}>{t("accountAlreadyExists")}</Text>
-                <Text style={styles.warningText}>{signupWarning}</Text>
+          ) : (
+            <>
+              <Text style={styles.eyebrow}>{t("joinCircle")}</Text>
+              <Text style={styles.title}>{t("makeRoom")}</Text>
+              <Text style={styles.subtitle}>{t("signupSubtitle")}</Text>
+              <View style={styles.form}>
+                <GoogleAuthButton onPress={handleGoogleSignup} loading={googleLoading} />
+                <AuthDivider />
+                <AppInput placeholder={t("email")} value={email} onChangeText={(value) => { setEmail(value); setSignupWarning(null) }} />
+                <AppInput placeholder={t("password")} value={password} secure autoComplete="new-password" onChangeText={(value) => { setPassword(value); setSignupWarning(null) }} />
+                <Text style={styles.passwordHint}>{t("passwordRequirements")}</Text>
+                <Text style={styles.optionalHint}>{t("profileOptional")}</Text>
+                <AppInput placeholder={t("nameOptional")} value={name} onChangeText={setName} />
+                <View style={styles.locationField}>
+                  <LocationPicker label={t("locationOptional")} selected={location} onSelect={setLocation} onValidityChange={setLocationValid} />
+                </View>
+                <AppInput placeholder={t("phoneOptional")} value={phone} onChangeText={setPhone} />
+                <AppInput placeholder={t("instagramOptional")} value={instagram} onChangeText={setInstagram} />
+                <AppInput placeholder={t("telegramOptional")} value={telegram} onChangeText={setTelegram} />
+                <AppButton title={t("createAccountAction")} onPress={handleSignup} loading={loading} />
+                {signupWarning ? (
+                  <View style={styles.warning} accessibilityRole="alert">
+                    <Text style={styles.warningTitle}>{t("createAccountFailed")}</Text>
+                    <Text style={styles.warningText}>{signupWarning}</Text>
+                  </View>
+                ) : null}
               </View>
-            ) : null}
-          </View>
-          <Pressable style={styles.linkTarget} onPress={() => router.push("/login")} accessibilityRole="link">
-            <Text style={styles.link}>{t("alreadyAccount")}</Text>
-          </Pressable>
+              <Pressable style={styles.linkTarget} onPress={() => router.push("/login")} accessibilityRole="link">
+                <Text style={styles.link}>{t("alreadyAccount")}</Text>
+              </Pressable>
+            </>
+          )}
         </GentleEntrance>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -140,6 +176,8 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 7, fontSize: 15, lineHeight: 22, color: palette.textMuted },
   form: { marginTop: 22 },
   optionalHint: { marginTop: 3, marginBottom: 13, color: palette.textMuted, fontSize: 13, fontWeight: "700" },
+  passwordHint: { marginTop: -7, marginBottom: 15, color: palette.textMuted, fontSize: 12, lineHeight: 17 },
+  verificationHint: { marginTop: 16, color: palette.textMuted, fontSize: 14, lineHeight: 21 },
   locationField: { marginBottom: 15 },
   warning: { marginTop: 14, padding: 14, gap: 5, borderWidth: 1.5, borderColor: palette.danger, borderRadius: radii.md, backgroundColor: palette.surfaceMuted },
   warningTitle: { color: palette.danger, fontSize: 15, fontWeight: "800" },

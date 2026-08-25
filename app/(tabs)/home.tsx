@@ -16,45 +16,13 @@ import AdminBadge from "@/components/AdminBadge"
 import { BookDoodles } from "@/components/BookDoodles"
 import GentleEntrance from "@/components/GentleEntrance"
 import LandingBookRail from "@/components/LandingBookRail"
+import { HOME_PREVIEW_BOOKS, HOME_PREVIEW_COVERS } from "@/constants/homePreviewBooks"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
-import { getBookFeed, searchBooks, type Book } from "@/services/books"
+import { getBookFeed, type Book } from "@/services/books"
 import { getInbox, type InboxResponse } from "@/services/inbox"
 import { getProfile, type Profile } from "@/services/profile"
 import { useTranslation } from "@/localization/LanguageContext"
-
-const GLOBAL_PREVIEW_QUERIES = ["a", "e", "i"] as const
-
-function getPreviewCacheKey(query: string) {
-  return `/books/search?q=${encodeURIComponent(query)}&scope=all`
-}
-
-function selectPreviewBooks(results: Book[]) {
-  const unique = [...new Map(results.map((book) => [book.id, book])).values()]
-  const byCommunity = new Map<string, Book[]>()
-
-  for (const book of unique) {
-    const key = book.community_id || "unknown"
-    byCommunity.set(key, [...(byCommunity.get(key) ?? []), book])
-  }
-
-  const communities = [...byCommunity.values()]
-  const varied: Book[] = []
-  for (let index = 0; varied.length < 12; index += 1) {
-    let added = false
-    for (const communityBooks of communities) {
-      const book = communityBooks[index]
-      if (book) {
-        varied.push(book)
-        added = true
-      }
-      if (varied.length === 12) break
-    }
-    if (!added) break
-  }
-
-  return varied
-}
 
 export default function Home() {
   const { t } = useTranslation()
@@ -64,11 +32,6 @@ export default function Home() {
   const cachedProfile = getCachedApiData<Profile>("/profile/me/")
   const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
   const cachedFeed = getCachedApiData<Book[]>("/books/feed")
-  const cachedPreviewResponses = GLOBAL_PREVIEW_QUERIES.map((query) =>
-    getCachedApiData<Book[]>(getPreviewCacheKey(query)),
-  )
-  const cachedPreview = selectPreviewBooks(cachedPreviewResponses.flatMap((response) => response ?? []))
-  const previewCacheResolved = cachedPreviewResponses.every((response) => response !== undefined)
 
   const [profile, setProfile] = useState<Profile | null>(() => cachedProfile ?? null)
   const profileRef = useRef<Profile | null>(cachedProfile ?? null)
@@ -77,11 +40,11 @@ export default function Home() {
   const [unreadCount, setUnreadCount] = useState(() => cachedInbox?.unread_count ?? 0)
   const [books, setBooks] = useState<Book[]>(() => {
     if (!cachedProfile) return []
-    return cachedProfile.community_id ? cachedFeed ?? [] : cachedPreview
+    return cachedProfile.community_id ? cachedFeed ?? [] : HOME_PREVIEW_BOOKS
   })
   const [booksLoading, setBooksLoading] = useState(() => {
     if (!cachedProfile) return true
-    return cachedProfile.community_id ? cachedFeed === undefined : !previewCacheResolved
+    return cachedProfile.community_id ? cachedFeed === undefined : false
   })
   const [booksError, setBooksError] = useState<string | null>(null)
   const [reduceMotion, setReduceMotion] = useState(false)
@@ -100,14 +63,7 @@ export default function Home() {
       if (currentProfile.community_id) {
         setBooks(await getBookFeed())
       } else {
-        const results = await Promise.allSettled(
-          GLOBAL_PREVIEW_QUERIES.map((query) => searchBooks(query, "all")),
-        )
-        const successful = results.flatMap((result) => result.status === "fulfilled" ? result.value : [])
-        if (results.every((result) => result.status === "rejected")) {
-          throw results[0].status === "rejected" ? results[0].reason : new Error("Preview unavailable")
-        }
-        setBooks(selectPreviewBooks(successful))
+        setBooks(HOME_PREVIEW_BOOKS)
       }
     } catch (error) {
       console.error("Failed to load landing-page books", error)
@@ -285,6 +241,7 @@ export default function Home() {
                 <Text style={styles.previewNote}>{t("previewBooks")}</Text>
                 <LandingBookRail
                   books={previewRows[0]}
+                  coverSources={HOME_PREVIEW_COVERS}
                   direction="left"
                   reduceMotion={reduceMotion}
                   showCommunity
@@ -293,6 +250,7 @@ export default function Home() {
                 {previewRows[1].length > 0 ? (
                   <LandingBookRail
                     books={previewRows[1]}
+                    coverSources={HOME_PREVIEW_COVERS}
                     direction="right"
                     reduceMotion={reduceMotion}
                     showCommunity

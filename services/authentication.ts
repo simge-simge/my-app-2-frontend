@@ -1,48 +1,87 @@
-import { supabase } from "@/utils/supabase";
-import { clearApiCache } from "./api";
+import { Platform } from "react-native"
+import * as Linking from "expo-linking"
+import * as WebBrowser from "expo-web-browser"
 
-const accountAlreadyExistsError = {
-  message: "This account already exists. Please log in.",
-  code: "user_already_exists",
+import { supabase } from "@/utils/supabase"
+import { clearApiCache } from "./api"
+
+WebBrowser.maybeCompleteAuthSession()
+
+export type SignupMetadata = {
+  display_name: string
+  location_id?: string
+  contacts: Record<string, string>
+  onboarding_profile: true
 }
 
-export async function signUp(email: string, password: string) {
+export function getAuthRedirectUrl() {
+  return Linking.createURL("/auth/callback")
+}
+
+export async function signUp(email: string, password: string, metadata?: SignupMetadata) {
   clearApiCache()
-  const result = await supabase.auth.signUp({
+  return supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl(),
+      data: metadata,
+    },
   })
+}
 
-  // Supabase may return an obfuscated user with no identities instead of an
-  // explicit error when the email is already registered.
-  if (!result.error && result.data.user && result.data.user.identities?.length === 0) {
-    return { data: result.data, error: accountAlreadyExistsError }
-  }
-  if (result.error?.code === "weak_password") {
-    return { data: result.data, error: accountAlreadyExistsError }
-  }
-  if (result.error || result.data.session) return result
+export async function resendSignupVerification(email: string) {
+  return supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: getAuthRedirectUrl() },
+  })
+}
 
-  // A successful signup normally includes a session. If it does not, try to
-  // establish one so account creation and login remain a single user action.
-  const signInResult = await supabase.auth.signInWithPassword({ email, password })
-  if (
-    signInResult.error?.code === "invalid_credentials"
-    || signInResult.error?.code === "email_not_confirmed"
-    || signInResult.error?.message.toLowerCase().includes("invalid login credentials")
-    || signInResult.error?.message.toLowerCase().includes("email not confirmed")
-  ) {
-    return { data: result.data, error: accountAlreadyExistsError }
+export async function createSessionFromUrl(url: string) {
+  const parsed = new URL(url)
+  const hash = new URLSearchParams(parsed.hash.replace(/^#/, ""))
+  const errorDescription = parsed.searchParams.get("error_description") ?? hash.get("error_description")
+  if (errorDescription) throw new Error(decodeURIComponent(errorDescription.replace(/\+/g, " ")))
+
+  const code = parsed.searchParams.get("code")
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) throw error
+    return data.session
   }
-  return signInResult
+
+  const accessToken = hash.get("access_token") ?? parsed.searchParams.get("access_token")
+  const refreshToken = hash.get("refresh_token") ?? parsed.searchParams.get("refresh_token")
+  if (!accessToken || !refreshToken) return null
+
+  const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+  if (error) throw error
+  return data.session
+}
+
+export async function signInWithGoogle() {
+  clearApiCache()
+  const redirectTo = getAuthRedirectUrl()
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo, skipBrowserRedirect: Platform.OS !== "web" },
+  })
+  if (error) return { data: { session: null }, error }
+
+  if (Platform.OS === "web" || !data.url) return { data: { session: null }, error: null }
+  const browserResult = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+  if (browserResult.type !== "success") {
+    return { data: { session: null }, error: null, cancelled: true as const }
+  }
+
+  const session = await createSessionFromUrl(browserResult.url)
+  return { data: { session }, error: null }
 }
 
 export async function signIn(email: string, password: string) {
   clearApiCache()
-  return supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+  return supabase.auth.signInWithPassword({ email, password })
 }
 
 export async function signOut() {

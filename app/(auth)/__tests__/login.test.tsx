@@ -4,13 +4,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { router } from "expo-router"
 
 import Login from "../login"
-import { signIn } from "@/services/authentication"
+import { signIn, signInWithGoogle } from "@/services/authentication"
 
-jest.mock("@/services/authentication", () => ({ signIn: jest.fn() }))
+jest.mock("@/services/authentication", () => ({ signIn: jest.fn(), signInWithGoogle: jest.fn(), resendSignupVerification: jest.fn() }))
 jest.mock("@/components/BookDoodles", () => ({ BookDoodles: () => null }))
 jest.mock("@/components/GentleEntrance", () => ({ children }: { children: ReactNode }) => children)
 
 const mockedSignIn = jest.mocked(signIn)
+const mockedGoogle = jest.mocked(signInWithGoogle)
 
 describe("login", () => {
   beforeEach(() => jest.spyOn(Alert, "alert").mockImplementation(() => {}))
@@ -35,6 +36,14 @@ describe("login", () => {
     fireEvent.changeText(screen.getByLabelText("Password"), "secret123")
     fireEvent.press(screen.getByRole("button", { name: "Log in" }))
     await waitFor(() => expect(mockedSignIn).toHaveBeenCalledWith("reader@example.com", "secret123"))
+    expect(router.replace).toHaveBeenCalledWith("/(tabs)/home")
+  })
+
+  it("continues with Google and opens the protected app", async () => {
+    mockedGoogle.mockResolvedValue({ data: { session: { access_token: "token" } }, error: null } as never)
+    render(<Login />)
+    fireEvent.press(screen.getByRole("button", { name: "Continue with Google" }))
+    await waitFor(() => expect(mockedGoogle).toHaveBeenCalledTimes(1))
     expect(router.replace).toHaveBeenCalledWith("/(tabs)/home")
   })
 

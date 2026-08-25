@@ -8,9 +8,10 @@ type Props = {
   value: string
   onChangeText: (text: string) => void
   secure?: boolean
+  autoComplete?: "email" | "current-password" | "new-password" | "off"
 }
 
-export default function AppInput({ placeholder, value, onChangeText, secure }: Props) {
+export default function AppInput({ placeholder, value, onChangeText, secure, autoComplete }: Props) {
   const { t } = useTranslation()
   const [focused, setFocused] = useState(false)
   const inputMode = placeholder === t("email") ? "email" : "text"
@@ -29,7 +30,7 @@ export default function AppInput({ placeholder, value, onChangeText, secure }: P
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         inputMode={inputMode}
-        autoComplete={secure ? "current-password" : inputMode === "email" ? "email" : "off"}
+        autoComplete={autoComplete ?? (secure ? "current-password" : inputMode === "email" ? "email" : "off")}
         autoCapitalize="none"
       />
     </View>

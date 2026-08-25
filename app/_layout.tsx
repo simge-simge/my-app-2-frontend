@@ -43,6 +43,7 @@ function RootStack() {
       <Stack.Screen name="index" options={headerlessScreenOptions} />
       <Stack.Screen name="(auth)/login" options={headerlessScreenOptions} />
       <Stack.Screen name="(auth)/signup" options={headerlessScreenOptions} />
+      <Stack.Screen name="auth/callback" options={headerlessScreenOptions} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="books/new" options={{ title: t("addBook") }} />
       <Stack.Screen name="books/[bookId]" options={{ title: t("bookDetails") }} />
