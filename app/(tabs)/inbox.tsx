@@ -41,11 +41,11 @@ export default function InboxScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadInbox = useCallback(async (showLoader = false) => {
+  const loadInbox = useCallback(async (showLoader = false, forceRefresh = false) => {
     if (showLoader && !hasLoaded.current) setLoading(true)
     try {
       setError(null)
-      const inbox = await getInbox()
+      const inbox = await getInbox(forceRefresh)
       setNotifications(inbox.notifications)
       setRequests(inbox.join_requests)
       setBorrowRequests(inbox.borrow_requests ?? [])
@@ -140,7 +140,7 @@ export default function InboxScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={[styles.content, isEmpty && styles.emptyContent]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadInbox() }} tintColor={palette.text} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadInbox(false, true) }} tintColor={palette.text} />}
     >
       <PageHeader
         title={t("inbox")}

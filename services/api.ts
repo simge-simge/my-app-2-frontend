@@ -47,12 +47,16 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   }
 
   const cacheKey = userId ? `${userId}:${path}` : null
-  if (method === "GET" && cacheKey && !skipCache) {
-    const cached = responseCache.get(cacheKey)
-    if (cached && Date.now() - cached.storedAt < GET_CACHE_MAX_AGE_MS) {
-      return cached.data
+  if (method === "GET" && cacheKey) {
+    if (!skipCache) {
+      const cached = responseCache.get(cacheKey)
+      if (cached && Date.now() - cached.storedAt < GET_CACHE_MAX_AGE_MS) {
+        return cached.data
+      }
     }
 
+    // A forced refresh should bypass stored data, but it can still share an
+    // identical request that is already in flight.
     const pending = pendingRequests.get(cacheKey)
     if (pending) return pending
   }
@@ -64,7 +68,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     pendingRequests.set(cacheKey, request)
     try {
       const result = await request
-      if (requestGeneration === cacheGeneration) {
+      if (!skipCache && requestGeneration === cacheGeneration) {
         storeCachedResponse(userId!, path, result)
       }
       return result

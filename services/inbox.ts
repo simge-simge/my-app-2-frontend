@@ -55,8 +55,8 @@ export type InboxResponse = {
   unread_count: number
 }
 
-export function getInbox() {
-  return apiFetch("/inbox/", { cache: "no-store" }) as Promise<InboxResponse>
+export function getInbox(forceRefresh = false) {
+  return apiFetch("/inbox/", forceRefresh ? { cache: "no-store" } : {}) as Promise<InboxResponse>
 }
 
 export function markNotificationRead(notificationId: string) {

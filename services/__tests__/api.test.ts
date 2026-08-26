@@ -28,6 +28,19 @@ describe("apiFetch", () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
+  it("deduplicates concurrent forced refreshes without caching them", async () => {
+    jest.mocked(fetch).mockResolvedValue({ ok: true, json: async () => [1, 2] } as Response)
+    const [first, second] = await Promise.all([
+      apiFetch("/inbox/", { cache: "no-store" }),
+      apiFetch("/inbox/", { cache: "no-store" }),
+    ])
+    expect(first).toEqual(second)
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    await apiFetch("/inbox/", { cache: "no-store" })
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
   it("invalidates GET cache after a mutation", async () => {
     jest.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ ok: true }) } as Response)
     await apiFetch("/books/me")

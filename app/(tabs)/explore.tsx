@@ -193,9 +193,19 @@ export default function Explore() {
     outputRange: [0, 1],
     extrapolate: "clamp",
   })
+  const likeScale = position.x.interpolate({
+    inputRange: [0, SWIPE_THRESHOLD],
+    outputRange: [0.92, 1],
+    extrapolate: "clamp",
+  })
   const nopeOpacity = position.x.interpolate({
     inputRange: [-SWIPE_THRESHOLD, 0],
     outputRange: [1, 0],
+    extrapolate: "clamp",
+  })
+  const nopeScale = position.x.interpolate({
+    inputRange: [-SWIPE_THRESHOLD, 0],
+    outputRange: [1, 0.92],
     extrapolate: "clamp",
   })
 
@@ -261,11 +271,19 @@ export default function Explore() {
                 style={[styles.card, styles.topCard, { opacity: cardOpacity, transform: [...position.getTranslateTransform(), { rotate }] }]}
                 {...panResponder.panHandlers}
               >
-                <Animated.View style={[styles.swipeBadge, styles.likeBadge, { opacity: likeOpacity }]}>
-                  <Text style={styles.swipeBadgeText}>{t("right")}</Text>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.swipeIndicator, styles.likeIndicator, { opacity: likeOpacity, transform: [{ scale: likeScale }] }]}
+                >
+                  <Ionicons name="heart" size={16} color={palette.accentDark} />
+                  <Text style={styles.swipeIndicatorText}>{t("right")}</Text>
                 </Animated.View>
-                <Animated.View style={[styles.swipeBadge, styles.nopeBadge, { opacity: nopeOpacity }]}>
-                  <Text style={styles.swipeBadgeText}>{t("left")}</Text>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.swipeIndicator, styles.nopeIndicator, { opacity: nopeOpacity, transform: [{ scale: nopeScale }] }]}
+                >
+                  <Ionicons name="close" size={18} color={palette.textMuted} />
+                  <Text style={styles.swipeIndicatorText}>{t("left")}</Text>
                 </Animated.View>
                 <BookCard book={activeBook} />
               </Animated.View>
@@ -352,10 +370,24 @@ const styles = StyleSheet.create({
   author: { flex: 1, textAlign: "right", fontSize: 14, color: palette.textMuted },
   cardTitle: { fontFamily: typography.serif, fontSize: 26, fontWeight: "700", lineHeight: 31, color: palette.text },
   description: { fontSize: 15, lineHeight: 22, color: palette.textMuted },
-  swipeBadge: { position: "absolute", top: 24, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 3, borderRadius: 14, zIndex: 20, transform: [{ rotate: "-12deg" }] },
-  likeBadge: { left: 20, borderColor: palette.success, backgroundColor: "rgba(47, 125, 87, 0.12)" },
-  nopeBadge: { right: 20, borderColor: palette.danger, backgroundColor: "rgba(181, 74, 53, 0.12)", transform: [{ rotate: "12deg" }] },
-  swipeBadgeText: { fontSize: 18, fontWeight: "800", color: palette.text, letterSpacing: 1 },
+  swipeIndicator: {
+    position: "absolute",
+    top: 18,
+    alignSelf: "center",
+    zIndex: 20,
+    minHeight: 38,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderWidth: 1.5,
+    borderRadius: radii.round,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    ...shadows.soft,
+  },
+  likeIndicator: { borderColor: palette.borderStrong, backgroundColor: palette.paper },
+  nopeIndicator: { borderColor: palette.borderStrong, backgroundColor: palette.paper },
+  swipeIndicatorText: { fontSize: 14, fontWeight: "800", color: palette.text },
   emptyTitle: { fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text, marginBottom: 8 },
   emptyText: { fontSize: 14, color: palette.textMuted, textAlign: "center" },
   communityLink: { minHeight: 48, marginTop: 16, paddingHorizontal: 17, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong },
