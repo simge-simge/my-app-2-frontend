@@ -1,12 +1,13 @@
 import { Tabs } from "expo-router"
 
 import PersistentTabBar from "@/components/PersistentTabBar"
+import RequireAuth from "@/components/RequireAuth"
 import { palette, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
 
 export default function TabLayout() {
   const { t } = useTranslation()
-  return (
+  return <RequireAuth>
     <Tabs
       tabBar={(props) => <PersistentTabBar {...props} />}
       screenOptions={{
@@ -26,5 +27,5 @@ export default function TabLayout() {
       <Tabs.Screen name="inbox" options={{ title: t("inbox"), headerShown: false, href: null }} />
       <Tabs.Screen name="settings" options={{ title: t("settings"), headerShown: false, href: null }} />
     </Tabs>
-  )
+  </RequireAuth>
 }

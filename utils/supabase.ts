@@ -1,6 +1,6 @@
 import "react-native-url-polyfill/auto"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { Platform } from "react-native"
+import { AppState, Platform } from "react-native"
 import { createClient } from "@supabase/supabase-js"
 
 import { ENV } from "../config/env"
@@ -32,3 +32,16 @@ export const supabase = createClient(
     },
   }
 )
+
+// Browsers already pause Supabase's refresh loop when a tab is hidden. Native
+// apps need to tie it to the foreground lifecycle so sessions stay current
+// without spending battery or network resources while the app is backgrounded.
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") {
+      supabase.auth.startAutoRefresh()
+    } else {
+      supabase.auth.stopAutoRefresh()
+    }
+  })
+}

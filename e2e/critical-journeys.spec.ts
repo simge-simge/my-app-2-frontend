@@ -58,6 +58,19 @@ async function login(page: Page) {
 
 test.beforeEach(async ({ page }) => mockBoundaries(page))
 
+test("redirects a logged-out visitor from a private route to login", async ({ page }) => {
+  await page.goto("/library")
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByRole("button", { name: "Log in" })).toBeVisible()
+})
+
+test("redirects an authenticated visitor from the public entry to home", async ({ page }) => {
+  await login(page)
+  await page.goto("/")
+  await expect(page).toHaveURL(/\/home$/)
+  await expect(page.getByText("Hello, Current Reader")).toBeVisible()
+})
+
 test("login, show interest in discovery, and open the new match", async ({ page }) => {
   await login(page)
   await page.getByRole("tab", { name: "Explore" }).click()
@@ -105,6 +118,7 @@ test("open owned library/add-book and match details", async ({ page }) => {
 })
 
 test("rejects an unauthorized community library", async ({ page }) => {
+  await login(page)
   await page.goto("/members/10000000-0000-0000-0000-000000000003")
   await expect(page.getByText("You can only view libraries belonging to members of your community.")).toBeVisible()
 })

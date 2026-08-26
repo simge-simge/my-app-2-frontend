@@ -1,15 +1,19 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { palette, typography } from "@/constants/theme";
 import { LanguageProvider, useTranslation } from "@/localization/LanguageContext";
+import { AuthSessionProvider, useAuthSession } from "@/services/authSession";
 import { ThemeProvider, useAppTheme } from "@/theme/ThemeContext";
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <LanguageProvider><ThemedRoot /></LanguageProvider>
+        <LanguageProvider>
+          <AuthSessionProvider><ThemedRoot /></AuthSessionProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -17,6 +21,17 @@ export default function RootLayout() {
 
 function ThemedRoot() {
   const { isDark } = useAppTheme();
+  const { loading } = useAuthSession();
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <ActivityIndicator size="large" color={palette.accent} />
+      </View>
+    );
+  }
+
   return <><StatusBar style={isDark ? "light" : "dark"} /><RootStack /></>;
 }
 
@@ -41,9 +56,9 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="index" options={headerlessScreenOptions} />
+      <Stack.Screen name="auth/callback" options={headerlessScreenOptions} />
       <Stack.Screen name="(auth)/login" options={headerlessScreenOptions} />
       <Stack.Screen name="(auth)/signup" options={headerlessScreenOptions} />
-      <Stack.Screen name="auth/callback" options={headerlessScreenOptions} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="books/new" options={{ title: t("addBook") }} />
       <Stack.Screen name="books/[bookId]" options={{ title: t("bookDetails") }} />
@@ -54,3 +69,12 @@ function RootStack() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.background,
+  },
+});

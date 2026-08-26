@@ -10,6 +10,9 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
+  Redirect: ({ href }: { href: string }) =>
+    require("react").createElement(require("react-native").Text, null, `Redirect:${href}`),
+  Slot: () => null,
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useFocusEffect: (callback: () => void | (() => void)) =>
     jest.requireActual("react").useEffect(callback, [callback]),

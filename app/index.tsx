@@ -1,19 +1,23 @@
 import { Image, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
-import { router } from "expo-router"
+import { Redirect, router } from "expo-router"
 
 import AppButton from "@/components/AppButton"
 import GentleEntrance from "@/components/GentleEntrance"
 import LanguageSwitch from "@/components/LanguageSwitch"
 import { layout, palette, spacing, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
+import { useAuthSession } from "@/services/authSession"
 
 const heroArt = require("../assets/images/welcome-hero.png")
 
 export default function Index() {
   const { t } = useTranslation()
+  const { session } = useAuthSession()
   const { width, height } = useWindowDimensions()
   const isWide = width >= 800
   const isCompact = height < 720
+
+  if (session) return <Redirect href="/home" />
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.container, isWide && styles.wideContainer]} showsVerticalScrollIndicator={false}>
