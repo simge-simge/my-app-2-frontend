@@ -96,6 +96,7 @@ test("open owned library/add-book and match details", async ({ page }) => {
   await page.getByRole("tab", { name: "Library" }).click()
   await expect(page.getByText("My Owned Book")).toBeVisible()
   await page.getByRole("button", { name: "Add book" }).click()
+  await page.getByRole("button", { name: "Add details manually" }).click()
   await expect(page.getByText("Enter the details for the book you want in your library")).toBeVisible()
   await page.goBack()
   await page.getByRole("tab", { name: "Matches" }).click()

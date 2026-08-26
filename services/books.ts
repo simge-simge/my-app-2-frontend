@@ -13,15 +13,14 @@ export type CreateBookInput = {
   description?: string | null
   cover_url?: string | null
   isbn?: string | null
-  status?: BookStatus
 }
 
 export type UpdateBookInput = {
+  title?: string
   author?: string | null
   description?: string | null
   cover_url?: string | null
   isbn?: string | null
-  status?: BookStatus
 }
 
 export type Book = {
@@ -87,7 +86,6 @@ export function createBook(data: CreateBookInput) {
       description: data.description || null,
       cover_url: data.cover_url || null,
       isbn: data.isbn || null,
-      status: data.status ?? "available",
     }),
   }) as Promise<Book>
 }
@@ -95,13 +93,7 @@ export function createBook(data: CreateBookInput) {
 export function updateBook(bookId: string, data: UpdateBookInput) {
   return apiFetch(`/books/${bookId}`, {
     method: "PATCH",
-    body: JSON.stringify({
-      author: data.author || null,
-      description: data.description || null,
-      cover_url: data.cover_url || null,
-      isbn: data.isbn || null,
-      status: data.status ?? "available",
-    }),
+    body: JSON.stringify(data),
   }) as Promise<Book>
 }
 

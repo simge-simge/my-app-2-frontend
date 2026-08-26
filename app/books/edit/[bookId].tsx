@@ -56,11 +56,11 @@ export default function EditBookScreen() {
     runInBackground(async () => {
       const coverUrl = coverAsset ? await uploadBookCover(coverAsset) : values.cover_url
       return updateBook(bookId, {
+        title: values.title,
         author: values.author || null,
         description: values.description || null,
         cover_url: coverUrl,
         isbn: values.isbn || null,
-        status: book.status,
       })
     }, {
       event: "books",

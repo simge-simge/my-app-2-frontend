@@ -89,6 +89,7 @@ function LandingBookCard({
   onInteractionEnd: () => void
 }) {
   const bookStatusLabel = useBookStatusLabel()
+  const [hovered, setHovered] = useState(false)
   const tilt = index % 3 === 0 ? "-1.5deg" : index % 3 === 1 ? "1deg" : "-0.4deg"
 
   return (
@@ -98,9 +99,15 @@ function LandingBookCard({
       onPress={onPress}
       onPressIn={onInteractionStart}
       onPressOut={onInteractionEnd}
-      onHoverIn={onInteractionStart}
-      onHoverOut={onInteractionEnd}
-      style={({ pressed, hovered }) => [
+      onHoverIn={() => {
+        setHovered(true)
+        onInteractionStart()
+      }}
+      onHoverOut={() => {
+        setHovered(false)
+        onInteractionEnd()
+      }}
+      style={({ pressed }) => [
         styles.card,
         { transform: [{ rotate: tilt }, { translateY: pressed || hovered ? -6 : 0 }, { scale: pressed ? 0.98 : 1 }] },
       ]}
