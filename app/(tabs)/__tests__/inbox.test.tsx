@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native"
 import { router } from "expo-router"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import InboxScreen from "../inbox"
 import { decideBorrowRequest, getInbox } from "@/services/inbox"
-import type { BookBorrowRequest, InboxResponse } from "@/services/inbox"
+import type { BookBorrowRequest, InboxNotification, InboxResponse } from "@/services/inbox"
 
 jest.mock("@/services/api", () => ({ getCachedApiData: jest.fn(() => undefined) }))
 jest.mock("@/services/inbox", () => ({
@@ -26,8 +27,8 @@ const request = (overrides: Partial<BookBorrowRequest> = {}): BookBorrowRequest 
   ...overrides,
 })
 
-const inbox = (borrowRequests: BookBorrowRequest[]): InboxResponse => ({
-  notifications: [],
+const inbox = (borrowRequests: BookBorrowRequest[], notifications: InboxNotification[] = []): InboxResponse => ({
+  notifications,
   join_requests: [],
   borrow_requests: borrowRequests,
   unread_count: borrowRequests.filter((item) => item.status === "pending").length,
@@ -57,5 +58,23 @@ describe("borrow request inbox history", () => {
     expect(screen.queryByText("Accept")).toBeNull()
     expect(screen.queryByText("Decline")).toBeNull()
     await waitFor(() => expect(getInbox).toHaveBeenCalled())
+  })
+
+  it("opens a completed shelf scan from its inbox notification", async () => {
+    jest.mocked(getInbox).mockResolvedValue(inbox([], [{
+      id: "notification-1",
+      type: "shelf_scan_completed",
+      title: "Your shelf scan is ready",
+      message: "We found 8 books. Tap to review them.",
+      metadata: { shelf_scan_job_id: "scan-1", book_count: 8 },
+      read_at: "2026-01-03T12:00:00Z",
+      created_at: "2026-01-03T12:00:00Z",
+    }]))
+    render(<InboxScreen />)
+
+    fireEvent.press(await screen.findByText("Your shelf scan is ready"))
+
+    await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith("commonshelf.shelf-scan-job", "scan-1"))
+    expect(router.push).toHaveBeenCalledWith("/books/shelf-scan")
   })
 })

@@ -14,8 +14,10 @@ import {
 } from "@/services/books"
 import { supabase } from "@/utils/supabase"
 import { runInBackground } from "@/utils/backgroundAction"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export default function EditBookScreen() {
+  const { t } = useTranslation()
   const { bookId } = useLocalSearchParams<{ bookId: string }>()
   const cachePath = bookId ? `/books/${bookId}` : ""
   const cachedBook = getCachedApiData<Book>(cachePath)
@@ -31,19 +33,19 @@ export default function EditBookScreen() {
         getBook(bookId),
       ])
       if (!data.session || response.owner_id !== data.session.user.id) {
-        Alert.alert("Not allowed", "Only the book owner can edit this book.")
+        Alert.alert(t("notAllowed"), t("ownerEditOnly"))
         router.back()
         return
       }
       setBook(response)
     } catch (err) {
       console.error("Failed to load book editor", err)
-      Alert.alert("Error", "Could not load the selected book.")
+      Alert.alert(t("error"), t("selectedBookLoadError"))
       router.back()
     } finally {
       setLoading(false)
     }
-  }, [bookId])
+  }, [bookId, t])
 
   useFocusEffect(useCallback(() => { loadBook() }, [loadBook]))
 
@@ -66,7 +68,7 @@ export default function EditBookScreen() {
       event: "books",
       onError: (err) => {
         console.error("Failed to update book", err)
-        Alert.alert("Changes were not saved", err instanceof Error ? err.message : "Could not update the book.")
+        Alert.alert(t("changesNotSaved"), err instanceof Error ? err.message : t("updateBookError"))
       },
     })
   }
@@ -78,15 +80,15 @@ export default function EditBookScreen() {
       event: "books",
       onError: (err) => {
         console.error("Failed to delete book", err)
-        Alert.alert("Book was not deleted", err instanceof Error ? err.message : "Could not delete the book.")
+        Alert.alert(t("bookNotDeleted"), err instanceof Error ? err.message : t("couldNotDeleteBook"))
       },
     })
   }
 
   const confirmDelete = () => {
-    Alert.alert("Delete book", "Remove this book from your library?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: handleDelete },
+    Alert.alert(t("deleteBook"), t("deleteBookConfirm"), [
+      { text: t("cancel"), style: "cancel" },
+      { text: t("delete"), style: "destructive", onPress: handleDelete },
     ])
   }
 

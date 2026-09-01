@@ -18,9 +18,10 @@ jest.mock("@/services/books", () => ({
 jest.mock("@/utils/backgroundAction", () => ({ runInBackground: jest.fn() }))
 
 describe("NewBookScreen", () => {
-  it("offers scan, ISBN, and manual entry", () => {
+  it("offers shelf scan, barcode, ISBN, and manual entry", () => {
     render(<NewBookScreen />)
 
+    expect(screen.getByRole("button", { name: "Scan a shelf" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Scan the barcode" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Enter an ISBN" })).toBeVisible()
     expect(screen.getByRole("button", { name: "Add details manually" })).toBeVisible()

@@ -16,6 +16,8 @@ const titleKeys: Record<string, TranslationKey> = {
   community_admin_assigned: "notificationAdminAssigned",
   community_added: "notificationCommunityUpdated",
   community_removed: "notificationCommunityRemoved",
+  shelf_scan_completed: "notificationShelfScanReady",
+  shelf_scan_failed: "notificationShelfScanFailed",
 }
 
 export function localizeInboxNotification(notification: InboxNotification, language: "en" | "tr", t: Translator) {
@@ -68,6 +70,15 @@ export function localizeInboxNotification(notification: InboxNotification, langu
     }
     case "community_removed":
       return { title, message: t("notificationLeftOwnCommunity") }
+    case "shelf_scan_completed": {
+      const count = Number(notification.metadata?.book_count)
+      return {
+        title,
+        message: Number.isFinite(count) ? t("notificationShelfScanReadyMessage", { count }) : notification.message,
+      }
+    }
+    case "shelf_scan_failed":
+      return { title, message: t("notificationShelfScanFailedMessage") }
     default:
       return { title, message: notification.message }
   }

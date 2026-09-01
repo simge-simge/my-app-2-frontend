@@ -5,7 +5,7 @@ export type InboxNotification = {
   type: string
   title: string
   message: string
-  metadata: Record<string, string>
+  metadata: Record<string, string | number | boolean | null>
   read_at: string | null
   created_at: string
 }

@@ -5,6 +5,7 @@ import { Animated, Image, Pressable, StyleSheet, Text, View, type ImageSourcePro
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 import { useBookStatusLabel } from "@/localization/bookStatus"
+import { useTranslation } from "@/localization/LanguageContext"
 
 type Props = {
   books: Book[]
@@ -89,13 +90,14 @@ function LandingBookCard({
   onInteractionEnd: () => void
 }) {
   const bookStatusLabel = useBookStatusLabel()
+  const { t } = useTranslation()
   const [hovered, setHovered] = useState(false)
   const tilt = index % 3 === 0 ? "-1.5deg" : index % 3 === 1 ? "1deg" : "-0.4deg"
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${book.title} by ${book.author || "Unknown author"}`}
+      accessibilityLabel={t("bookBy", { title: book.title, author: book.author || t("unknownAuthor") })}
       onPress={onPress}
       onPressIn={onInteractionStart}
       onPressOut={onInteractionEnd}
@@ -128,7 +130,7 @@ function LandingBookCard({
 
       <View style={styles.copy}>
         <Text numberOfLines={2} style={styles.title}>{book.title}</Text>
-        <Text numberOfLines={1} style={styles.author}>{book.author || "Unknown author"}</Text>
+        <Text numberOfLines={1} style={styles.author}>{book.author || t("unknownAuthor")}</Text>
         {showCommunity && book.community_name ? (
           <View style={styles.communityRow}>
             <Ionicons name="people-outline" size={12} color={palette.accentDark} />

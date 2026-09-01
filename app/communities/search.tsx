@@ -21,8 +21,10 @@ import {
   type CommunitySearchResult,
 } from "@/services/communities"
 import { runInBackground } from "@/utils/backgroundAction"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export default function CommunitySearch() {
+  const { t } = useTranslation()
   const [query, setQuery] = useState("")
   const [location, setLocation] = useState<Location | null>(null)
   const [results, setResults] = useState<CommunitySearchResult[]>([])
@@ -38,7 +40,7 @@ export default function CommunitySearch() {
       } catch (err) {
         if (active) {
           console.error("Failed to search communities", err)
-          Alert.alert("Error", err instanceof ApiError ? err.message : "Could not load communities")
+          Alert.alert(t("error"), err instanceof ApiError ? err.message : t("couldNotLoadCommunities"))
         }
       } finally {
         if (active) setLoading(false)
@@ -49,7 +51,7 @@ export default function CommunitySearch() {
       active = false
       clearTimeout(timer)
     }
-  }, [query, location?.id])
+  }, [query, location?.id, t])
 
   const handleJoin = (community: CommunitySearchResult) => {
     if (community.is_member || community.request_pending) return
@@ -58,7 +60,7 @@ export default function CommunitySearch() {
       onError: (err) => {
         setResults((current) => current.map((item) => item.id === community.id ? { ...item, request_pending: false } : item))
         console.error("Failed to request community membership", err)
-        Alert.alert("Unable to send request", err instanceof ApiError ? err.message : "Please try again")
+        Alert.alert(t("unableSendRequest"), err instanceof ApiError ? err.message : t("tryAgain"))
       },
     })
   }
@@ -71,7 +73,7 @@ export default function CommunitySearch() {
           style={styles.searchInput}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search communities by name"
+          placeholder={t("searchCommunitiesByName")}
           placeholderTextColor={palette.textMuted}
           autoFocus
           returnKeyType="search"
@@ -79,7 +81,7 @@ export default function CommunitySearch() {
       </View>
 
       <LocationPicker
-        label="Filter by location"
+        label={t("filterByLocation")}
         selected={location}
         onSelect={setLocation}
       />
@@ -97,20 +99,20 @@ export default function CommunitySearch() {
           renderItem={({ item }) => {
             const disabled = item.is_member || item.request_pending
             const buttonText = item.is_member
-              ? "Joined"
+              ? t("joined")
               : item.request_pending
                 ? "Request sent"
-                : "Join"
+                : t("join")
             return (
               <View style={styles.communityRow}>
                 <View style={styles.communityDetails}>
                   <Text style={styles.communityName}>{item.name}</Text>
                   <View style={styles.metaRow}>
                     <Ionicons name="location-outline" size={14} color={palette.textMuted} />
-                    <Text style={styles.metaText}>{item.location?.display_name || "Location not specified"}</Text>
+                    <Text style={styles.metaText}>{item.location?.display_name || t("locationNotSpecified")}</Text>
                     <Text style={styles.metaDot}>·</Text>
                     <Ionicons name="people-outline" size={14} color={palette.textMuted} />
-                    <Text style={styles.metaText}>{item.member_count} {item.member_count === 1 ? "member" : "members"}</Text>
+                    <Text style={styles.metaText}>{t(item.member_count === 1 ? "memberCount" : "membersCount", { count: item.member_count })}</Text>
                   </View>
                 </View>
                 <Pressable
@@ -132,8 +134,8 @@ export default function CommunitySearch() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Ionicons name="people-outline" size={38} color={palette.textMuted} />
-              <Text style={styles.emptyTitle}>No communities found</Text>
-              <Text style={styles.emptyText}>Try a different name or location.</Text>
+              <Text style={styles.emptyTitle}>{t("noCommunitiesFound")}</Text>
+              <Text style={styles.emptyText}>{t("differentNameLocation")}</Text>
             </View>
           }
         />

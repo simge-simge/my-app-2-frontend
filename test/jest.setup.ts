@@ -20,7 +20,7 @@ jest.mock("expo-router", () => ({
 }))
 
 jest.mock("expo-linking", () => ({
-  createURL: jest.fn((path: string) => `booktinder://${path.replace(/^\//, "")}`),
+  createURL: jest.fn((path: string) => `commonshelf://${path.replace(/^\//, "")}`),
   getInitialURL: jest.fn().mockResolvedValue(null),
   useURL: jest.fn(() => null),
 }))

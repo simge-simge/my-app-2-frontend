@@ -11,6 +11,7 @@ import {
 } from "react-native"
 import { router, useFocusEffect } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import PageHeader from "@/components/PageHeader"
@@ -18,6 +19,7 @@ import { useTranslation } from "@/localization/LanguageContext"
 import { localizeInboxNotification } from "@/localization/inboxNotification"
 import { getCachedApiData } from "@/services/api"
 import { runInBackground } from "@/utils/backgroundAction"
+import { ACTIVE_SHELF_SCAN_JOB_KEY } from "@/utils/storageKeys"
 import {
   decideBorrowRequest,
   decideCommunityRequest,
@@ -95,7 +97,7 @@ export default function InboxScreen() {
     router.push("/matches")
   }
 
-  const handleNotification = (notification: InboxNotification) => {
+  const handleNotification = async (notification: InboxNotification) => {
     if (!notification.read_at) {
       setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item))
       runInBackground(() => markNotificationRead(notification.id), {
@@ -106,8 +108,15 @@ export default function InboxScreen() {
         },
       })
     }
-    if (notification.metadata?.match_id) {
-      router.push({ pathname: "/matches/[matchId]", params: { matchId: notification.metadata.match_id } })
+    const matchId = notification.metadata?.match_id
+    if (typeof matchId === "string") {
+      router.push({ pathname: "/matches/[matchId]", params: { matchId } })
+      return
+    }
+    const shelfScanJobId = notification.metadata?.shelf_scan_job_id
+    if (typeof shelfScanJobId === "string") {
+      await AsyncStorage.setItem(ACTIVE_SHELF_SCAN_JOB_KEY, shelfScanJobId)
+      router.push("/books/shelf-scan")
     }
   }
 
@@ -230,14 +239,14 @@ export default function InboxScreen() {
           {notifications.map((notification) => {
             const copy = localizeInboxNotification(notification, language, t)
             return (
-              <Pressable key={notification.id} style={[styles.notificationCard, !notification.read_at && styles.unreadCard]} onPress={() => handleNotification(notification)}>
+              <Pressable key={notification.id} style={[styles.notificationCard, !notification.read_at && styles.unreadCard]} onPress={() => void handleNotification(notification)}>
                 <View style={[styles.dot, notification.read_at && styles.readDot]} />
                 <View style={styles.cardBody}>
                   <Text style={styles.cardTitle}>{copy.title}</Text>
                   <Text style={styles.message}>{copy.message}</Text>
                   <Text style={styles.date}>{formatDate(notification.created_at, language === "tr" ? "tr-TR" : "en-US", t("recently"))}</Text>
                 </View>
-                {notification.metadata?.match_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
+                {notification.metadata?.match_id || notification.metadata?.shelf_scan_job_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
               </Pressable>
             )
           })}

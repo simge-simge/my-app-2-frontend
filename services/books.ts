@@ -1,4 +1,5 @@
 import type { ImagePickerAsset } from "expo-image-picker"
+import * as ImageManipulator from "expo-image-manipulator"
 import { File } from "expo-file-system"
 
 import { supabase } from "@/utils/supabase"
@@ -49,6 +50,28 @@ export type IsbnBookLookup = Pick<
   "title" | "author" | "description" | "cover_url" | "isbn"
 >
 
+export type ShelfBookCandidate = IsbnBookLookup & {
+  language?: string | null
+  raw_spine_text: string | null
+  confidence: number
+  catalog_matched: boolean
+}
+
+export type BulkCreateBooksResult = {
+  created: Book[]
+  skipped_duplicates: number
+}
+
+export type ShelfScanJobStatus = "queued" | "processing" | "completed" | "failed"
+
+export type ShelfScanJob = {
+  id: string
+  status: ShelfScanJobStatus
+  books: ShelfBookCandidate[]
+  error: string | null
+  created_at: string
+}
+
 export function lookupBookByIsbn(isbn: string) {
   return apiFetch(`/books/isbn/${encodeURIComponent(isbn)}`, {
     cache: "no-store",
@@ -95,6 +118,49 @@ export function updateBook(bookId: string, data: UpdateBookInput) {
     method: "PATCH",
     body: JSON.stringify(data),
   }) as Promise<Book>
+}
+
+export async function startShelfScan(asset: ImagePickerAsset) {
+  const longestSide = Math.max(asset.width ?? 0, asset.height ?? 0)
+  const actions: ImageManipulator.Action[] = []
+
+  if (longestSide > 2048) {
+    actions.push(asset.width >= asset.height
+      ? { resize: { width: 2048 } }
+      : { resize: { height: 2048 } })
+  }
+
+  const image = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+    base64: true,
+    compress: 0.82,
+    format: ImageManipulator.SaveFormat.JPEG,
+  })
+
+  if (!image.base64) throw new Error("Could not read that photo. Please try another one.")
+
+  return apiFetch("/books/shelf-scan", {
+    method: "POST",
+    body: JSON.stringify({ image_base64: image.base64, mime_type: "image/jpeg" }),
+  }) as Promise<Pick<ShelfScanJob, "id" | "status">>
+}
+
+export function getShelfScanJob(jobId: string) {
+  return apiFetch(`/books/shelf-scan/${encodeURIComponent(jobId)}`, {
+    cache: "no-store",
+  }) as Promise<ShelfScanJob>
+}
+
+export function deleteShelfScanJob(jobId: string) {
+  return apiFetch(`/books/shelf-scan/${encodeURIComponent(jobId)}`, {
+    method: "DELETE",
+  }) as Promise<{ message: string }>
+}
+
+export function bulkCreateBooks(books: CreateBookInput[]) {
+  return apiFetch("/books/bulk", {
+    method: "POST",
+    body: JSON.stringify({ books }),
+  }) as Promise<BulkCreateBooksResult>
 }
 
 export function deleteBook(bookId: string) {

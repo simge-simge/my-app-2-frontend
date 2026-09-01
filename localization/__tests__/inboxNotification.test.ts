@@ -44,4 +44,16 @@ describe("inbox notification localization", () => {
       message: original.message,
     })
   })
+
+  it("localizes shelf scan completion using structured metadata", () => {
+    expect(localizeInboxNotification(notification({
+      type: "shelf_scan_completed",
+      title: "Your shelf scan is ready",
+      message: "We found 8 books. Tap to review them.",
+      metadata: { shelf_scan_job_id: "scan-1", book_count: 8 },
+    }), "tr", translate)).toEqual({
+      title: "Kitaplık taraman hazır",
+      message: "8 kitap bulundu. İncelemek için dokun.",
+    })
+  })
 })

@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
-  RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from "react-native"
 import { router, useFocusEffect } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
-import BookDisplay from "@/components/BookDisplay"
+import LibraryBrowser from "@/components/LibraryBrowser"
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { getMyBooks, type Book } from "@/services/books"
@@ -52,14 +49,14 @@ export default function Library() {
     } catch (err) {
       console.error("Failed to load books", err)
       if (revisionAtStart === booksRevision.current) {
-        setError("Could not load your library.")
+        setError(t("couldNotLoadLibrary"))
       }
     } finally {
       hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [t])
 
   useFocusEffect(
     useCallback(() => {
@@ -152,36 +149,17 @@ export default function Library() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t("myLibrary")}</Text>
-      <Text style={styles.subtitle}>{t("booksAddedSubtitle")}</Text>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <FlatList
-        data={books}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        renderItem={({ item }) => {
-          const pending = pendingBookIds.has(item.id)
-          return (
-            <BookDisplay
-              book={item}
-              disabled={pending}
-              onPress={pending ? undefined : () => router.push(`/books/${item.id}`)}
-            />
-          )
-        }}
-        contentContainerStyle={[styles.listContent, books.length === 0 && styles.emptyListContent]}
-        columnWrapperStyle={books.length > 1 ? styles.row : undefined}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.text} />}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIllustration}><Ionicons name="library-outline" size={34} color={palette.ink} /></View>
-            <Text style={styles.emptyTitle}>{t("noBooks")}</Text>
-            <Text style={styles.emptyText}>{t("noBooksHint")}</Text>
-          </View>
-        }
+      <LibraryBrowser
+        books={books}
+        title={t("myLibrary")}
+        subtitle={t("booksAddedSubtitle")}
+        message={error}
+        emptyTitle={t("noBooks")}
+        emptyText={t("noBooksHint")}
+        disabledBookIds={pendingBookIds}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        onBookPress={(book) => router.push(`/books/${book.id}`)}
       />
 
       <Pressable accessibilityRole="button" accessibilityLabel={t("addBookLabel")} style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]} onPress={() => router.push("/books/new")}>
@@ -195,11 +173,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: palette.background,
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    width: "100%",
-    maxWidth: 960,
-    alignSelf: "center",
   },
   title: {
     fontFamily: typography.serif,
@@ -217,6 +190,27 @@ const styles = StyleSheet.create({
     color: palette.danger,
     marginBottom: 12,
   },
+  controlsCard: { gap: 14, marginBottom: 12, padding: 14, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surface, ...shadows.soft },
+  searchBox: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
+  searchInput: { flex: 1, minWidth: 0, color: palette.text, fontSize: 14, paddingVertical: 10 },
+  clearButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  controlSection: { gap: 7 },
+  controlLabel: { color: palette.textMuted, fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  chip: { minHeight: 36, justifyContent: "center", paddingHorizontal: 11, borderWidth: 1, borderColor: palette.border, borderRadius: radii.round, backgroundColor: palette.paper },
+  chipSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
+  chipText: { color: palette.textMuted, fontSize: 12, fontWeight: "700" },
+  chipTextSelected: { color: palette.paper },
+  optionsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 18 },
+  compactControl: { flexDirection: "row", alignItems: "center", gap: 7 },
+  compactLabel: { color: palette.textMuted, fontSize: 10, fontWeight: "700" },
+  compactOptions: { flexDirection: "row", gap: 5 },
+  iconOption: { width: 34, height: 32, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border, borderRadius: radii.sm, backgroundColor: palette.paper },
+  iconOptionSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
+  pageSizeOption: { minWidth: 34, height: 32, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderWidth: 1, borderColor: palette.border, borderRadius: radii.sm, backgroundColor: palette.paper },
+  pageSizeText: { color: palette.textMuted, fontSize: 11, fontWeight: "800" },
+  pageSizeTextSelected: { color: palette.paper },
+  resultCount: { marginBottom: 9, color: palette.textMuted, fontSize: 12, fontWeight: "700" },
   listContent: {
     paddingBottom: 24,
   },
@@ -227,6 +221,10 @@ const styles = StyleSheet.create({
   row: {
     justifyContent: "space-between",
   },
+  pagination: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, paddingTop: 8, paddingBottom: 74 },
+  pageButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
+  pageButtonDisabled: { opacity: 0.38 },
+  pageText: { minWidth: 110, textAlign: "center", color: palette.text, fontSize: 13, fontWeight: "700" },
   emptyState: {
     alignItems: "center",
     paddingHorizontal: 24,

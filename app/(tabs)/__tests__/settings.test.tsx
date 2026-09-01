@@ -57,4 +57,17 @@ describe("settings", () => {
 
     await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ location_id: ankara.id }))
   })
+
+  it("disables every other edit action while a profile field is being edited", async () => {
+    render(<Settings />)
+
+    await screen.findByDisplayValue("Ada Reader")
+    fireEvent.press(screen.getByRole("button", { name: "Edit name" }))
+
+    expect(screen.getByRole("button", { name: "Edit location" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Find a community" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Edit phone" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Edit Instagram" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Edit Telegram" })).toBeDisabled()
+  })
 })

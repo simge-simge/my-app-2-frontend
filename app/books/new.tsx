@@ -13,21 +13,23 @@ import IsbnCameraScanner from "@/components/IsbnCameraScanner"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { createBook, lookupBookByIsbn, uploadBookCover, type Book, type IsbnBookLookup } from "@/services/books"
 import { runInBackground } from "@/utils/backgroundAction"
+import { useTranslation } from "@/localization/LanguageContext"
 
 type AddMethod = "choose" | "manual" | "isbn" | "scan" | "details"
 type IsbnSource = "entered" | "scanned"
-
-const methods = [
-  { id: "scan" as const, icon: "scan-outline" as const, title: "Scan the barcode", description: "Point your camera at the ISBN barcode on the back cover.", tone: palette.accentSoft },
-  { id: "isbn" as const, icon: "keypad-outline" as const, title: "Enter an ISBN", description: "Type the ISBN-10 or ISBN-13 and we’ll fill in the details.", tone: palette.blueSoft },
-  { id: "manual" as const, icon: "create-outline" as const, title: "Add details manually", description: "Enter the title, author, cover, and description yourself.", tone: palette.orangeSoft },
-]
 
 function normalizeIsbn(value: string) {
   return value.replace(/[^0-9Xx]/g, "").toUpperCase().slice(0, 13)
 }
 
 export default function NewBookScreen() {
+  const { language, t } = useTranslation()
+  const methods = [
+    { id: "shelf" as const, icon: "library-outline" as const, title: t("scanShelf"), description: t("scanShelfHint"), tone: palette.yellow },
+    { id: "scan" as const, icon: "scan-outline" as const, title: t("scanBarcode"), description: t("scanBarcodeHint"), tone: palette.accentSoft },
+    { id: "isbn" as const, icon: "keypad-outline" as const, title: t("enterIsbn"), description: t("enterIsbnHint"), tone: palette.blueSoft },
+    { id: "manual" as const, icon: "create-outline" as const, title: t("addManually"), description: t("addManuallyHint"), tone: palette.orangeSoft },
+  ]
   const [method, setMethod] = useState<AddMethod>("choose")
   const [isbn, setIsbn] = useState("")
   const [lookingUp, setLookingUp] = useState(false)
@@ -71,7 +73,7 @@ export default function NewBookScreen() {
       optimisticResult: optimisticBook,
       onError: (err) => {
         console.error("Failed to create book", err)
-        Alert.alert("Book was not saved", err instanceof Error ? err.message : "Could not save the book.")
+        Alert.alert(t("bookNotSaved"), err instanceof Error ? err.message : t("couldNotSaveBook"))
       },
     })
     router.back()
@@ -80,7 +82,7 @@ export default function NewBookScreen() {
   const findBook = async (rawIsbn: string, source: IsbnSource) => {
     const normalized = normalizeIsbn(rawIsbn)
     if (normalized.length !== 10 && normalized.length !== 13) {
-      Alert.alert("Check the ISBN", "Enter a 10 or 13 character ISBN.")
+      Alert.alert(t("checkIsbn"), t("isbnLengthHint"))
       setScanLocked(false)
       return
     }
@@ -94,14 +96,18 @@ export default function NewBookScreen() {
       setIsbn(result.isbn ?? normalized)
       setMethod("details")
     } catch (error) {
-      Alert.alert("Book not found", error instanceof Error ? error.message : "We couldn't look up that ISBN. You can still add the book manually.")
+      Alert.alert(t("bookNotFound"), error instanceof Error ? error.message : t("bookLookupFailed"))
       setScanLocked(false)
     } finally {
       setLookingUp(false)
     }
   }
 
-  const chooseMethod = async (nextMethod: "manual" | "isbn" | "scan") => {
+  const chooseMethod = async (nextMethod: "manual" | "isbn" | "scan" | "shelf") => {
+    if (nextMethod === "shelf") {
+      router.push("/books/shelf-scan")
+      return
+    }
     if (nextMethod === "manual") {
       setDraft(undefined)
       setIsbnSource(undefined)
@@ -111,7 +117,7 @@ export default function NewBookScreen() {
     if (nextMethod === "scan" && !permission?.granted) {
       const result = await requestPermission()
       if (!result.granted) {
-        Alert.alert("Camera access needed", "Allow camera access to scan a book barcode, or enter the ISBN instead.")
+        Alert.alert(t("cameraAccessNeeded"), t("allowBarcodeCamera"))
         return
       }
     }
@@ -128,9 +134,9 @@ export default function NewBookScreen() {
   if (method === "manual" || method === "details") {
     return (
       <View style={styles.flex}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Choose another way to add a book" onPress={() => setMethod("choose")} style={styles.formBack}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("chooseAnotherAddMethod")} onPress={() => setMethod("choose")} style={styles.formBack}>
           <Ionicons name="chevron-back" size={19} color={palette.accentDark} />
-          <Text style={styles.formBackText}>Add another way</Text>
+          <Text style={styles.formBackText}>{t("addAnotherWay")}</Text>
         </Pressable>
         {isbnSource && initialValues?.isbn ? (
           <View accessibilityRole="summary" style={styles.isbnConfirmation}>
@@ -138,7 +144,7 @@ export default function NewBookScreen() {
               <Ionicons name="checkmark" size={18} color={palette.success} />
             </View>
             <View style={styles.isbnConfirmationCopy}>
-              <Text style={styles.isbnConfirmationLabel}>ISBN {isbnSource}</Text>
+              <Text style={styles.isbnConfirmationLabel}>{t(isbnSource === "entered" ? "isbnEntered" : "isbnScanned")}</Text>
               <Text selectable style={styles.isbnConfirmationValue}>{initialValues.isbn}</Text>
             </View>
           </View>
@@ -152,16 +158,16 @@ export default function NewBookScreen() {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {method !== "choose" ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to add book options" onPress={() => { setMethod("choose"); setScanLocked(false) }} style={styles.backButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("backToAddOptions")} onPress={() => { setMethod("choose"); setScanLocked(false) }} style={styles.backButton}>
             <Ionicons name="chevron-back" size={20} color={palette.text} />
-            <Text style={styles.backText}>Back</Text>
+            <Text style={styles.backText}>{t("back")}</Text>
           </Pressable>
         ) : null}
 
-        <Text style={styles.eyebrow}>ADD TO YOUR LIBRARY</Text>
-        <Text style={styles.title}>{method === "choose" ? "How would you like to add it?" : method === "scan" ? "Scan the ISBN barcode" : "Enter the ISBN"}</Text>
+        <Text style={styles.eyebrow}>{t("addToLibrary").toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")}</Text>
+        <Text style={styles.title}>{method === "choose" ? t("chooseAddMethod") : method === "scan" ? t("scanIsbnBarcode") : t("enterIsbn")}</Text>
         <Text style={styles.subtitle}>
-          {method === "choose" ? "Choose the quickest option for the book in your hands." : method === "scan" ? "Hold the barcode inside the frame. We’ll recognize it automatically." : "You’ll usually find it above the barcode on the back cover."}
+          {method === "choose" ? t("chooseAddMethodHint") : method === "scan" ? t("scanIsbnHint") : t("enterIsbnLocationHint")}
         </Text>
 
         {method === "choose" ? (
@@ -178,15 +184,15 @@ export default function NewBookScreen() {
 
         {method === "isbn" ? (
           <View style={styles.lookupCard}>
-            <Text style={styles.inputLabel}>ISBN number</Text>
+            <Text style={styles.inputLabel}>{t("isbnNumber")}</Text>
             <View style={styles.isbnInputWrap}>
               <Ionicons name="barcode-outline" size={24} color={palette.textMuted} />
               <TextInput value={isbn} onChangeText={(value) => setIsbn(normalizeIsbn(value))} placeholder="978 0 00 000000 0" placeholderTextColor={palette.textMuted} keyboardType="number-pad" autoFocus style={styles.isbnInput} onSubmitEditing={() => void findBook(isbn, "entered")} />
             </View>
-            <Text style={styles.hint}>Hyphens and spaces are optional.</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={lookingUp ? "Finding book" : "Find book"} disabled={lookingUp} onPress={() => void findBook(isbn, "entered")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, lookingUp && styles.disabled]}>
+            <Text style={styles.hint}>{t("optionalHyphens")}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={lookingUp ? t("findingBook") : t("findBook")} disabled={lookingUp} onPress={() => void findBook(isbn, "entered")} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, lookingUp && styles.disabled]}>
               {lookingUp ? <ActivityIndicator color={palette.paper} /> : <Ionicons name="search" size={19} color={palette.paper} />}
-              <Text style={styles.primaryButtonText}>{lookingUp ? "Finding book…" : "Find book"}</Text>
+              <Text style={styles.primaryButtonText}>{lookingUp ? `${t("findingBook")}…` : t("findBook")}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -206,11 +212,11 @@ export default function NewBookScreen() {
               <View style={styles.cameraTopBar}>
                 <View pointerEvents="none" style={styles.cameraModePill}>
                   <Ionicons name="barcode-outline" size={17} color={palette.paper} />
-                  <Text style={styles.cameraModeText}>ISBN SCANNER</Text>
+                  <Text style={styles.cameraModeText}>{t("isbnScanner").toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")}</Text>
                 </View>
                 <View style={styles.cameraControls}>
                   {Platform.OS !== "web" ? (
-                    <Pressable accessibilityRole="button" accessibilityLabel={torchEnabled ? "Turn flashlight off" : "Turn flashlight on"} accessibilityState={{ selected: torchEnabled }} onPress={() => setTorchEnabled((enabled) => !enabled)} style={[styles.torchButton, torchEnabled && styles.torchButtonActive]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={torchEnabled ? t("flashlightOff") : t("flashlightOn")} accessibilityState={{ selected: torchEnabled }} onPress={() => setTorchEnabled((enabled) => !enabled)} style={[styles.torchButton, torchEnabled && styles.torchButtonActive]}>
                       <Ionicons name={torchEnabled ? "flash" : "flash-outline"} size={20} color={palette.paper} />
                     </Pressable>
                   ) : null}
@@ -221,14 +227,14 @@ export default function NewBookScreen() {
                 <View style={[styles.corner, styles.cornerBottomLeft]} /><View style={[styles.corner, styles.cornerBottomRight]} /><View style={styles.scanLine} />
               </View>
               <View pointerEvents="none" style={styles.cameraBottomBar}>
-                <Text style={styles.cameraInstruction}>Keep the complete barcode sharp, level, and inside the guide</Text>
+                <Text style={styles.cameraInstruction}>{t("barcodeGuide")}</Text>
               </View>
-              {lookingUp ? <View style={styles.scanLoading}><ActivityIndicator color={palette.paper} size="large" /><Text style={styles.scanLoadingText}>Looking up this book…</Text></View> : null}
-              {cameraError ? <View style={styles.cameraMessage}><Ionicons name="warning-outline" size={24} color={palette.paper} /><Text style={styles.cameraMessageText}>Camera unavailable</Text><Text style={styles.cameraMessageDetail}>{cameraError}</Text></View> : null}
+              {lookingUp ? <View style={styles.scanLoading}><ActivityIndicator color={palette.paper} size="large" /><Text style={styles.scanLoadingText}>{t("lookingUpBook")}</Text></View> : null}
+              {cameraError ? <View style={styles.cameraMessage}><Ionicons name="warning-outline" size={24} color={palette.paper} /><Text style={styles.cameraMessageText}>{t("cameraUnavailable")}</Text><Text style={styles.cameraMessageDetail}>{cameraError}</Text></View> : null}
             </View>
-            {!cameraError ? <Text style={styles.scannerStatus}>{scannerReady ? "Camera ready · Looking for an ISBN barcode" : "Starting camera…"}</Text> : null}
-            <View style={styles.scanTip}><Ionicons name="scan-outline" size={20} color={palette.orange} /><Text style={styles.scanTipText}>Keep all barcode lines visible, then pause for autofocus.</Text></View>
-            <Pressable accessibilityRole="button" onPress={() => setMethod("isbn")} style={styles.textButton}><Text style={styles.textButtonText}>Can’t scan it? Enter ISBN instead</Text></Pressable>
+            {!cameraError ? <Text style={styles.scannerStatus}>{scannerReady ? t("cameraReady") : t("startingCamera")}</Text> : null}
+            <View style={styles.scanTip}><Ionicons name="scan-outline" size={20} color={palette.orange} /><Text style={styles.scanTipText}>{t("autofocusHint")}</Text></View>
+            <Pressable accessibilityRole="button" onPress={() => setMethod("isbn")} style={styles.textButton}><Text style={styles.textButtonText}>{t("enterIsbnInstead")}</Text></Pressable>
           </View>
         ) : null}
       </ScrollView>

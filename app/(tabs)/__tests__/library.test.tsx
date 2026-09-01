@@ -14,7 +14,7 @@ describe("library", () => {
   it("renders owned books and opens details", async () => {
     jest.mocked(getMyBooks).mockResolvedValue([book({ owner_id: "current-user" })])
     render(<Library />)
-    const item = await screen.findByRole("button", { name: "The Left Hand of Darkness by Ursula K. Le Guin" })
+    const item = await screen.findByLabelText("The Left Hand of Darkness by Ursula K. Le Guin")
     fireEvent.press(item)
     expect(router.push).toHaveBeenCalledWith("/books/10000000-0000-0000-0000-000000000001")
   })
@@ -35,6 +35,42 @@ describe("library", () => {
     await waitFor(() => expect(getMyBooks).toHaveBeenCalled())
     fireEvent.press(screen.getByRole("button", { name: "Add book" }))
     expect(router.push).toHaveBeenCalledWith("/books/new")
+  })
+
+  it("searches the library and switches to compact list view", async () => {
+    jest.mocked(getMyBooks).mockResolvedValue([
+      book({ id: "book-earthsea", title: "A Wizard of Earthsea", author: "Ursula K. Le Guin", isbn: "9780547773742" }),
+      book({ id: "book-beloved", title: "Beloved", author: "Toni Morrison", isbn: "9781400033416" }),
+    ])
+    render(<Library />)
+
+    const search = await screen.findByLabelText("Search my library")
+    fireEvent.changeText(search, "Morrison")
+    expect(screen.getByText("Beloved")).toBeVisible()
+    expect(screen.queryByText("A Wizard of Earthsea")).toBeNull()
+
+    const listView = screen.getByRole("button", { name: "List view" })
+    fireEvent.press(listView)
+    expect(screen.getByRole("button", { name: "List view" }).props.accessibilityState).toMatchObject({ selected: true })
+  })
+
+  it("limits the library to ten books and pages through the results", async () => {
+    jest.mocked(getMyBooks).mockResolvedValue(Array.from({ length: 12 }, (_, index) => book({
+      id: `book-${index + 1}`,
+      title: `Book ${String(index + 1).padStart(2, "0")}`,
+      created_at: new Date(2025, 0, index + 1).toISOString(),
+    })))
+    render(<Library />)
+
+    expect(await screen.findByText("Book 12")).toBeVisible()
+    expect(screen.queryByText("Book 02")).toBeNull()
+    expect(screen.getByText("Page 1 of 2")).toBeVisible()
+
+    fireEvent.press(screen.getByRole("button", { name: "Next page" }))
+    expect(screen.getByText("Book 02")).toBeVisible()
+    expect(screen.getByText("Book 01")).toBeVisible()
+    expect(screen.queryByText("Book 12")).toBeNull()
+    expect(screen.getByText("Page 2 of 2")).toBeVisible()
   })
 
   it("merges a saved background book without refetching or accepting a stale response", async () => {

@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
 import { CameraView } from "expo-camera"
 
 import { palette, radii } from "@/constants/theme"
+import { useTranslation } from "@/localization/LanguageContext"
 
 type Props = {
   active: boolean
@@ -13,6 +14,7 @@ type Props = {
 }
 
 export default function IsbnCameraScanner({ active, torchEnabled = false, onDetected, onReady, onError }: Props) {
+  const { t } = useTranslation()
   const detectedCallback = useRef(onDetected)
   const readyCallback = useRef(onReady)
   const [useFallback, setUseFallback] = useState(!CameraView.isModernBarcodeScannerAvailable)
@@ -52,10 +54,10 @@ export default function IsbnCameraScanner({ active, torchEnabled = false, onDete
   if (!useFallback) {
     return (
       <View style={[StyleSheet.absoluteFill, styles.systemScannerFallback]}>
-        <Text style={styles.systemScannerTitle}>Use the full-screen scanner</Text>
-        <Text style={styles.systemScannerHint}>It uses the phone’s optimized high-resolution barcode detector.</Text>
+        <Text style={styles.systemScannerTitle}>{t("useFullScreenScanner")}</Text>
+        <Text style={styles.systemScannerHint}>{t("fullScreenScannerHint")}</Text>
         <Pressable accessibilityRole="button" onPress={() => void launchSystemScanner()} style={styles.reopenButton}>
-          <Text style={styles.reopenButtonText}>Open scanner</Text>
+          <Text style={styles.reopenButtonText}>{t("openScanner")}</Text>
         </Pressable>
       </View>
     )

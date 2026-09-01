@@ -3,6 +3,7 @@ import { Redirect, router } from "expo-router"
 
 import AppButton from "@/components/AppButton"
 import GentleEntrance from "@/components/GentleEntrance"
+import LegalLinks from "@/components/LegalLinks"
 import LanguageSwitch from "@/components/LanguageSwitch"
 import { layout, palette, spacing, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
@@ -43,6 +44,7 @@ export default function Index() {
             <AppButton title={t("createAccount")} variant="secondary" onPress={() => router.push("/signup")} />
           </View>
           <Text style={styles.note}>{t("heroNote")}</Text>
+          <LegalLinks />
         </GentleEntrance>
       </View>
     </ScrollView>

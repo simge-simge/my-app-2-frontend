@@ -87,13 +87,13 @@ export default function Explore() {
       cardOpacity.setValue(1)
     } catch (err) {
       console.error("Failed to load book feed", err)
-      setError("Could not load books right now.")
+      setError(t("couldNotLoadBooks"))
     } finally {
       hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }
-  }, [cardOpacity, position])
+  }, [cardOpacity, position, t])
 
   useFocusEffect(useCallback(() => { loadExplore(true) }, [loadExplore]))
 
@@ -148,10 +148,10 @@ export default function Explore() {
         })
         .catch((err) => {
           console.error(`Failed to create ${direction} swipe`, err)
-          setError("Could not save your swipe right now.")
+          setError(t("swipeNotSaved"))
         })
     })
-  }, [books, cardOpacity, currentIndex, position, reduceMotion, width])
+  }, [books, cardOpacity, currentIndex, position, reduceMotion, t, width])
 
   const resetPosition = useCallback(() => {
     if (reduceMotion) { position.setValue({ x: 0, y: 0 }); return }

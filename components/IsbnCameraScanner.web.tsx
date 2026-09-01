@@ -2,6 +2,7 @@ import { createElement, useEffect, useRef, type CSSProperties } from "react"
 import { StyleSheet, View } from "react-native"
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser"
 import { BarcodeFormat, DecodeHintType } from "@zxing/library"
+import { useTranslation } from "@/localization/LanguageContext"
 
 type Props = {
   active: boolean
@@ -12,6 +13,7 @@ type Props = {
 }
 
 export default function IsbnCameraScanner({ active, torchEnabled = false, onDetected, onReady, onError }: Props) {
+  const { t } = useTranslation()
   const video = useRef<HTMLVideoElement | null>(null)
   const detectedCallback = useRef(onDetected)
   const readyCallback = useRef(onReady)
@@ -84,14 +86,14 @@ export default function IsbnCameraScanner({ active, torchEnabled = false, onDete
         readyCallback.current?.()
       }
     }).catch((error: unknown) => {
-      if (!disposed) errorCallback.current?.(error instanceof Error ? error.message : "The camera could not start.")
+      if (!disposed) errorCallback.current?.(error instanceof Error ? error.message : t("cameraStartError"))
     })
 
     return () => {
       disposed = true
       controls?.stop()
     }
-  }, [active])
+  }, [active, t])
 
   useEffect(() => {
     const stream = video.current?.srcObject

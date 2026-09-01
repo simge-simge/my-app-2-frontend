@@ -1,37 +1,44 @@
 import { Ionicons } from "@expo/vector-icons"
-import { router } from "expo-router"
-import { Pressable, StyleSheet } from "react-native"
+import { router, type Href } from "expo-router"
+import { Pressable, StyleSheet, Text } from "react-native"
 
-import { palette } from "@/constants/theme"
+import { palette, typography } from "@/constants/theme"
+import { useTranslation } from "@/localization/LanguageContext"
 
-export default function PageBackButton() {
+export default function PageBackButton({ label, fallback = "/home" }: { label?: string; fallback?: Href }) {
+  const { t } = useTranslation()
+  const displayLabel = label ?? t("back")
   const handlePress = () => {
     if (router.canGoBack()) {
       router.back()
       return
     }
 
-    router.replace("/home")
+    router.replace(fallback)
   }
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Go back"
+      accessibilityLabel={displayLabel}
       hitSlop={6}
       onPress={handlePress}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
       <Ionicons name="arrow-back" size={22} color={palette.ink} />
+      <Text style={styles.label}>{displayLabel}</Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   button: {
-    width: 44,
     height: 44,
+    minWidth: 44,
+    paddingHorizontal: 10,
     flexShrink: 0,
+    flexDirection: "row",
+    gap: 6,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 22,
@@ -39,5 +46,6 @@ const styles = StyleSheet.create({
     borderColor: palette.borderStrong,
     backgroundColor: palette.paper,
   },
+  label: { color: palette.ink, fontFamily: typography.sans, fontSize: 14, fontWeight: "700" },
   pressed: { transform: [{ scale: 0.94 }], opacity: 0.78 },
 })

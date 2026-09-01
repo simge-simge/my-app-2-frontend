@@ -25,6 +25,7 @@ import { updateCommunityVisibility } from "@/services/communities"
 import type { Location } from "@/services/locations"
 import { runInBackground } from "@/utils/backgroundAction"
 import LanguageSwitch from "@/components/LanguageSwitch"
+import LegalLinks from "@/components/LegalLinks"
 import ThemeSwitch from "@/components/ThemeSwitch"
 import { useTranslation } from "@/localization/LanguageContext"
 
@@ -277,8 +278,9 @@ export default function Settings() {
         <View style={styles.fieldControl}>
           <TextInput style={[styles.input, styles.inputLocked]} value={community} editable={false} placeholder={t("notInCommunity")} placeholderTextColor={palette.textMuted} />
           <Pressable
-            style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed]}
+            style={({ pressed }) => [styles.fieldAction, pressed && styles.editButtonPressed, editingField !== null && styles.fieldActionDisabled]}
             onPress={() => router.push("/communities/search")}
+            disabled={editingField !== null}
             accessibilityRole="button"
             accessibilityLabel={t("findCommunity")}
           >
@@ -385,6 +387,10 @@ export default function Settings() {
         <Pressable style={styles.deleteAction} onPress={handleDelete}>
           <Text style={styles.deleteActionText}>{t("deleteProfile")}</Text>
         </Pressable>
+      </View>
+      <View style={styles.languageCard}>
+        <Text style={styles.section}>{t("legal")}</Text>
+        <LegalLinks />
       </View>
     </ScrollView>
   )

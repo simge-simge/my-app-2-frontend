@@ -32,4 +32,22 @@ describe("member library", () => {
     render(<MemberLibraryScreen />)
     expect(await screen.findByText("You can only view libraries belonging to members of your community.")).toBeVisible()
   })
+
+  it("uses the shared search and display controls", async () => {
+    jest.mocked(getMemberLibrary).mockResolvedValue({
+      member,
+      books: [
+        book({ id: "earthsea", title: "A Wizard of Earthsea", author: "Ursula K. Le Guin" }),
+        book({ id: "beloved", title: "Beloved", author: "Toni Morrison" }),
+      ],
+    })
+    render(<MemberLibraryScreen />)
+
+    fireEvent.changeText(await screen.findByLabelText("Search my library"), "Morrison")
+    expect(screen.getByText("Beloved")).toBeVisible()
+    expect(screen.queryByText("A Wizard of Earthsea")).toBeNull()
+
+    fireEvent.press(screen.getByRole("button", { name: "List view" }))
+    expect(screen.getByRole("button", { name: "List view" }).props.accessibilityState).toMatchObject({ selected: true })
+  })
 })

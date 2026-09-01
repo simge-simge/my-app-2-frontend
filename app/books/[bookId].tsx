@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
-import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router"
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
@@ -17,9 +17,11 @@ import { getCachedApiData } from "@/services/api"
 import { getBook, type Book } from "@/services/books"
 import { supabase } from "@/utils/supabase"
 import { useBookStatusLabel } from "@/localization/bookStatus"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export default function BookDetailsScreen() {
   const bookStatusLabel = useBookStatusLabel()
+  const { language, t } = useTranslation()
   const { bookId } = useLocalSearchParams<{ bookId: string }>()
   const cachePath = bookId ? `/books/${bookId}` : ""
   const cachedBook = getCachedApiData<Book>(cachePath)
@@ -46,12 +48,12 @@ export default function BookDetailsScreen() {
       hasLoaded.current = true
     } catch (err) {
       console.error("Failed to load book", err)
-      setError("This book could not be loaded.")
+      setError(t("bookLoadError"))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [bookId])
+  }, [bookId, t])
 
   useFocusEffect(useCallback(() => { loadBook() }, [loadBook]))
 
@@ -69,34 +71,14 @@ export default function BookDetailsScreen() {
     return (
       <View style={styles.center}>
         <Ionicons name="book-outline" size={42} color={palette.textSoft} />
-        <Text style={styles.errorTitle}>Book unavailable</Text>
-        <Text style={styles.errorText}>{error ?? "This book could not be found."}</Text>
+        <Text style={styles.errorTitle}>{t("bookUnavailable")}</Text>
+        <Text style={styles.errorText}>{error ?? t("bookNotFound")}</Text>
       </View>
     )
   }
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: "Book Info",
-          headerRight: isOwner
-            ? () => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit ${book.title}`}
-                  hitSlop={10}
-                  onPress={openEditor}
-                  style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
-                >
-                  <Ionicons name="create-outline" size={18} color={palette.accentDark} />
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </Pressable>
-              )
-            : undefined,
-        }}
-      />
-      <ScrollView
+    <ScrollView
         style={styles.screen}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -115,26 +97,31 @@ export default function BookDetailsScreen() {
           </View>
           <View style={styles.heroText}>
             <Text style={styles.title}>{book.title}</Text>
-            <Text style={styles.author}>{book.author || "Unknown author"}</Text>
+            <Text style={styles.author}>{book.author || t("unknownAuthor")}</Text>
             <View style={styles.statusPill}>
               <View style={styles.statusDot} />
               <Text style={styles.statusText}>{bookStatusLabel(book.status)}</Text>
             </View>
+            {isOwner ? (
+              <Pressable accessibilityRole="button" accessibilityLabel={t("editNamedBook", { title: book.title })} onPress={openEditor} style={({ pressed }) => [styles.editButton, styles.inlineEditButton, pressed && styles.editButtonPressed]}>
+                <Ionicons name="create-outline" size={18} color={palette.accentDark} />
+                <Text style={styles.editButtonText}>{t("edit")}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
         <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Book information</Text>
-          <DetailRow label="Author" value={book.author || "Unknown author"} />
-          <DetailRow label="ISBN" value={book.isbn || "Not provided"} />
-          <DetailRow label="Added" value={formatDate(book.created_at)} />
+          <Text style={styles.sectionTitle}>{t("bookInformation")}</Text>
+          <DetailRow label={t("author")} value={book.author || t("unknownAuthor")} />
+          <DetailRow label={t("isbn")} value={book.isbn || t("notProvided")} />
+          <DetailRow label={t("added")} value={formatDate(book.created_at, language, t("unknown"))} />
           <View style={styles.descriptionBlock}>
-            <Text style={styles.detailLabel}>Description</Text>
-            <Text style={styles.description}>{book.description || "No description provided."}</Text>
+            <Text style={styles.detailLabel}>{t("description")}</Text>
+            <Text style={styles.description}>{book.description || t("noDescriptionProvided")}</Text>
           </View>
         </View>
-      </ScrollView>
-    </>
+    </ScrollView>
   )
 }
 
@@ -147,10 +134,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function formatDate(value: string) {
+function formatDate(value: string, language: "en" | "tr", fallback: string) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "Unknown"
-  return new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", year: "numeric" }).format(date)
+  if (Number.isNaN(date.getTime())) return fallback
+  return new Intl.DateTimeFormat(language === "tr" ? "tr-TR" : "en-US", { month: "long", day: "numeric", year: "numeric" }).format(date)
 }
 
 const styles = StyleSheet.create({
@@ -161,6 +148,7 @@ const styles = StyleSheet.create({
   errorText: { color: palette.textMuted, textAlign: "center" },
   editButton: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, borderRadius: radii.round, backgroundColor: palette.accentSoft },
   editButtonPressed: { opacity: 0.7 },
+  inlineEditButton: { marginTop: 14 },
   editButtonText: { color: palette.accentDark, fontSize: 14, fontWeight: "800" },
   hero: { flexDirection: "row", alignItems: "center", gap: 22, padding: 20, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, backgroundColor: palette.paper, ...shadows.lifted },
   coverWrap: { width: 142, height: 208, position: "relative" },

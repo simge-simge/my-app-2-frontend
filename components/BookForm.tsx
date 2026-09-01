@@ -15,8 +15,11 @@ import * as ImagePicker from "expo-image-picker"
 import type { ImagePickerAsset } from "expo-image-picker"
 
 import AppButton from "@/components/AppButton"
+import WebCameraCapture from "@/components/WebCameraCapture"
+import WebImageCropper from "@/components/WebImageCropper"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
+import { useTranslation } from "@/localization/LanguageContext"
 
 export type BookFormValues = {
   title: string
@@ -47,12 +50,15 @@ export default function BookForm({
   onSave,
   onDelete,
 }: Props) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState(initialBook?.title ?? initialValues?.title ?? "")
   const [author, setAuthor] = useState(initialBook?.author ?? initialValues?.author ?? "")
   const [description, setDescription] = useState(initialBook?.description ?? initialValues?.description ?? "")
   const [isbn, setIsbn] = useState(initialBook?.isbn ?? initialValues?.isbn ?? "")
   const [coverUri, setCoverUri] = useState(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
   const [coverAsset, setCoverAsset] = useState<ImagePickerAsset | null>(null)
+  const [coverCameraOpen, setCoverCameraOpen] = useState(false)
+  const [webCropAsset, setWebCropAsset] = useState<ImagePickerAsset | null>(null)
 
   const isEditMode = mode === "edit"
 
@@ -63,6 +69,8 @@ export default function BookForm({
     setIsbn(initialBook?.isbn ?? initialValues?.isbn ?? "")
     setCoverUri(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
     setCoverAsset(null)
+    setWebCropAsset(null)
+    setCoverCameraOpen(false)
   }, [initialBook, initialValues])
 
   const storeSelectedImage = (asset: ImagePickerAsset) => {
@@ -71,11 +79,19 @@ export default function BookForm({
     console.log("Selected cover image URI:", asset.uri)
   }
 
+  const editOrStoreSelectedImage = (asset: ImagePickerAsset) => {
+    if (Platform.OS === "web") {
+      setWebCropAsset(asset)
+      return
+    }
+    storeSelectedImage(asset)
+  }
+
   const handlePickFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
 
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Allow photo library access to choose a cover image.")
+      Alert.alert(t("permissionNeeded"), t("allowPhotoCover"))
       return
     }
 
@@ -92,15 +108,20 @@ export default function BookForm({
     const selectedAsset = result.assets[0]
 
     if (selectedAsset?.uri) {
-      storeSelectedImage(selectedAsset)
+      editOrStoreSelectedImage(selectedAsset)
     }
   }
 
   const handleCaptureImage = async () => {
+    if (Platform.OS === "web") {
+      setCoverCameraOpen(true)
+      return
+    }
+
     const permission = await ImagePicker.requestCameraPermissionsAsync()
 
     if (!permission.granted) {
-      Alert.alert("Permission needed", "Allow camera access to capture a cover image.")
+      Alert.alert(t("permissionNeeded"), t("allowCameraCover"))
       return
     }
 
@@ -117,23 +138,15 @@ export default function BookForm({
     const selectedAsset = result.assets[0]
 
     if (selectedAsset?.uri) {
-      storeSelectedImage(selectedAsset)
+      editOrStoreSelectedImage(selectedAsset)
     }
-  }
-
-  const handleCoverImage = () => {
-    Alert.alert("Cover image", "Choose how to add the cover image.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Pick from library", onPress: handlePickFromLibrary },
-      { text: "Capture new image", onPress: handleCaptureImage },
-    ])
   }
 
   const handleSubmit = async () => {
     const trimmedTitle = title.trim()
 
     if (!trimmedTitle) {
-      Alert.alert("Missing title", "Please enter a title for the book.")
+      Alert.alert(t("missingTitle"), t("enterBookTitle"))
       return
     }
 
@@ -152,7 +165,7 @@ export default function BookForm({
   if (loading) {
     return (
       <View style={styles.center}>
-        <Text style={styles.loadingText}>Loading book...</Text>
+        <Text style={styles.loadingText}>{t("loadingBook")}</Text>
       </View>
     )
   }
@@ -162,42 +175,58 @@ export default function BookForm({
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <WebImageCropper
+        asset={webCropAsset}
+        onCancel={() => setWebCropAsset(null)}
+        onComplete={(asset) => {
+          storeSelectedImage(asset)
+          setWebCropAsset(null)
+        }}
+      />
+      <WebCameraCapture
+        visible={coverCameraOpen}
+        onCancel={() => setCoverCameraOpen(false)}
+        onCapture={(asset) => {
+          setCoverCameraOpen(false)
+          editOrStoreSelectedImage(asset)
+        }}
+      />
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>{isEditMode ? "Edit Book" : "Add Book"}</Text>
+        <Text style={styles.title}>{isEditMode ? t("editBook") : t("addBook")}</Text>
         <Text style={styles.subtitle}>
           {isEditMode
-            ? "Update your book details or remove it from your library"
-            : "Enter the details for the book you want in your library"}
+            ? t("editBookSubtitle")
+            : t("addBookSubtitle")}
         </Text>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Title</Text>
+          <Text style={styles.label}>{t("titleLabel")}</Text>
           <TextInput
             style={[styles.input, isEditMode && styles.inputDisabled]}
             value={title}
             onChangeText={setTitle}
-            placeholder="Book title"
+            placeholder={t("bookTitlePlaceholder")}
             editable={!isEditMode}
           />
-          {isEditMode ? <Text style={styles.helperText}>Title cannot be changed.</Text> : null}
+          {isEditMode ? <Text style={styles.helperText}>{t("titleCannotChange")}</Text> : null}
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Author</Text>
+          <Text style={styles.label}>{t("author")}</Text>
           <TextInput
             style={styles.input}
             value={author}
             onChangeText={setAuthor}
-            placeholder="Author name"
+            placeholder={t("authorName")}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>ISBN</Text>
+          <Text style={styles.label}>{t("isbn")}</Text>
           <TextInput
             style={styles.input}
             value={isbn}
@@ -208,28 +237,32 @@ export default function BookForm({
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Cover Image</Text>
+          <Text style={styles.label}>{t("coverImage")}</Text>
           {coverUri ? <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" /> : null}
-          <Pressable style={styles.coverButton} onPress={handleCoverImage}>
-            <Text style={styles.coverButtonText}>Choose or Capture Cover</Text>
-          </Pressable>
-          {coverUri ? <Text style={styles.coverHint}>Selected: {coverUri}</Text> : null}
+          <View style={styles.coverActions}>
+            <Pressable accessibilityRole="button" style={[styles.coverButton, styles.coverPickerButton]} onPress={() => void handlePickFromLibrary()}>
+              <Text style={styles.coverButtonText}>{t("pickFromLibrary")}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" style={[styles.coverButton, styles.coverPickerButton]} onPress={() => void handleCaptureImage()}>
+              <Text style={styles.coverButtonText}>{t("captureNewImage")}</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Description</Text>
+          <Text style={styles.label}>{t("description")}</Text>
           <TextInput
             style={[styles.input, styles.descriptionInput]}
             value={description}
             onChangeText={setDescription}
-            placeholder="Short description"
+            placeholder={t("shortDescription")}
             multiline
             textAlignVertical="top"
           />
         </View>
 
         <AppButton
-          title={isEditMode ? "Save Changes" : "Save Book"}
+          title={isEditMode ? t("saveChanges") : t("saveBook")}
           onPress={handleSubmit}
           loading={saving}
         />
@@ -242,7 +275,7 @@ export default function BookForm({
             onPress={onDelete}
             disabled={deleting}
           >
-            <Text style={styles.deleteButtonText}>{deleting ? "Deleting..." : "Delete Book"}</Text>
+            <Text style={styles.deleteButtonText}>{deleting ? t("deleting") : t("deleteBook")}</Text>
           </Pressable>
         ) : null}
       </ScrollView>
@@ -315,6 +348,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...shadows.soft,
   },
+  coverActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  coverPickerButton: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
   coverPreview: {
     width: 104,
     height: 148,
@@ -324,13 +367,8 @@ const styles = StyleSheet.create({
   },
   coverButtonText: {
     color: palette.text,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "700",
-  },
-  coverHint: {
-    marginTop: 8,
-    fontSize: 12,
-    color: palette.textMuted,
   },
   descriptionInput: {
     minHeight: 120,

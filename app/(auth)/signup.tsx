@@ -6,6 +6,7 @@ import AppButton from "@/components/AppButton"
 import AppInput from "@/components/AppInput"
 import { BookDoodles } from "@/components/BookDoodles"
 import GentleEntrance from "@/components/GentleEntrance"
+import LegalLinks from "@/components/LegalLinks"
 import LocationPicker from "@/components/LocationPicker"
 import { AuthDivider, GoogleAuthButton } from "@/components/SocialAuth"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
@@ -134,6 +135,7 @@ export default function Signup() {
               <Text style={styles.eyebrow}>{t("joinCircle")}</Text>
               <Text style={styles.title}>{t("makeRoom")}</Text>
               <Text style={styles.subtitle}>{t("signupSubtitle")}</Text>
+              <LegalLinks showAgreement />
               <View style={styles.form}>
                 <GoogleAuthButton onPress={handleGoogleSignup} loading={googleLoading} />
                 <AuthDivider />

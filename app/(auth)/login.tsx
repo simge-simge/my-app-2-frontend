@@ -6,6 +6,7 @@ import AppButton from "@/components/AppButton"
 import AppInput from "@/components/AppInput"
 import { BookDoodles } from "@/components/BookDoodles"
 import GentleEntrance from "@/components/GentleEntrance"
+import LegalLinks from "@/components/LegalLinks"
 import { AuthDivider, GoogleAuthButton } from "@/components/SocialAuth"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { resendSignupVerification, signIn, signInWithGoogle } from "@/services/authentication"
@@ -89,6 +90,7 @@ export default function Login() {
           <Pressable style={styles.linkTarget} onPress={() => router.push("/signup")} accessibilityRole="link">
             <Text style={styles.link}>{t("notRegistered")}</Text>
           </Pressable>
+          <LegalLinks />
         </GentleEntrance>
       </ScrollView>
     </KeyboardAvoidingView>

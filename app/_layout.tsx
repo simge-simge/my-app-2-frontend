@@ -3,7 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { palette, typography } from "@/constants/theme";
-import { LanguageProvider, useTranslation } from "@/localization/LanguageContext";
+import { LanguageProvider } from "@/localization/LanguageContext";
 import { AuthSessionProvider, useAuthSession } from "@/services/authSession";
 import { ThemeProvider, useAppTheme } from "@/theme/ThemeContext";
 
@@ -37,7 +37,6 @@ function ThemedRoot() {
 
 function RootStack() {
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
   const headerlessScreenOptions = {
     headerShown: false,
     contentStyle: { paddingTop: insets.top },
@@ -56,16 +55,15 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="index" options={headerlessScreenOptions} />
+      <Stack.Screen name="privacy" options={{ title: "Privacy Policy" }} />
+      <Stack.Screen name="terms" options={{ title: "Terms of Service" }} />
       <Stack.Screen name="auth/callback" options={headerlessScreenOptions} />
-      <Stack.Screen name="(auth)/login" options={headerlessScreenOptions} />
-      <Stack.Screen name="(auth)/signup" options={headerlessScreenOptions} />
+      <Stack.Screen name="(auth)" options={headerlessScreenOptions} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="books/new" options={{ title: t("addBook") }} />
-      <Stack.Screen name="books/[bookId]" options={{ title: t("bookDetails") }} />
-      <Stack.Screen name="books/edit/[bookId]" options={{ title: t("editBook") }} />
-      <Stack.Screen name="matches/[matchId]" options={{ title: t("matchDetails") }} />
-      <Stack.Screen name="members/[memberId]" options={{ title: t("memberLibrary") }} />
-      <Stack.Screen name="communities/search" options={{ title: t("findCommunity"), presentation: "modal" }} />
+      <Stack.Screen name="books" options={{ headerShown: false }} />
+      <Stack.Screen name="matches" options={{ headerShown: false }} />
+      <Stack.Screen name="members" options={{ headerShown: false }} />
+      <Stack.Screen name="communities" options={{ headerShown: false }} />
     </Stack>
   );
 }

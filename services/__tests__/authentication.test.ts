@@ -30,7 +30,7 @@ describe("authentication boundary", () => {
     expect(mockSignUp).toHaveBeenCalledWith({
       email: "new@example.com",
       password: "password",
-      options: { emailRedirectTo: "booktinder://auth/callback", data: metadata },
+      options: { emailRedirectTo: "commonshelf://auth/callback", data: metadata },
     })
     expect(mockSignIn).not.toHaveBeenCalled()
   })
@@ -41,21 +41,21 @@ describe("authentication boundary", () => {
     expect(mockResend).toHaveBeenCalledWith({
       type: "signup",
       email: "new@example.com",
-      options: { emailRedirectTo: "booktinder://auth/callback" },
+      options: { emailRedirectTo: "commonshelf://auth/callback" },
     })
   })
 
   it("creates a session from implicit-flow callback tokens", async () => {
     const session = { access_token: "access" }
     mockSetSession.mockResolvedValue({ data: { session }, error: null })
-    await expect(createSessionFromUrl("booktinder://auth/callback#access_token=access&refresh_token=refresh")).resolves.toBe(session)
+    await expect(createSessionFromUrl("commonshelf://auth/callback#access_token=access&refresh_token=refresh")).resolves.toBe(session)
     expect(mockSetSession).toHaveBeenCalledWith({ access_token: "access", refresh_token: "refresh" })
   })
 
   it("exchanges a PKCE callback code when present", async () => {
     const session = { access_token: "access" }
     mockExchangeCode.mockResolvedValue({ data: { session }, error: null })
-    await expect(createSessionFromUrl("booktinder://auth/callback?code=auth-code")).resolves.toBe(session)
+    await expect(createSessionFromUrl("commonshelf://auth/callback?code=auth-code")).resolves.toBe(session)
     expect(mockExchangeCode).toHaveBeenCalledWith("auth-code")
   })
 
