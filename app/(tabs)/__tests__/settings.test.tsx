@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native"
 
 import Settings from "../settings"
 import { getProfile, updateProfile, type Profile } from "@/services/profile"
 import { searchLocations } from "@/services/locations"
+import { leaveCommunity } from "@/services/communities"
 
 jest.mock("@/services/api", () => ({
   ApiError: class ApiError extends Error {},
@@ -15,7 +16,7 @@ jest.mock("@/services/profile", () => ({
 }))
 jest.mock("@/services/authentication", () => ({ signOut: jest.fn() }))
 jest.mock("@/services/admin", () => ({ createCommunity: jest.fn() }))
-jest.mock("@/services/communities", () => ({ updateCommunityVisibility: jest.fn() }))
+jest.mock("@/services/communities", () => ({ leaveCommunity: jest.fn(), updateCommunityVisibility: jest.fn() }))
 jest.mock("@/services/locations", () => ({ searchLocations: jest.fn() }))
 
 const istanbul = { id: "location-istanbul", name: "İstanbul", display_name: "İstanbul, Türkiye", type: "city" as const, parent_id: "location-tr", country_code: "TR" }
@@ -69,5 +70,23 @@ describe("settings", () => {
     expect(screen.getByRole("button", { name: "Edit phone" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Edit Instagram" })).toBeDisabled()
     expect(screen.getByRole("button", { name: "Edit Telegram" })).toBeDisabled()
+  })
+
+  it("lets a member leave their community after confirmation", async () => {
+    jest.mocked(getProfile).mockResolvedValue({
+      ...profile,
+      community_id: "community-1",
+      community_name: "Readers",
+      community_public: true,
+    })
+    jest.mocked(leaveCommunity).mockResolvedValue({ message: "Community left", community_id: "community-1" })
+    render(<Settings />)
+
+    fireEvent.press(await screen.findByRole("button", { name: "Leave community" }))
+    expect(screen.getByText("Are you sure you want to leave Readers?")).toBeVisible()
+    await act(async () => { fireEvent.press(screen.getByRole("button", { name: "Leave" })) })
+
+    await waitFor(() => expect(leaveCommunity).toHaveBeenCalled())
+    expect(screen.queryByRole("button", { name: "Leave community" })).toBeNull()
   })
 })

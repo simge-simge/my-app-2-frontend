@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native"
+import { Alert } from "react-native"
 import { router } from "expo-router"
 
 import NewBookScreen from "../new"
-import { lookupBookByIsbn } from "@/services/books"
-import { runInBackground } from "@/utils/backgroundAction"
+import { createBook, lookupBookByIsbn, type Book } from "@/services/books"
 
 jest.mock("expo-camera", () => ({
   CameraView: () => null,
@@ -15,7 +15,6 @@ jest.mock("@/services/books", () => ({
   uploadBookCover: jest.fn(),
   lookupBookByIsbn: jest.fn(),
 }))
-jest.mock("@/utils/backgroundAction", () => ({ runInBackground: jest.fn() }))
 
 describe("NewBookScreen", () => {
   it("offers shelf scan, barcode, ISBN, and manual entry", () => {
@@ -50,7 +49,9 @@ describe("NewBookScreen", () => {
     expect(lookupBookByIsbn).toHaveBeenCalledWith("9780156012195")
   })
 
-  it("publishes an optimistic book before returning to the library", () => {
+  it("waits for a manual book to be persisted before returning to the library", async () => {
+    let finishSave!: (book: Book) => void
+    jest.mocked(createBook).mockImplementation(() => new Promise<Book>((resolve) => { finishSave = resolve }))
     render(<NewBookScreen />)
 
     fireEvent.press(screen.getByRole("button", { name: "Add details manually" }))
@@ -58,16 +59,29 @@ describe("NewBookScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Author name"), "Fast Author")
     fireEvent.press(screen.getByRole("button", { name: "Save Book" }))
 
-    expect(runInBackground).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({
-      event: "books",
-      optimisticResult: expect.objectContaining({
-        id: expect.stringMatching(/^pending-/),
-        title: "Instant Book",
-        author: "Fast Author",
-        status: "available",
-      }),
-    }))
-    expect(jest.mocked(runInBackground).mock.invocationCallOrder[0])
-      .toBeLessThan(jest.mocked(router.back).mock.invocationCallOrder[0])
+    await waitFor(() => expect(createBook).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Instant Book",
+      author: "Fast Author",
+    })))
+    expect(router.back).not.toHaveBeenCalled()
+    expect(screen.getByRole("button", { name: "Loading..." }).props.accessibilityState)
+      .toMatchObject({ disabled: true, busy: true })
+
+    finishSave({} as Book)
+    await waitFor(() => expect(router.back).toHaveBeenCalled())
+  })
+
+  it("keeps the form open and reports a manual save failure", async () => {
+    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {})
+    jest.mocked(createBook).mockRejectedValue(new Error("Database unavailable"))
+    render(<NewBookScreen />)
+
+    fireEvent.press(screen.getByRole("button", { name: "Add details manually" }))
+    fireEvent.changeText(screen.getByPlaceholderText("Book title"), "Unsaved Book")
+    fireEvent.press(screen.getByRole("button", { name: "Save Book" }))
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith("Book was not saved", "Database unavailable"))
+    expect(router.back).not.toHaveBeenCalled()
+    expect(screen.getByDisplayValue("Unsaved Book")).toBeVisible()
   })
 })

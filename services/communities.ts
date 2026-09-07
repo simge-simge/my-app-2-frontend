@@ -1,5 +1,6 @@
 import { apiFetch } from "./api"
 import type { Location } from "./locations"
+import type { ProfileSearchResult } from "./profile"
 
 export type CommunitySearchResult = {
   id: string
@@ -30,4 +31,23 @@ export function updateCommunityVisibility(communityId: string, isPublic: boolean
     method: "PATCH",
     body: JSON.stringify({ public: isPublic }),
   }) as Promise<{ id: string; public: boolean }>
+}
+
+export function leaveCommunity() {
+  return apiFetch("/communities/membership", {
+    method: "DELETE",
+  }) as Promise<{ message: string; community_id: string }>
+}
+
+export function listCommunityMembers(communityId: string, query = "") {
+  const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""
+  return apiFetch(`/communities/${communityId}/members${suffix}`, {
+    cache: "no-store",
+  }) as Promise<ProfileSearchResult[]>
+}
+
+export function removeCommunityMember(communityId: string, memberId: string) {
+  return apiFetch(`/communities/${communityId}/members/${memberId}`, {
+    method: "DELETE",
+  }) as Promise<{ message: string; member_id: string }>
 }

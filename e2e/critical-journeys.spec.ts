@@ -58,6 +58,16 @@ async function login(page: Page) {
 
 test.beforeEach(async ({ page }) => mockBoundaries(page))
 
+test("shows the product and legal information without an account", async ({ page }) => {
+  await page.goto("/")
+
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByText("See what is waiting on the community shelf.")).toBeVisible()
+  await expect(page.getByText("Google sign-in is optional and limited to authentication.")).toBeVisible()
+  await expect(page.getByRole("link", { name: "Privacy Policy", exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Terms of Service", exact: true })).toBeVisible()
+})
+
 test("redirects a logged-out visitor from a private route to login", async ({ page }) => {
   await page.goto("/library")
   await expect(page).toHaveURL(/\/login$/)

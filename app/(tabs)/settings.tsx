@@ -15,13 +15,14 @@ import { Ionicons } from "@expo/vector-icons"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
+import ConfirmationModal from "@/components/ConfirmationModal"
 import PageHeader from "@/components/PageHeader"
 import LocationPicker from "@/components/LocationPicker"
 import { getProfile, updateProfile, deleteAccount, type Profile } from "@/services/profile"
 import { signOut } from "@/services/authentication"
 import { ApiError, getCachedApiData } from "@/services/api"
 import { createCommunity } from "@/services/admin"
-import { updateCommunityVisibility } from "@/services/communities"
+import { leaveCommunity, updateCommunityVisibility } from "@/services/communities"
 import type { Location } from "@/services/locations"
 import { runInBackground } from "@/utils/backgroundAction"
 import LanguageSwitch from "@/components/LanguageSwitch"
@@ -38,6 +39,8 @@ export default function Settings() {
 
   const [loading, setLoading] = useState(() => cachedProfile === undefined)
   const [signingOut, setSigningOut] = useState(false)
+  const [leavingCommunity, setLeavingCommunity] = useState(false)
+  const [leaveConfirmationVisible, setLeaveConfirmationVisible] = useState(false)
   const [editingField, setEditingField] = useState<EditableField | null>(null)
 
   const [name, setName] = useState(() => cachedProfile?.display_name ?? "")
@@ -171,6 +174,27 @@ export default function Settings() {
     })
   }
 
+  const confirmLeaveCommunity = async () => {
+    try {
+      setLeavingCommunity(true)
+      await leaveCommunity()
+      setCommunity("")
+      setCommunityId(null)
+      setCommunityPublic(false)
+      setIsAdmin(false)
+      setPendingCommunity(null)
+    } catch (err) {
+      console.error("Failed to leave community", err)
+      Alert.alert(t("couldNotLeaveCommunity"), err instanceof ApiError ? err.message : t("tryAgain"))
+    } finally {
+      setLeavingCommunity(false)
+    }
+  }
+
+  const handleLeaveCommunity = () => {
+    setLeaveConfirmationVisible(true)
+  }
+
   const confirmDelete = async () => {
     try {
       await deleteAccount()
@@ -213,6 +237,18 @@ export default function Settings() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ConfirmationModal
+        visible={leaveConfirmationVisible}
+        title={t("leaveCommunity")}
+        message={t("leaveCommunityConfirm", { name: community })}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("leave")}
+        onCancel={() => setLeaveConfirmationVisible(false)}
+        onConfirm={() => {
+          setLeaveConfirmationVisible(false)
+          void confirmLeaveCommunity()
+        }}
+      />
       <PageHeader title={t("settings")} subtitle={t("profileCommunityPreferences")} />
       <View style={styles.languageCard}>
         <Text style={styles.section}>{t("language")}</Text>
@@ -291,6 +327,20 @@ export default function Settings() {
           <Text style={styles.pendingHint}>{t("requestPending", { name: pendingCommunity })}</Text>
         ) : null}
         <Text style={styles.communityHint}>{t("searchCommunitiesHint")}</Text>
+
+        {communityId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("leaveCommunity")}
+            disabled={leavingCommunity}
+            onPress={handleLeaveCommunity}
+            style={({ pressed }) => [styles.leaveCommunityAction, pressed && styles.editButtonPressed]}
+          >
+            <Text style={styles.leaveCommunityText}>
+              {leavingCommunity ? t("leavingCommunity") : t("leaveCommunity")}
+            </Text>
+          </Pressable>
+        ) : null}
 
         {isAdmin && communityId ? (
           <View style={styles.visibilityRow}>
@@ -526,6 +576,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: -12,
     marginBottom: 18,
+  },
+  leaveCommunityAction: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: palette.danger,
+    borderRadius: radii.md,
+    marginTop: -8,
+    marginBottom: 20,
+  },
+  leaveCommunityText: {
+    color: palette.danger,
+    fontSize: 14,
+    fontWeight: "700",
   },
   visibilityRow: {
     flexDirection: "row",

@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,8 +22,11 @@ export default function RootLayout() {
 function ThemedRoot() {
   const { isDark } = useAppTheme();
   const { loading } = useAuthSession();
+  const pathname = usePathname();
 
-  if (loading) {
+  // Keep the public homepage available to static rendering and OAuth reviewers.
+  // Private routes still wait for session restoration before their guards run.
+  if (loading && pathname !== "/") {
     return (
       <View style={styles.loading}>
         <StatusBar style={isDark ? "light" : "dark"} />

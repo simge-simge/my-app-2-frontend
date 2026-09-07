@@ -14,9 +14,11 @@ import {
 } from "react-native"
 
 import BookDisplay from "@/components/BookDisplay"
+import ConfirmationModal from "@/components/ConfirmationModal"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { requestToBorrowBook, searchBooks, type Book, type SearchScope } from "@/services/books"
-import { searchProfiles, type ProfileSearchResult } from "@/services/profile"
+import { getProfile, searchProfiles, type Profile, type ProfileSearchResult } from "@/services/profile"
+import { listCommunityMembers, removeCommunityMember } from "@/services/communities"
 import { supabase } from "@/utils/supabase"
 import { runInBackground } from "@/utils/backgroundAction"
 import { useTranslation } from "@/localization/LanguageContext"
@@ -43,7 +45,13 @@ export default function Search() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null)
+  const [removingUserIds, setRemovingUserIds] = useState<Set<string>>(() => new Set())
+  const [pendingRemoval, setPendingRemoval] = useState<ProfileSearchResult | null>(null)
   const [requestedBookIds, setRequestedBookIds] = useState<Set<string>>(() => new Set())
+  const adminCommunityId = mode === "users" && scope === "community" && currentProfile?.admin
+    ? currentProfile.community_id
+    : null
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -52,9 +60,19 @@ export default function Search() {
   }, [])
 
   useEffect(() => {
+    let active = true
+    getProfile()
+      .then((profile) => {
+        if (active) setCurrentProfile(profile)
+      })
+      .catch((err) => console.error("Failed to load search permissions", err))
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
     const searchTerm = query.trim()
 
-    if (!searchTerm) {
+    if (!searchTerm && !adminCommunityId) {
       setBooks([])
       setUsers([])
       setLoading(false)
@@ -75,7 +93,9 @@ export default function Search() {
             setUsers([])
           }
         } else {
-          const response = await searchProfiles(searchTerm, scope)
+          const response = adminCommunityId
+            ? await listCommunityMembers(adminCommunityId, searchTerm)
+            : await searchProfiles(searchTerm, scope)
           if (!cancelled) {
             setUsers(response)
             setBooks([])
@@ -97,7 +117,29 @@ export default function Search() {
       cancelled = true
       clearTimeout(timeout)
     }
-  }, [mode, query, scope, t])
+  }, [adminCommunityId, mode, query, scope, t])
+
+  const removeUser = async (user: ProfileSearchResult) => {
+    if (!currentProfile?.community_id) return
+    setRemovingUserIds((ids) => new Set(ids).add(user.id))
+    try {
+      await removeCommunityMember(currentProfile.community_id, user.id)
+      setUsers((items) => items.filter((item) => item.id !== user.id))
+    } catch (err) {
+      console.error("Failed to remove community member", err)
+      Alert.alert(t("memberNotRemoved"), err instanceof Error ? err.message : t("tryAgain"))
+    } finally {
+      setRemovingUserIds((ids) => {
+        const next = new Set(ids)
+        next.delete(user.id)
+        return next
+      })
+    }
+  }
+
+  const confirmRemoveUser = (user: ProfileSearchResult) => {
+    setPendingRemoval(user)
+  }
 
   const handleBorrowRequest = (book: Book) => {
     setRequestedBookIds((ids) => new Set(ids).add(book.id))
@@ -115,6 +157,7 @@ export default function Search() {
   }
 
   const searchTerm = query.trim()
+  const showingAdminMemberList = Boolean(adminCommunityId)
   const emptyState = (
     <View style={styles.emptyState}>
       <Ionicons
@@ -125,11 +168,15 @@ export default function Search() {
       <Text style={styles.emptyTitle}>
         {searchTerm
           ? t("noMatching", { type: t(mode) })
+          : showingAdminMemberList
+            ? t("noCommunityMembers")
           : t("searchTypePrompt", { type: t(mode) })}
       </Text>
       <Text style={styles.emptyText}>
         {searchTerm
           ? t("noMatchesScope", { type: t(mode), query: searchTerm })
+          : showingAdminMemberList
+            ? t("noCommunityMembersHint")
           : t("enterSearch", { scope: t(scope === "community" ? "yourCommunity" : "publicCommunities") })}
       </Text>
     </View>
@@ -137,6 +184,22 @@ export default function Search() {
 
   return (
     <View style={styles.container}>
+      <ConfirmationModal
+        visible={pendingRemoval !== null}
+        title={t("removeCommunityMember")}
+        message={t("removeCommunityMemberConfirm", {
+          name: pendingRemoval?.display_name || t("unknownReader"),
+        })}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("remove")}
+        onCancel={() => setPendingRemoval(null)}
+        onConfirm={() => {
+          if (!pendingRemoval) return
+          const member = pendingRemoval
+          setPendingRemoval(null)
+          void removeUser(member)
+        }}
+      />
       <Text style={styles.title}>{t("search")}</Text>
       <Text style={styles.subtitle}>{t("searchSubtitle")}</Text>
 
@@ -236,7 +299,15 @@ export default function Search() {
           key="user-results"
           data={users}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <UserResult user={item} showCommunity={scope === "all"} />}
+          renderItem={({ item }) => (
+            <UserResult
+              user={item}
+              showCommunity={scope === "all"}
+              canRemove={showingAdminMemberList && item.id !== currentUserId}
+              removing={removingUserIds.has(item.id)}
+              onRemove={() => confirmRemoveUser(item)}
+            />
+          )}
           contentContainerStyle={[styles.listContent, users.length === 0 && styles.emptyListContent]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -283,16 +354,29 @@ function SegmentedControl<T extends string>({
   )
 }
 
-function UserResult({ user, showCommunity }: { user: ProfileSearchResult; showCommunity: boolean }) {
+function UserResult({
+  user,
+  showCommunity,
+  canRemove,
+  removing,
+  onRemove,
+}: {
+  user: ProfileSearchResult
+  showCommunity: boolean
+  canRemove: boolean
+  removing: boolean
+  onRemove: () => void
+}) {
   const { t } = useTranslation()
   const displayName = user.display_name || t("unknownReader")
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t("viewLibrary", { name: displayName })}
-      onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: user.id } })}
-      style={({ pressed }) => [styles.userCard, pressed && styles.userCardPressed]}
-    >
+    <View style={styles.userCard}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("viewLibrary", { name: displayName })}
+        onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: user.id } })}
+        style={({ pressed }) => [styles.userMain, pressed && styles.userCardPressed]}
+      >
       {user.avatar_url ? (
         <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
       ) : (
@@ -309,8 +393,22 @@ function UserResult({ user, showCommunity }: { user: ProfileSearchResult; showCo
           <Text numberOfLines={1} style={styles.communityName}>{user.community_name}</Text>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={19} color={palette.textMuted} />
-    </Pressable>
+        <Ionicons name="chevron-forward" size={19} color={palette.textMuted} />
+      </Pressable>
+      {canRemove ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("removeNamedFromCommunity", { name: displayName })}
+          disabled={removing}
+          onPress={onRemove}
+          style={({ pressed }) => [styles.removeMemberButton, pressed && styles.userCardPressed]}
+        >
+          {removing
+            ? <ActivityIndicator size="small" color={palette.danger} />
+            : <Ionicons name="person-remove-outline" size={20} color={palette.danger} />}
+        </Pressable>
+      ) : null}
+    </View>
   )
 }
 
@@ -402,14 +500,15 @@ const styles = StyleSheet.create({
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 14,
+    padding: 6,
     marginBottom: 10,
     borderRadius: radii.md,
     borderWidth: 1.5,
     borderColor: palette.borderStrong,
     backgroundColor: palette.surface,
   },
+  userMain: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12, padding: 8 },
+  removeMemberButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: palette.surfaceMuted },
   userCardPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceMuted },
   avatarFallback: { alignItems: "center", justifyContent: "center" },

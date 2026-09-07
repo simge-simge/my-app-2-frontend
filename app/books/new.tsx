@@ -11,8 +11,7 @@ import type { ImagePickerAsset } from "expo-image-picker"
 import BookForm, { type BookFormValues } from "@/components/BookForm"
 import IsbnCameraScanner from "@/components/IsbnCameraScanner"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
-import { createBook, lookupBookByIsbn, uploadBookCover, type Book, type IsbnBookLookup } from "@/services/books"
-import { runInBackground } from "@/utils/backgroundAction"
+import { createBook, lookupBookByIsbn, uploadBookCover, type IsbnBookLookup } from "@/services/books"
 import { useTranslation } from "@/localization/LanguageContext"
 
 type AddMethod = "choose" | "manual" | "isbn" | "scan" | "details"
@@ -39,6 +38,7 @@ export default function NewBookScreen() {
   const [scannerReady, setScannerReady] = useState(false)
   const [cameraError, setCameraError] = useState<string | undefined>()
   const [torchEnabled, setTorchEnabled] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [permission, requestPermission] = useCameraPermissions()
   const initialValues = useMemo<BookFormValues | undefined>(() => draft ? ({
     title: draft.title,
@@ -49,34 +49,21 @@ export default function NewBookScreen() {
   }) : undefined, [draft])
 
   const handleSave = async (values: BookFormValues, coverAsset: ImagePickerAsset | null) => {
-    const optimisticBook: Book = {
-      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      owner_id: "pending",
-      community_id: "pending",
-      title: values.title,
-      author: values.author || null,
-      description: values.description || null,
-      cover_url: coverAsset?.uri ?? values.cover_url,
-      isbn: values.isbn || null,
-      status: "available",
-      created_at: new Date().toISOString(),
-    }
-
-    runInBackground(async () => {
+    if (saving) return
+    setSaving(true)
+    try {
       const coverUrl = coverAsset ? await uploadBookCover(coverAsset) : values.cover_url
-      return createBook({
+      await createBook({
         title: values.title, author: values.author || null, description: values.description || null,
         cover_url: coverUrl, isbn: values.isbn || null,
       })
-    }, {
-      event: "books",
-      optimisticResult: optimisticBook,
-      onError: (err) => {
-        console.error("Failed to create book", err)
-        Alert.alert(t("bookNotSaved"), err instanceof Error ? err.message : t("couldNotSaveBook"))
-      },
-    })
-    router.back()
+      router.back()
+    } catch (err) {
+      console.error("Failed to create book", err)
+      Alert.alert(t("bookNotSaved"), err instanceof Error ? err.message : t("couldNotSaveBook"))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const findBook = async (rawIsbn: string, source: IsbnSource) => {
@@ -149,7 +136,7 @@ export default function NewBookScreen() {
             </View>
           </View>
         ) : null}
-        <BookForm mode="create" initialValues={initialValues} onSave={handleSave} />
+        <BookForm mode="create" initialValues={initialValues} saving={saving} onSave={handleSave} />
       </View>
     )
   }

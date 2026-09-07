@@ -1,6 +1,7 @@
 import type { ImagePickerAsset } from "expo-image-picker"
 import * as ImageManipulator from "expo-image-manipulator"
-import { File } from "expo-file-system"
+import { File as ExpoFile } from "expo-file-system"
+import { Platform } from "react-native"
 
 import { supabase } from "@/utils/supabase"
 
@@ -192,12 +193,24 @@ function buildCoverPath(asset: ImagePickerAsset) {
 }
 
 export async function uploadBookCover(asset: ImagePickerAsset) {
-  const fileBytes = await new File(asset.uri).bytes()
+  let fileBody: File | Blob | Uint8Array
+
+  if (Platform.OS === "web") {
+    if (asset.file) {
+      fileBody = asset.file
+    } else {
+      const response = await fetch(asset.uri)
+      if (!response.ok) throw new Error("Could not read that cover image.")
+      fileBody = await response.blob()
+    }
+  } else {
+    fileBody = await new ExpoFile(asset.uri).bytes()
+  }
   const filePath = await buildCoverPath(asset)
 
   const { error } = await supabase.storage
     .from("book_covers")
-    .upload(filePath, fileBytes, {
+    .upload(filePath, fileBody, {
       contentType: asset.mimeType ?? "image/jpeg",
       upsert: false,
     })
