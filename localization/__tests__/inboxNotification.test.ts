@@ -56,4 +56,16 @@ describe("inbox notification localization", () => {
       message: "8 kitap bulundu. İncelemek için dokun.",
     })
   })
+
+  it("localizes match deletion using structured metadata", () => {
+    expect(localizeInboxNotification(notification({
+      type: "match_deleted",
+      title: "Match deleted",
+      message: 'Ada deleted your match for "Beloved". The book is available again.',
+      metadata: { deleted_by_name: "Ada", book_title: "Beloved" },
+    }), "tr", translate)).toEqual({
+      title: "Eşleşme silindi",
+      message: "Ada, “Beloved” kitabı için eşleşmenizi sildi. Kitap yeniden müsait.",
+    })
+  })
 })

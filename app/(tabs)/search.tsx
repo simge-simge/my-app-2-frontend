@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -26,9 +26,12 @@ import { useTranslation } from "@/localization/LanguageContext"
 const SEARCH_DELAY_MS = 300
 
 type SearchMode = "books" | "users"
+type UserSort = "nameAsc" | "nameDesc"
+type BookSort = "newest" | "oldest" | "titleAsc" | "titleDesc"
+type ViewMode = "card" | "list"
 
 export default function Search() {
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
   const searchModes: { label: string; value: SearchMode }[] = [
     { label: t("searchBooks"), value: "books" },
     { label: t("searchUsers"), value: "users" },
@@ -39,6 +42,9 @@ export default function Search() {
   ]
   const [mode, setMode] = useState<SearchMode>("books")
   const [scope, setScope] = useState<SearchScope>("community")
+  const [userSort, setUserSort] = useState<UserSort>("nameAsc")
+  const [bookSort, setBookSort] = useState<BookSort>("newest")
+  const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [query, setQuery] = useState("")
   const [books, setBooks] = useState<Book[]>([])
   const [users, setUsers] = useState<ProfileSearchResult[]>([])
@@ -71,14 +77,6 @@ export default function Search() {
 
   useEffect(() => {
     const searchTerm = query.trim()
-
-    if (!searchTerm && !adminCommunityId) {
-      setBooks([])
-      setUsers([])
-      setLoading(false)
-      setError(null)
-      return
-    }
 
     let cancelled = false
     setLoading(true)
@@ -158,6 +156,27 @@ export default function Search() {
 
   const searchTerm = query.trim()
   const showingAdminMemberList = Boolean(adminCommunityId)
+  const sortedBooks = useMemo(() => {
+    const locale = language === "tr" ? "tr-TR" : "en-US"
+    return [...books].sort((left, right) => {
+      if (bookSort === "titleAsc") return left.title.localeCompare(right.title, locale, { sensitivity: "base" })
+      if (bookSort === "titleDesc") return right.title.localeCompare(left.title, locale, { sensitivity: "base" })
+      const leftTime = new Date(left.created_at).getTime() || 0
+      const rightTime = new Date(right.created_at).getTime() || 0
+      return bookSort === "oldest" ? leftTime - rightTime : rightTime - leftTime
+    })
+  }, [bookSort, books, language])
+  const sortedUsers = useMemo(() => {
+    const locale = language === "tr" ? "tr-TR" : "en-US"
+    return [...users].sort((left, right) => {
+      const comparison = (left.display_name || "").localeCompare(
+        right.display_name || "",
+        locale,
+        { sensitivity: "base" },
+      )
+      return userSort === "nameAsc" ? comparison : -comparison
+    })
+  }, [language, userSort, users])
   const emptyState = (
     <View style={styles.emptyState}>
       <Ionicons
@@ -242,6 +261,69 @@ export default function Search() {
         ) : null}
       </View>
 
+      <View style={styles.sortSection}>
+        <Text style={styles.sortLabel}>{t("sortBy")}</Text>
+        <View style={styles.sortOptions}>
+          {mode === "books"
+            ? ([
+                ["newest", "newestFirst"],
+                ["oldest", "oldestFirst"],
+                ["titleAsc", "titleAscending"],
+                ["titleDesc", "titleDescending"],
+              ] as const).map(([value, label]) => (
+                <Pressable
+                  key={value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: bookSort === value }}
+                  onPress={() => setBookSort(value)}
+                  style={[styles.sortChip, bookSort === value && styles.sortChipSelected]}
+                >
+                  <Text style={[styles.sortChipText, bookSort === value && styles.sortChipTextSelected]}>{t(label)}</Text>
+                </Pressable>
+              ))
+            : ([
+                ["nameAsc", "userNameAscending"],
+                ["nameDesc", "userNameDescending"],
+              ] as const).map(([value, label]) => (
+                <Pressable
+                  key={value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: userSort === value }}
+                  onPress={() => setUserSort(value)}
+                  style={[styles.sortChip, userSort === value && styles.sortChipSelected]}
+                >
+                  <Text style={[styles.sortChipText, userSort === value && styles.sortChipTextSelected]}>{t(label)}</Text>
+                </Pressable>
+              ))}
+        </View>
+      </View>
+
+      {mode === "books" ? (
+        <View style={styles.viewControl}>
+          <Text style={styles.viewLabel}>{t("displayAs")}</Text>
+          <View style={styles.viewOptions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("cardView")}
+              accessibilityState={{ selected: viewMode === "card" }}
+              onPress={() => setViewMode("card")}
+              style={[styles.viewOption, viewMode === "card" && styles.viewOptionSelected]}
+            >
+              <Ionicons name="grid-outline" size={17} color={viewMode === "card" ? palette.paper : palette.textMuted} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("listView")}
+              accessibilityState={{ selected: viewMode === "list" }}
+              onPress={() => setViewMode("list")}
+              style={[styles.viewOption, viewMode === "list" && styles.viewOptionSelected]}
+            >
+              <Ionicons name="list-outline" size={18} color={viewMode === "list" ? palette.paper : palette.textMuted} />
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {loading ? (
@@ -250,46 +332,39 @@ export default function Search() {
         </View>
       ) : mode === "books" ? (
         <FlatList
-          key="book-results"
-          data={books}
+          key={`book-results-${viewMode}`}
+          data={sortedBooks}
           keyExtractor={(item) => item.id}
-          numColumns={2}
-          renderItem={({ item }) => (
-            <View style={styles.bookCell}>
-              <BookDisplay
-                book={item}
-                onPress={() => router.push({ pathname: "/books/[bookId]", params: { bookId: item.id } })}
-                showOwner
-                onOwnerPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: item.owner_id } })}
-                showCommunity={scope === "all"}
-                style={styles.bookCard}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("askBorrowBook", { title: item.title })}
-                disabled={
-                  item.owner_id === currentUserId ||
-                  item.borrow_requested || requestedBookIds.has(item.id)
-                }
-                onPress={() => handleBorrowRequest(item)}
-                style={({ pressed }) => [
-                  styles.borrowButton,
-                  (item.owner_id === currentUserId || item.borrow_requested || requestedBookIds.has(item.id)) && styles.borrowButtonDisabled,
-                  pressed && styles.borrowButtonPressed,
-                ]}
-              >
-                <Text style={styles.borrowButtonText}>
-                  {item.owner_id === currentUserId
-                    ? t("yourBook")
-                    : item.borrow_requested || requestedBookIds.has(item.id)
-                      ? t("requestSent")
-                      : t("askBorrow")}
-                </Text>
-              </Pressable>
-            </View>
-          )}
+          numColumns={viewMode === "card" ? 2 : 1}
+          renderItem={({ item }) => {
+            const unavailable = item.status !== "available"
+            const borrowDisabled = unavailable || item.owner_id === currentUserId || item.borrow_requested || requestedBookIds.has(item.id)
+            return (
+              <View style={viewMode === "card" ? styles.bookCell : styles.bookListCell}>
+                <BookDisplay
+                  actionAccessibilityLabel={t("askBorrowBook", { title: item.title })}
+                  actionDisabled={borrowDisabled}
+                  actionLabel={unavailable
+                    ? t("bookUnavailable")
+                    : item.owner_id === currentUserId
+                      ? t("yourBook")
+                      : item.borrow_requested || requestedBookIds.has(item.id)
+                        ? t("requestSent")
+                        : t("askBorrow")}
+                  book={item}
+                  onActionPress={() => handleBorrowRequest(item)}
+                  onPress={() => router.push({ pathname: "/books/[bookId]", params: { bookId: item.id } })}
+                  showOwner
+                  onOwnerPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: item.owner_id } })}
+                  showCommunity={scope === "all"}
+                  style={styles.bookCard}
+                  variant={viewMode}
+                />
+              </View>
+            )
+          }}
           contentContainerStyle={[styles.listContent, books.length === 0 && styles.emptyListContent]}
-          columnWrapperStyle={styles.bookRow}
+          columnWrapperStyle={viewMode === "card" ? styles.bookRow : undefined}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={emptyState}
@@ -297,7 +372,7 @@ export default function Search() {
       ) : (
         <FlatList
           key="user-results"
-          data={users}
+          data={sortedUsers}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <UserResult
@@ -389,8 +464,8 @@ function UserResult({
           <Text numberOfLines={1} style={styles.userName}>{displayName}</Text>
           {user.admin ? <Ionicons name="shield-checkmark" size={16} color={palette.accentDark} /> : null}
         </View>
-        {showCommunity && user.community_name ? (
-          <Text numberOfLines={1} style={styles.communityName}>{user.community_name}</Text>
+        {showCommunity ? (
+          <Text numberOfLines={1} style={styles.communityName}>{user.community_name || t("notInCommunity")}</Text>
         ) : null}
       </View>
         <Ionicons name="chevron-forward" size={19} color={palette.textMuted} />
@@ -478,25 +553,25 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, paddingVertical: 12, fontSize: 16, color: palette.text },
   clearButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  sortSection: { gap: 7, marginTop: -6, marginBottom: 16 },
+  sortLabel: { color: palette.textMuted, fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
+  sortOptions: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  sortChip: { minHeight: 36, justifyContent: "center", paddingHorizontal: 11, borderWidth: 1, borderColor: palette.border, borderRadius: radii.round, backgroundColor: palette.paper },
+  sortChipSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
+  sortChipText: { color: palette.textMuted, fontSize: 12, fontWeight: "700" },
+  sortChipTextSelected: { color: palette.paper },
+  viewControl: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: -6, marginBottom: 16 },
+  viewLabel: { color: palette.textMuted, fontSize: 10, fontWeight: "700" },
+  viewOptions: { flexDirection: "row", gap: 5 },
+  viewOption: { width: 34, height: 32, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border, borderRadius: radii.sm, backgroundColor: palette.paper },
+  viewOptionSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
   error: { color: palette.danger, marginBottom: 12 },
   listContent: { paddingBottom: 24 },
   emptyListContent: { flexGrow: 1, justifyContent: "center" },
   bookRow: { gap: 12 },
   bookCell: { flexGrow: 1, flexBasis: 0, width: "48%" },
+  bookListCell: { width: "100%" },
   bookCard: { width: "100%" },
-  borrowButton: {
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 13,
-    paddingHorizontal: 10,
-    marginTop: -7,
-    marginBottom: 14,
-    backgroundColor: palette.accent,
-  },
-  borrowButtonDisabled: { backgroundColor: palette.textSoft },
-  borrowButtonPressed: { opacity: 0.8 },
-  borrowButtonText: { color: palette.white, fontSize: 13, fontWeight: "700" },
   userCard: {
     flexDirection: "row",
     alignItems: "center",

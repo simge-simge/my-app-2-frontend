@@ -18,6 +18,7 @@ const titleKeys: Record<string, TranslationKey> = {
   community_removed: "notificationCommunityRemoved",
   shelf_scan_completed: "notificationShelfScanReady",
   shelf_scan_failed: "notificationShelfScanFailed",
+  match_deleted: "notificationMatchDeleted",
 }
 
 export function localizeInboxNotification(notification: InboxNotification, language: "en" | "tr", t: Translator) {
@@ -79,6 +80,16 @@ export function localizeInboxNotification(notification: InboxNotification, langu
     }
     case "shelf_scan_failed":
       return { title, message: t("notificationShelfScanFailedMessage") }
+    case "match_deleted": {
+      const name = String(notification.metadata?.deleted_by_name || "")
+      const book = String(notification.metadata?.book_title || "")
+      return {
+        title,
+        message: name
+          ? t(book ? "notificationMatchDeletedBookMessage" : "notificationMatchDeletedMessage", { name, book })
+          : notification.message,
+      }
+    }
     default:
       return { title, message: notification.message }
   }

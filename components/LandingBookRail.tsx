@@ -117,7 +117,7 @@ function LandingBookCard({
       <View style={styles.coverWrap}>
         <View style={styles.spine} />
         {coverSource || book.cover_url ? (
-          <Image source={coverSource ?? { uri: book.cover_url! }} style={styles.cover} resizeMode="cover" />
+          <Image source={coverSource ?? { uri: book.cover_url! }} style={styles.cover} resizeMode="contain" />
         ) : (
           <View style={[styles.cover, styles.coverFallback]}>
             <Ionicons name="book-outline" size={24} color={palette.ink} />

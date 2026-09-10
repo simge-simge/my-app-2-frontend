@@ -39,6 +39,7 @@ export default function ConfirmationModal({
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
             <Pressable
+              accessibilityLabel={cancelLabel}
               accessibilityRole="button"
               onPress={onCancel}
               style={({ pressed }) => [styles.button, styles.cancelButton, pressed && styles.pressed]}
@@ -46,9 +47,11 @@ export default function ConfirmationModal({
               <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
             <Pressable
+              accessibilityLabel={confirmLabel}
               accessibilityRole="button"
               onPress={onConfirm}
               style={({ pressed }) => [styles.button, styles.confirmButton, pressed && styles.pressed]}
+              testID="confirmation-modal-confirm"
             >
               <Text style={styles.confirmText}>{confirmLabel}</Text>
             </Pressable>

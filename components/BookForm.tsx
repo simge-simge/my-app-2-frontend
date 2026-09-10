@@ -238,7 +238,7 @@ export default function BookForm({
 
         <View style={styles.field}>
           <Text style={styles.label}>{t("coverImage")}</Text>
-          {coverUri ? <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" /> : null}
+          {coverUri ? <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="contain" /> : null}
           <View style={styles.coverActions}>
             <Pressable accessibilityRole="button" style={[styles.coverButton, styles.coverPickerButton]} onPress={() => void handlePickFromLibrary()}>
               <Text style={styles.coverButtonText}>{t("pickFromLibrary")}</Text>

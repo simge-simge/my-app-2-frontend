@@ -87,7 +87,7 @@ export default function BookDetailsScreen() {
         <View style={styles.hero}>
           <View style={styles.coverWrap}>
             {book.cover_url ? (
-              <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="cover" />
+              <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" />
             ) : (
               <View style={[styles.cover, styles.coverFallback]}>
                 <Text style={styles.coverLetter}>{book.title.slice(0, 1).toUpperCase()}</Text>

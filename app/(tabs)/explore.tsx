@@ -308,7 +308,7 @@ function BookCard({ book }: { book: Book }) {
   return (
     <View key={book.id} style={styles.cardInner}>
       {book.cover_url ? (
-        <Image key={`${book.id}-${book.cover_url}`} source={{ uri: book.cover_url }} style={[styles.cover, { height: coverHeight }]} resizeMode="cover" fadeDuration={0} />
+        <Image key={`${book.id}-${book.cover_url}`} source={{ uri: book.cover_url }} style={[styles.cover, { height: coverHeight }]} resizeMode="contain" fadeDuration={0} />
       ) : (
         <View key={`${book.id}-fallback`} style={[styles.cover, styles.coverFallback, { height: coverHeight }]}>
           <Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text>

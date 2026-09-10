@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
+import ConfirmationModal from "@/components/ConfirmationModal"
 import { getCachedApiData } from "@/services/api"
 import {
   deleteMatch,
@@ -37,6 +38,8 @@ export default function MatchDetailScreen() {
   const [loading, setLoading] = useState(() => cachedMatch === undefined)
   const hasLoaded = useRef(cachedMatch !== undefined)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const loadMatch = useCallback(async () => {
     if (!matchId) return
@@ -71,23 +74,23 @@ export default function MatchDetailScreen() {
     })
   }, [loadMatch, match, matchId, t])
 
-  const handleDelete = useCallback(() => {
-    if (!matchId) return
-    router.replace("/matches")
-    runInBackground(() => deleteMatch(matchId), {
-      onError: (err) => {
-        console.error("Failed to delete match", err)
-        Alert.alert(t("matchNotDeleted"), t("couldNotDeleteMatch"))
-      },
-    })
-  }, [matchId, t])
+  const handleDelete = useCallback(async () => {
+    if (!matchId || deleting) return
+    setShowDeleteConfirmation(false)
+    setDeleting(true)
+    try {
+      await deleteMatch(matchId)
+      router.replace("/matches")
+    } catch (err) {
+      console.error("Failed to delete match", err)
+      Alert.alert(t("matchNotDeleted"), t("couldNotDeleteMatch"))
+      setDeleting(false)
+    }
+  }, [deleting, matchId, t])
 
   const confirmDelete = useCallback(() => {
-    Alert.alert(t("deleteMatch"), t("deleteMatchConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      { text: t("delete"), style: "destructive", onPress: handleDelete },
-    ])
-  }, [handleDelete, t])
+    setShowDeleteConfirmation(true)
+  }, [])
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
@@ -113,7 +116,17 @@ export default function MatchDetailScreen() {
   const revealButtonText = match.my_book ? t("revealAndMarkLent") : t("revealMyContact")
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <>
+      <ConfirmationModal
+        visible={showDeleteConfirmation}
+        title={t("deleteMatch")}
+        message={t("deleteMatchConfirm")}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("delete")}
+        onCancel={() => setShowDeleteConfirmation(false)}
+        onConfirm={() => { void handleDelete() }}
+      />
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.heroCard}>
         <Pressable
           accessibilityRole="button"
@@ -163,10 +176,17 @@ export default function MatchDetailScreen() {
         </>
       ) : null}
 
-      <Pressable style={styles.deleteButton} onPress={confirmDelete}>
-        <Text style={styles.deleteButtonText}>{t("deleteMatch")}</Text>
+      <Pressable
+        accessibilityLabel={t("deleteMatch")}
+        accessibilityRole="button"
+        disabled={deleting}
+        style={[styles.deleteButton, deleting && styles.actionDisabled]}
+        onPress={confirmDelete}
+      >
+        {deleting ? <ActivityIndicator color={palette.danger} /> : <Text style={styles.deleteButtonText}>{t("deleteMatch")}</Text>}
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </>
   )
 }
 
@@ -186,7 +206,7 @@ function BookDetails({ book }: { book: MatchBook }) {
   const { language, t } = useTranslation()
   return (
     <View style={styles.bookCard}>
-      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="cover" /> : <View style={[styles.cover, styles.coverFallback]}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>}
+      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" /> : <View style={[styles.cover, styles.coverFallback]}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>}
       <Text style={styles.bookTitle}>{book.title}</Text>
       <InfoRow label={t("author")} value={book.author || t("unknown")} />
       <InfoRow label={t("isbn")} value={book.isbn || t("notProvided")} />

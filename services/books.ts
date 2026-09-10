@@ -86,8 +86,12 @@ export function getBookFeed() {
 export type SearchScope = "community" | "all"
 
 export function searchBooks(query: string, scope: SearchScope = "community") {
+  const normalizedQuery = query.trim()
+  const queryParameter = normalizedQuery
+    ? `&q=${encodeURIComponent(normalizedQuery)}`
+    : ""
   return apiFetch(
-    `/books/search?q=${encodeURIComponent(query)}&scope=${scope}`,
+    `/books/search?scope=${scope}${queryParameter}`,
   ) as Promise<Book[]>
 }
 

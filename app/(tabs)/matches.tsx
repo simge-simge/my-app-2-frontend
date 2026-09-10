@@ -12,9 +12,10 @@ import {
 } from "react-native"
 
 import AdminBadge from "@/components/AdminBadge"
+import ConfirmationModal from "@/components/ConfirmationModal"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
-import { getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
+import { deleteMatch, getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
 import { runInBackground } from "@/utils/backgroundAction"
 import { useTranslation } from "@/localization/LanguageContext"
 
@@ -26,6 +27,8 @@ export default function MatchesScreen() {
   const hasLoaded = useRef(cachedMatches !== undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
 
   const loadMatches = useCallback(async (showLoader = false) => {
     if (showLoader && !hasLoaded.current) setLoading(true)
@@ -70,12 +73,38 @@ export default function MatchesScreen() {
     })
   }, [loadMatches, matches, t])
 
+  const handleDelete = useCallback(async () => {
+    if (!pendingDeleteId || deletingMatchId) return
+    const matchId = pendingDeleteId
+    setPendingDeleteId(null)
+    setDeletingMatchId(matchId)
+    setError(null)
+    try {
+      await deleteMatch(matchId)
+      setMatches((items) => items.filter((item) => item.match_id !== matchId))
+    } catch (err) {
+      console.error("Failed to delete match", err)
+      setError(t("couldNotDeleteMatch"))
+    } finally {
+      setDeletingMatchId(null)
+    }
+  }, [deletingMatchId, pendingDeleteId, t])
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
   }
 
   return (
     <View style={styles.container}>
+      <ConfirmationModal
+        visible={pendingDeleteId !== null}
+        title={t("deleteMatch")}
+        message={t("deleteMatchConfirm")}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("delete")}
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => { void handleDelete() }}
+      />
       <Text style={styles.title}>{t("myMatches")}</Text>
       <Text style={styles.subtitle}>{t("matchSubtitle")}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -83,7 +112,14 @@ export default function MatchesScreen() {
       <FlatList
         data={matches}
         keyExtractor={(item) => item.match_id}
-        renderItem={({ item }) => <MatchRow match={item} onReveal={handleReveal} />}
+        renderItem={({ item }) => (
+          <MatchRow
+            deleting={deletingMatchId === item.match_id}
+            match={item}
+            onDelete={setPendingDeleteId}
+            onReveal={handleReveal}
+          />
+        )}
         contentContainerStyle={[styles.listContent, matches.length === 0 && styles.emptyListContent]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={palette.text} />}
@@ -98,7 +134,17 @@ export default function MatchesScreen() {
   )
 }
 
-function MatchRow({ match, onReveal }: { match: Match; onReveal: (matchId: string) => void }) {
+function MatchRow({
+  deleting,
+  match,
+  onDelete,
+  onReveal,
+}: {
+  deleting: boolean
+  match: Match
+  onDelete: (matchId: string) => void
+  onReveal: (matchId: string) => void
+}) {
   const { language, t } = useTranslation()
   const displayName = match.other_user.display_name || t("unknownReader")
   const matchedAt = formatMatchDate(match.created_at, language === "tr" ? "tr-TR" : "en-US", t("recentlyMatched"))
@@ -142,10 +188,24 @@ function MatchRow({ match, onReveal }: { match: Match; onReveal: (matchId: strin
           </View>
         </Pressable>
 
-        <View style={[styles.statusBadge, match.revealed ? styles.revealedBadge : styles.pendingBadge]}>
-          <Text style={[styles.statusText, match.revealed ? styles.revealedText : styles.pendingText]}>
-            {match.revealed ? t("revealed") : t("pending")}
-          </Text>
+        <View style={styles.statusActions}>
+          <View style={[styles.statusBadge, match.revealed ? styles.revealedBadge : styles.pendingBadge]}>
+            <Text style={[styles.statusText, match.revealed ? styles.revealedText : styles.pendingText]}>
+              {match.revealed ? t("revealed") : t("pending")}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel={t("deleteMatch")}
+            accessibilityRole="button"
+            disabled={deleting}
+            onPress={(event) => {
+              event?.stopPropagation()
+              onDelete(match.match_id)
+            }}
+            style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
+          >
+            {deleting ? <ActivityIndicator color={palette.danger} size="small" /> : <Text style={styles.deleteButtonText}>{t("delete")}</Text>}
+          </Pressable>
         </View>
       </View>
 
@@ -181,7 +241,7 @@ function BookSummary({ label, book }: { label: string; book: MatchBook }) {
   return (
     <View style={styles.bookColumn}>
       <Text style={styles.bookLabel}>{label}</Text>
-      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="cover" /> : <View style={[styles.cover, styles.coverFallback]}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>}
+      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" /> : <View style={[styles.cover, styles.coverFallback]}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>}
       <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
     </View>
   )
@@ -236,11 +296,15 @@ const styles = StyleSheet.create({
   name: { fontFamily: typography.serif, fontSize: 19, fontWeight: "700", color: palette.text },
   date: { fontSize: 13, color: palette.textMuted },
   statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  statusActions: { alignItems: "flex-end", gap: 8 },
   revealedBadge: { backgroundColor: palette.successSoft },
   pendingBadge: { backgroundColor: palette.accentSoft },
   statusText: { fontSize: 12, fontWeight: "700" },
   revealedText: { color: palette.success },
   pendingText: { color: palette.textSoft },
+  deleteButton: { minHeight: 32, minWidth: 68, alignItems: "center", justifyContent: "center", borderRadius: radii.sm, paddingHorizontal: 10, backgroundColor: palette.dangerSoft },
+  deleteButtonDisabled: { opacity: 0.7 },
+  deleteButtonText: { color: palette.danger, fontSize: 12, fontWeight: "700" },
   booksRow: { flexDirection: "row", gap: 12 },
   borrowMatchBlock: { gap: 8 },
   borrowMatchLabel: { fontSize: 15, fontWeight: "700", color: palette.accentDark },

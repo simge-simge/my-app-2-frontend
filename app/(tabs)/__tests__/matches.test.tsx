@@ -2,11 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 import { router } from "expo-router"
 
 import MatchesScreen from "../matches"
-import { getMatches, revealMatchContact } from "@/services/matches"
+import { deleteMatch, getMatches, revealMatchContact } from "@/services/matches"
 import { match } from "@/test/factories"
 
 jest.mock("@/services/api", () => ({ getCachedApiData: jest.fn(() => undefined) }))
-jest.mock("@/services/matches", () => ({ getMatches: jest.fn(), revealMatchContact: jest.fn() }))
+jest.mock("@/services/matches", () => ({ deleteMatch: jest.fn(), getMatches: jest.fn(), revealMatchContact: jest.fn() }))
 
 describe("matches", () => {
   it("renders status and opens match details", async () => {
@@ -31,6 +31,26 @@ describe("matches", () => {
     await waitFor(() => expect(revealMatchContact).toHaveBeenCalledWith(match().match_id))
     await act(async () => { finish() })
     await waitFor(() => expect(getMatches).toHaveBeenCalledTimes(2))
+  })
+
+  it("confirms deletion and removes the match after the request succeeds", async () => {
+    let finishDelete!: () => void
+    jest.mocked(getMatches).mockResolvedValue([match()])
+    jest.mocked(deleteMatch).mockReturnValue(new Promise<{ message: string }>((resolve) => {
+      finishDelete = () => resolve({ message: "Match deleted" })
+    }))
+    render(<MatchesScreen />)
+
+    fireEvent.press(await screen.findByRole("button", { name: "Delete match" }))
+    expect(deleteMatch).not.toHaveBeenCalled()
+    expect(screen.getByText("Remove this match from your list?")).toBeVisible()
+    fireEvent.press(screen.getByTestId("confirmation-modal-confirm"))
+
+    expect(deleteMatch).toHaveBeenCalledWith(match().match_id)
+    expect(screen.getByText("Ada Reader")).toBeVisible()
+
+    await act(async () => { finishDelete() })
+    await waitFor(() => expect(screen.queryByText("Ada Reader")).toBeNull())
   })
 
   it("renders empty and failed states", async () => {
