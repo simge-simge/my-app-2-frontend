@@ -52,7 +52,7 @@ export default function Index() {
         contentContainerStyle={styles.page}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.topBar, isWide && styles.topBarWide, isPhone && styles.topBarPhone]}>
+        <View style={[styles.topBar, isWide && styles.topBarWide, isPhone && styles.topBarPhone, isNarrowPhone && styles.topBarNarrow]}>
           <View style={styles.brandRow} accessibilityRole="header">
             <View style={styles.brandMark} />
             <Text style={styles.brandName}>CommonShelf</Text>
@@ -230,12 +230,13 @@ const styles = StyleSheet.create({
   topBar: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", minHeight: 72, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 4 },
   topBarWide: { minHeight: 84 },
   topBarPhone: { minHeight: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10, alignItems: "stretch", flexDirection: "column", gap: 10 },
+  topBarNarrow: { minHeight: 104, position: "relative" },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   brandMark: { width: 15, height: 22, borderRadius: 4, backgroundColor: palette.orange, borderWidth: 1.5, borderColor: palette.borderStrong, transform: [{ rotate: "-6deg" }] },
   brandName: { fontFamily: typography.serif, fontSize: 18, fontWeight: "800", color: palette.ink },
   topActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  topActionsPhone: { width: "100%", justifyContent: "space-between", flexWrap: "wrap", gap: 4 },
-  topActionsNarrow: { flexDirection: "column", alignItems: "flex-end", justifyContent: "flex-start", gap: 0 },
+  topActionsPhone: { width: "100%", alignSelf: "stretch", justifyContent: "space-between", flexWrap: "wrap", gap: 4 },
+  topActionsNarrow: { position: "absolute", width: "auto", right: 20, top: 8, flexDirection: "column", alignItems: "flex-end", justifyContent: "flex-start", gap: 0 },
   authLinks: { flexDirection: "row", alignItems: "center" },
   authLink: { minHeight: 44, justifyContent: "center", paddingHorizontal: 7 },
   authSeparator: { color: palette.borderStrong, fontSize: 14 },
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
   artColumn: { width: "100%", height: 380, alignItems: "stretch", marginTop: 24 },
   artColumnWide: { flex: 1.05, height: 550, marginTop: 0 },
   artScene: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
-  artHalo: { position: "absolute", width: "88%", aspectRatio: 1, maxWidth: 490, borderRadius: 999, backgroundColor: palette.yellow, opacity: 0.46, transform: [{ rotate: "-5deg" }] },
+  artHalo: { position: "absolute", height: "88%", aspectRatio: 1, maxWidth: 490, borderRadius: 999, backgroundColor: palette.yellow, opacity: 0.46, transform: [{ rotate: "-5deg" }] },
   heroArt: { width: "100%", height: "100%", zIndex: 2 },
   skyDot: { position: "absolute", borderWidth: 1.5, borderColor: palette.borderStrong, zIndex: 3 },
   skyDotOne: { width: 18, height: 18, borderRadius: 9, backgroundColor: palette.blue, left: "7%", top: "16%" },
@@ -273,8 +274,8 @@ const styles = StyleSheet.create({
   problemTitle: { maxWidth: 720, fontFamily: typography.serif, color: palette.paper, fontSize: 29, lineHeight: 35, fontWeight: "700" },
   problemBody: { maxWidth: 720, color: palette.background, opacity: 0.78, fontSize: 15, lineHeight: 23, marginTop: 10 },
   section: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 20, paddingVertical: 58 },
-  howSection: { backgroundColor: palette.background, paddingTop: 76, paddingBottom: 96 },
-  howSteps: { width: "100%", maxWidth: 940, alignSelf: "center", gap: 76 },
+  howSection: { backgroundColor: palette.background, paddingTop: 32, paddingBottom: 72 },
+  howSteps: { width: "100%", maxWidth: 940, alignSelf: "center", gap: 44 },
   howStep: { width: "100%", minHeight: 290, flexDirection: "row", alignItems: "center", gap: 56 },
   howStepCompact: { minHeight: 220, gap: 36 },
   howStepPhone: { minHeight: 180, gap: 20 },
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
   previewNote: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, color: palette.textMuted, fontSize: 12, textAlign: "center", fontStyle: "italic" },
   previewFooter: { minHeight: 42, marginHorizontal: 12, marginTop: 5, paddingHorizontal: 10, borderTopWidth: 1, borderColor: palette.border, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6 },
   previewFooterText: { color: palette.textMuted, fontSize: 11, fontWeight: "700", textAlign: "center" },
-  dataCard: { maxWidth: 920, backgroundColor: palette.accentSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, padding: 24, marginVertical: 46 },
+  dataCard: { width: "90%", maxWidth: 920, backgroundColor: palette.accentSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, padding: 24, marginVertical: 46 },
   dataCardWide: { flexDirection: "row", alignItems: "center", gap: 26, paddingHorizontal: 34 },
   dataIcon: { width: 62, height: 62, borderRadius: 31, backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 18 },
   dataCopy: { flex: 1, alignItems: "flex-start" },
