@@ -62,7 +62,7 @@ test("shows the product and legal information without an account", async ({ page
   await page.goto("/")
 
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByText("See what is waiting on the community shelf.")).toBeVisible()
+  await expect(page.getByText("From a book on Ada's shelf to your next read.")).toBeVisible()
   await expect(page.getByText("Google sign-in is optional and limited to authentication.")).toBeVisible()
   await expect(page.getByRole("link", { name: "Privacy Policy", exact: true })).toBeVisible()
   await expect(page.getByRole("link", { name: "Terms of Service", exact: true })).toBeVisible()
@@ -74,11 +74,13 @@ test("redirects a logged-out visitor from a private route to login", async ({ pa
   await expect(page.getByRole("button", { name: "Log in" })).toBeVisible()
 })
 
-test("redirects an authenticated visitor from the public entry to home", async ({ page }) => {
+test("keeps the public entry available and opens the app for an authenticated visitor", async ({ page }) => {
   await login(page)
   await page.goto("/")
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByText("Good books find their way to good company.")).toBeVisible()
+  await page.getByRole("button", { name: "Open your CommonShelf" }).first().click()
   await expect(page).toHaveURL(/\/home$/)
-  await expect(page.getByText("Hello, Current Reader")).toBeVisible()
 })
 
 test("login, show interest in discovery, and open the new match", async ({ page }) => {

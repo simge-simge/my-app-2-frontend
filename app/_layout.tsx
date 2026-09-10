@@ -23,19 +23,20 @@ function ThemedRoot() {
   const { isDark } = useAppTheme();
   const { loading } = useAuthSession();
   const pathname = usePathname();
+  const statusBarStyle = pathname === "/" ? "dark" : isDark ? "light" : "dark";
 
   // Keep the public homepage available to static rendering and OAuth reviewers.
   // Private routes still wait for session restoration before their guards run.
   if (loading && pathname !== "/") {
     return (
       <View style={styles.loading}>
-        <StatusBar style={isDark ? "light" : "dark"} />
+        <StatusBar style={statusBarStyle} />
         <ActivityIndicator size="large" color={palette.accent} />
       </View>
     );
   }
 
-  return <><StatusBar style={isDark ? "light" : "dark"} /><RootStack /></>;
+  return <><StatusBar style={statusBarStyle} /><RootStack /></>;
 }
 
 function RootStack() {
@@ -58,6 +59,7 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="index" options={headerlessScreenOptions} />
+      <Stack.Screen name="app" options={headerlessScreenOptions} />
       <Stack.Screen name="privacy" options={{ title: "Privacy Policy" }} />
       <Stack.Screen name="terms" options={{ title: "Terms of Service" }} />
       <Stack.Screen name="auth/callback" options={headerlessScreenOptions} />

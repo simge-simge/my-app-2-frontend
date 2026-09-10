@@ -19,7 +19,7 @@ describe("LanguageSwitch", () => {
       </LanguageProvider>,
     )
 
-    fireEvent(screen.getByRole("switch", { name: "Choose language" }), "valueChange", true)
+    fireEvent.press(screen.getByRole("switch", { name: "Choose language" }))
 
     expect(screen.getByText("İyi kitaplar, iyi insanlarla buluşmanın yolunu bulur.")).toBeVisible()
     await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith("commonshelf.language", "tr"))

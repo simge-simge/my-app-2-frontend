@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useEffect, useRef, useState } from "react"
-import { Animated, Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from "react-native"
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native"
 
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
@@ -17,6 +17,7 @@ type Props = {
 }
 
 const CARD_WIDTH = 142
+const CARD_GAP = 12
 
 export default function LandingBookRail({
   books,
@@ -29,6 +30,9 @@ export default function LandingBookRail({
   const travel = useRef(new Animated.Value(direction === "left" ? 8 : -38)).current
   const animation = useRef<Animated.CompositeAnimation | null>(null)
   const [paused, setPaused] = useState(false)
+  const lastDragEnd = useRef(0)
+  const minTravel = -46
+  const maxTravel = 8
 
   useEffect(() => {
     animation.current?.stop()
@@ -38,36 +42,60 @@ export default function LandingBookRail({
       return
     }
 
-    const start = direction === "left" ? 8 : -38
-    const end = direction === "left" ? -38 : 8
-    travel.setValue(start)
-    animation.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(travel, { toValue: end, duration: 9000, useNativeDriver: true }),
-        Animated.timing(travel, { toValue: start, duration: 9000, useNativeDriver: true }),
-      ]),
-    )
-    animation.current.start()
+    travel.stopAnimation((current) => {
+      const firstTarget = direction === "left" ? minTravel : maxTravel
+      const secondTarget = direction === "left" ? maxTravel : minTravel
+      const firstDistance = Math.abs(firstTarget - current)
+      animation.current = Animated.sequence([
+        Animated.timing(travel, { toValue: firstTarget, duration: Math.max(1200, firstDistance * 85), useNativeDriver: true }),
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(travel, { toValue: secondTarget, duration: 9000, useNativeDriver: true }),
+            Animated.timing(travel, { toValue: firstTarget, duration: 9000, useNativeDriver: true }),
+          ]),
+        ),
+      ])
+      animation.current.start()
+    })
 
     return () => animation.current?.stop()
-  }, [books.length, direction, paused, reduceMotion, travel])
+  }, [books.length, direction, maxTravel, minTravel, paused, reduceMotion, travel])
+
+  const handleBookPress = (book: Book) => {
+    if (Date.now() - lastDragEnd.current < 300) return
+    onBookPress(book)
+  }
 
   return (
     <View style={styles.viewport}>
-      <Animated.View style={[styles.row, { transform: [{ translateX: travel }] }]}>
-        {books.map((book, index) => (
-          <LandingBookCard
-            key={`${direction}-${book.id}-${index}`}
-            book={book}
-            index={index}
-            showCommunity={showCommunity}
-            coverSource={coverSources?.[book.id]}
-            onPress={() => onBookPress(book)}
-            onInteractionStart={() => setPaused(true)}
-            onInteractionEnd={() => setPaused(false)}
-          />
-        ))}
-      </Animated.View>
+      <ScrollView
+        horizontal
+        directionalLockEnabled
+        nestedScrollEnabled
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scroller}
+        onScrollBeginDrag={() => setPaused(true)}
+        onScrollEndDrag={() => {
+          lastDragEnd.current = Date.now()
+          setPaused(false)
+        }}
+        onMomentumScrollEnd={() => setPaused(false)}
+      >
+        <Animated.View style={[styles.row, { transform: [{ translateX: travel }] }]}>
+          {books.map((book, index) => (
+            <LandingBookCard
+              key={`${direction}-${book.id}-${index}`}
+              book={book}
+              index={index}
+              showCommunity={showCommunity}
+              coverSource={coverSources?.[book.id]}
+              onPress={() => handleBookPress(book)}
+              onInteractionStart={() => setPaused(true)}
+              onInteractionEnd={() => setPaused(false)}
+            />
+          ))}
+        </Animated.View>
+      </ScrollView>
     </View>
   )
 }
@@ -149,7 +177,8 @@ function LandingBookCard({
 
 const styles = StyleSheet.create({
   viewport: { width: "100%", overflow: "hidden", paddingVertical: 7 },
-  row: { flexDirection: "row", gap: 12, paddingHorizontal: 5 },
+  scroller: { paddingHorizontal: 0 },
+  row: { flexDirection: "row", gap: CARD_GAP, paddingHorizontal: 5 },
   card: {
     width: CARD_WIDTH,
     minHeight: 230,

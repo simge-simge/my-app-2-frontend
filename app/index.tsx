@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons"
-import { Redirect, router } from "expo-router"
+import { router } from "expo-router"
 import Head from "expo-router/head"
 import { useEffect, useRef, useState } from "react"
-import { AccessibilityInfo, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
+import { AccessibilityInfo, Animated, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType } from "react-native"
 
 import AppButton from "@/components/AppButton"
 import GentleEntrance from "@/components/GentleEntrance"
@@ -10,21 +10,27 @@ import LandingBookRail from "@/components/LandingBookRail"
 import LegalLinks from "@/components/LegalLinks"
 import LanguageSwitch from "@/components/LanguageSwitch"
 import { HOME_PREVIEW_BOOKS, HOME_PREVIEW_COVERS } from "@/constants/homePreviewBooks"
-import { layout, palette, radii, shadows, spacing, typography } from "@/constants/theme"
+import { layout, lightPalette as palette, radii, shadows, spacing, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
-import { useAuthSession } from "@/services/authSession"
 
 const heroArt = require("../assets/images/welcome-hero.png")
+const howImages = {
+  add: require("../assets/images/home_display/add_your_books.png"),
+  discover: require("../assets/images/home_display/discover_nearby_reads.png"),
+  match: require("../assets/images/home_display/match_and_exchange.png"),
+}
 const previewRows = [HOME_PREVIEW_BOOKS.slice(0, 5), HOME_PREVIEW_BOOKS.slice(5)]
 
 export default function Index() {
   const { t } = useTranslation()
-  const { session } = useAuthSession()
   const { width } = useWindowDimensions()
   const scrollRef = useRef<ScrollView>(null)
-  const [previewY, setPreviewY] = useState(0)
+  const [problemY, setProblemY] = useState(0)
   const [reduceMotion, setReduceMotion] = useState(false)
   const isWide = width >= 800
+  const isHowCompact = width < 800
+  const isPhone = width < 600
+  const isNarrowPhone = width < 380
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
@@ -32,9 +38,7 @@ export default function Index() {
     return () => subscription.remove()
   }, [])
 
-  if (session) return <Redirect href="/home" />
-
-  const openSignup = () => router.push("/signup")
+  const openApp = () => router.push("/app")
 
   return (
     <>
@@ -42,17 +46,28 @@ export default function Index() {
         <title>{t("publicPageTitle")}</title>
         <meta name="description" content={t("publicPageDescription")} />
       </Head>
-      <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-        <View style={[styles.topBar, isWide && styles.topBarWide]}>
+      <Animated.ScrollView
+        ref={scrollRef}
+        style={styles.screen}
+        contentContainerStyle={styles.page}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.topBar, isWide && styles.topBarWide, isPhone && styles.topBarPhone]}>
           <View style={styles.brandRow} accessibilityRole="header">
             <View style={styles.brandMark} />
             <Text style={styles.brandName}>CommonShelf</Text>
           </View>
-          <View style={styles.topActions}>
+          <View style={[styles.topActions, isPhone && styles.topActionsPhone, isNarrowPhone && styles.topActionsNarrow]}>
             <LanguageSwitch />
-            <Pressable accessibilityRole="link" onPress={() => router.push("/login")} style={({ pressed }) => [styles.loginLink, pressed && styles.pressed]}>
-              <Text style={styles.loginLinkText}>{t("login")}</Text>
-            </Pressable>
+            <View style={styles.authLinks}>
+              <Pressable accessibilityRole="link" onPress={() => router.push("/login")} style={({ pressed }) => [styles.authLink, pressed && styles.pressed]}>
+                <Text style={styles.loginLinkText}>{t("login")}</Text>
+              </Pressable>
+              <Text style={styles.authSeparator} accessibilityElementsHidden>|</Text>
+              <Pressable accessibilityRole="link" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.authLink, pressed && styles.pressed]}>
+                <Text style={styles.signupLinkText}>{t("signupNow")}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -65,22 +80,68 @@ export default function Index() {
             <Text accessibilityRole="header" style={[styles.title, !isWide && styles.mobileTitle]}>{t("heroTitle")}</Text>
             <Text style={styles.subtitle}>{t("heroSubtitle")}</Text>
             <View style={[styles.actions, isWide && styles.actionsWide]}>
-              <AppButton title={t("createAccount")} onPress={openSignup} style={isWide ? styles.actionWide : undefined} />
-              <AppButton title={t("seeAppPreview")} variant="secondary" onPress={() => scrollRef.current?.scrollTo({ y: previewY, animated: !reduceMotion })} style={isWide ? styles.actionWide : undefined} />
+              <AppButton title={t("openApp")} onPress={openApp} style={isWide ? styles.actionWide : undefined} />
             </View>
-            <Text style={styles.note}>{t("noAccountNeeded")}</Text>
           </GentleEntrance>
 
           <GentleEntrance delay={110} style={[styles.artColumn, isWide && styles.artColumnWide]}>
-            <View style={[styles.skyDot, styles.skyDotOne]} />
-            <View style={[styles.skyDot, styles.skyDotTwo]} />
-            <View style={styles.artHalo} />
-            <Image accessibilityLabel={t("heroImageLabel")} source={heroArt} style={styles.heroArt} resizeMode="contain" />
-            <View style={styles.scribble} />
+            <View style={styles.artScene}>
+              <View style={[styles.skyDot, styles.skyDotOne]} />
+              <View style={[styles.skyDot, styles.skyDotTwo]} />
+              <View style={styles.artHalo} />
+              <Image accessibilityLabel={t("heroImageLabel")} source={heroArt} style={styles.heroArt} resizeMode="contain" />
+              <View style={styles.scribble} />
+            </View>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, problemY - 20), animated: !reduceMotion })}
+              style={({ pressed }) => [styles.exploreCue, pressed && styles.pressed]}
+            >
+              <Text style={styles.exploreCueText}>{t("scrollDownExplore")}</Text>
+              <Ionicons name="arrow-down" size={15} color={palette.accentDark} />
+            </Pressable>
           </GentleEntrance>
         </View>
 
-        <View onLayout={(event) => setPreviewY(event.nativeEvent.layout.y)} style={[styles.section, styles.previewSection]}>
+        <View onLayout={(event) => setProblemY(event.nativeEvent.layout.y)} style={[styles.problemSection, isWide && styles.problemSectionWide]}>
+          <View style={styles.problemIcon}>
+            <Ionicons name="book-outline" size={27} color={palette.accentDark} />
+          </View>
+          <View style={styles.problemCopy}>
+            <Text style={[styles.sectionKicker, styles.problemKicker]}>{t("problemKicker")}</Text>
+            <Text accessibilityRole="header" style={styles.problemTitle}>{t("problemTitle")}</Text>
+            <Text style={styles.problemBody}>{t("problemBody")}</Text>
+          </View>
+        </View>
+
+        <View style={[styles.section, styles.howSection]}>
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionKicker}>{t("howItWorks")}</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>{t("fromShelfToShare")}</Text>
+          </View>
+          <View style={styles.howSteps}>
+            <HowStep number="01" image={howImages.add} title={t("howStepOneTitle")} body={t("howStepOneBody")} compact={isHowCompact} phone={isPhone} narrow={isNarrowPhone} />
+            <HowStep number="02" image={howImages.discover} title={t("howStepTwoTitle")} body={t("howStepTwoBody")} compact={isHowCompact} phone={isPhone} narrow={isNarrowPhone} />
+            <HowStep number="03" image={howImages.match} title={t("howStepThreeTitle")} body={t("howStepThreeBody")} compact={isHowCompact} phone={isPhone} narrow={isNarrowPhone} />
+          </View>
+        </View>
+
+        <View style={[styles.section, styles.featuresSection]}>
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionKicker}>{t("featuresKicker")}</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>{t("featuresTitle")}</Text>
+          </View>
+          <View style={styles.pageGrid}>
+            <PageCard icon="compass-outline" title={t("explore")} body={t("explorePageBody")} color={palette.orangeSoft} isWide={isWide} />
+            <PageCard icon="search-outline" title={t("search")} body={t("searchPageBody")} color={palette.blueSoft} isWide={isWide} />
+            <PageCard icon="library-outline" title={t("library")} body={t("libraryPageBody")} color={palette.roseSoft} isWide={isWide} />
+            <PageCard icon="swap-horizontal-outline" title={t("matches")} body={t("matchesPageBody")} color={palette.accentSoft} isWide={isWide} />
+            <PageCard icon="settings-outline" title={t("settings")} body={t("settingsPageBody")} color={palette.yellow} isWide={isWide} />
+            <PageCard icon="mail-unread-outline" title={t("inbox")} body={t("inboxPageBody")} color={palette.blueSoft} isWide={isWide} />
+          </View>
+        </View>
+
+        <View style={[styles.section, styles.previewSection]}>
           <View style={styles.sectionHeading}>
             <Text style={styles.sectionKicker}>{t("productPreview")}</Text>
             <Text accessibilityRole="header" style={styles.sectionTitle}>{t("previewTitle")}</Text>
@@ -93,24 +154,12 @@ export default function Index() {
               <View style={styles.previewTopSpacer} />
             </View>
             <Text style={styles.previewNote}>{t("previewBooks")}</Text>
-            <LandingBookRail books={previewRows[0]} reduceMotion={reduceMotion} showCommunity coverSources={HOME_PREVIEW_COVERS} onBookPress={openSignup} />
-            <LandingBookRail books={previewRows[1]} direction="right" reduceMotion={reduceMotion} showCommunity coverSources={HOME_PREVIEW_COVERS} onBookPress={openSignup} />
+            <LandingBookRail books={previewRows[0]} reduceMotion={reduceMotion} showCommunity coverSources={HOME_PREVIEW_COVERS} onBookPress={openApp} />
+            <LandingBookRail books={previewRows[1]} direction="right" reduceMotion={reduceMotion} showCommunity coverSources={HOME_PREVIEW_COVERS} onBookPress={openApp} />
             <View style={styles.previewFooter}>
               <Ionicons name="lock-closed-outline" size={14} color={palette.textMuted} />
               <Text style={styles.previewFooterText}>{t("samplePreviewNotice")}</Text>
             </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionKicker}>{t("howItWorks")}</Text>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>{t("fromShelfToShare")}</Text>
-          </View>
-          <View style={[styles.featureGrid, isWide && styles.featureGridWide]}>
-            <FeatureCard number="1" icon="library-outline" title={t("featureShelfTitle")} body={t("featureShelfBody")} color={palette.orangeSoft} />
-            <FeatureCard number="2" icon="people-outline" title={t("featureCommunityTitle")} body={t("featureCommunityBody")} color={palette.blueSoft} />
-            <FeatureCard number="3" icon="swap-horizontal-outline" title={t("featureMatchTitle")} body={t("featureMatchBody")} color={palette.roseSoft} />
           </View>
         </View>
 
@@ -130,7 +179,7 @@ export default function Index() {
         <View style={styles.finalCta}>
           <Text accessibilityRole="header" style={styles.finalTitle}>{t("readyToShare")}</Text>
           <Text style={styles.finalBody}>{t("readyToShareBody")}</Text>
-          <AppButton title={t("createAccount")} onPress={openSignup} style={styles.finalButton} />
+          <AppButton title={t("openApp")} onPress={openApp} style={styles.finalButton} />
           <Pressable accessibilityRole="link" onPress={() => router.push("/login")} style={({ pressed }) => [styles.existingAccount, pressed && styles.pressed]}>
             <Text style={styles.existingAccountText}>{t("alreadyAccount")}</Text>
           </Pressable>
@@ -141,20 +190,36 @@ export default function Index() {
           <Text style={styles.footerText}>{t("heroNote")}</Text>
           <LegalLinks />
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </>
   )
 }
 
-function FeatureCard({ number, icon, title, body, color }: { number: string; icon: keyof typeof Ionicons.glyphMap; title: string; body: string; color: typeof palette.orangeSoft }) {
+function HowStep({ number, image, title, body, compact, phone, narrow }: { number: string; image: ImageSourcePropType; title: string; body: string; compact: boolean; phone: boolean; narrow: boolean }) {
   return (
-    <View style={styles.featureCard}>
-      <View style={[styles.featureIcon, { backgroundColor: color }]}>
-        <Ionicons name={icon} size={25} color={palette.ink} />
-        <View style={styles.numberBadge}><Text style={styles.numberText}>{number}</Text></View>
+    <View style={[styles.howStep, compact && styles.howStepCompact, phone && styles.howStepPhone, narrow && styles.howStepNarrow]}>
+      <View style={[styles.howStepVisual, compact && styles.howStepVisualCompact, phone && styles.howStepVisualPhone, narrow && styles.howStepVisualNarrow]}>
+        <Image source={image} style={styles.howStepImage} resizeMode="contain" accessibilityLabel={title} />
       </View>
-      <Text accessibilityRole="header" style={styles.featureTitle}>{title}</Text>
-      <Text style={styles.featureBody}>{body}</Text>
+      <View style={styles.howStepCopy}>
+        <Text style={styles.howStepNumber}>{number}</Text>
+        <Text accessibilityRole="header" style={[styles.howStepTitle, phone && styles.howStepTitlePhone, narrow && styles.howStepTitleNarrow]}>{title}</Text>
+        <Text style={[styles.howStepBody, phone && styles.howStepBodyPhone]}>{body}</Text>
+      </View>
+    </View>
+  )
+}
+
+function PageCard({ icon, title, body, color, isWide }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string; color: string; isWide: boolean }) {
+  return (
+    <View style={[styles.pageCard, isWide && styles.pageCardWide]}>
+      <View style={styles.pageCardHeading}>
+        <View style={[styles.pageCardIcon, { backgroundColor: color }]}>
+          <Ionicons name={icon} size={22} color={palette.ink} />
+        </View>
+        <Text accessibilityRole="header" style={styles.pageCardTitle}>{title}</Text>
+      </View>
+      <Text style={styles.pageCardBody}>{body}</Text>
     </View>
   )
 }
@@ -164,12 +229,18 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1, paddingBottom: 28 },
   topBar: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", minHeight: 72, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 4 },
   topBarWide: { minHeight: 84 },
+  topBarPhone: { minHeight: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10, alignItems: "stretch", flexDirection: "column", gap: 10 },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   brandMark: { width: 15, height: 22, borderRadius: 4, backgroundColor: palette.orange, borderWidth: 1.5, borderColor: palette.borderStrong, transform: [{ rotate: "-6deg" }] },
   brandName: { fontFamily: typography.serif, fontSize: 18, fontWeight: "800", color: palette.ink },
-  topActions: { flexDirection: "row", alignItems: "center" },
-  loginLink: { minHeight: 44, justifyContent: "center", paddingHorizontal: 6 },
-  loginLinkText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
+  topActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topActionsPhone: { width: "100%", justifyContent: "space-between", flexWrap: "wrap", gap: 4 },
+  topActionsNarrow: { flexDirection: "column", alignItems: "flex-end", justifyContent: "flex-start", gap: 0 },
+  authLinks: { flexDirection: "row", alignItems: "center" },
+  authLink: { minHeight: 44, justifyContent: "center", paddingHorizontal: 7 },
+  authSeparator: { color: palette.borderStrong, fontSize: 14 },
+  loginLinkText: { color: palette.ink, fontSize: 13, fontWeight: "800" },
+  signupLinkText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
   pressed: { opacity: 0.65 },
   hero: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 20, paddingTop: 26, paddingBottom: 64 },
   heroWide: { minHeight: 610, flexDirection: "row", alignItems: "center", gap: 64, paddingTop: 18, paddingBottom: 72 },
@@ -183,16 +254,51 @@ const styles = StyleSheet.create({
   actions: { marginTop: spacing.lg },
   actionsWide: { flexDirection: "row", alignItems: "center", gap: 10 },
   actionWide: { flex: 1 },
-  note: { color: palette.textMuted, fontSize: 12, marginTop: spacing.md, fontStyle: "italic" },
-  artColumn: { height: 330, alignItems: "center", justifyContent: "center", marginTop: 24, position: "relative" },
-  artColumnWide: { flex: 1.05, height: 520, marginTop: 0 },
+  exploreCue: { minHeight: 44, alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 4 },
+  exploreCueText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
+  artColumn: { width: "100%", height: 380, alignItems: "stretch", marginTop: 24 },
+  artColumnWide: { flex: 1.05, height: 550, marginTop: 0 },
+  artScene: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
   artHalo: { position: "absolute", width: "88%", aspectRatio: 1, maxWidth: 490, borderRadius: 999, backgroundColor: palette.yellow, opacity: 0.46, transform: [{ rotate: "-5deg" }] },
   heroArt: { width: "100%", height: "100%", zIndex: 2 },
   skyDot: { position: "absolute", borderWidth: 1.5, borderColor: palette.borderStrong, zIndex: 3 },
   skyDotOne: { width: 18, height: 18, borderRadius: 9, backgroundColor: palette.blue, left: "7%", top: "16%" },
   skyDotTwo: { width: 13, height: 13, borderRadius: 7, backgroundColor: palette.rose, right: "5%", top: "28%" },
   scribble: { position: "absolute", bottom: 18, width: "62%", height: 6, borderRadius: 99, backgroundColor: palette.green, opacity: 0.7, transform: [{ rotate: "-2deg" }] },
+  problemSection: { width: "90%", maxWidth: 920, alignSelf: "center", marginVertical: 34, paddingHorizontal: 24, paddingVertical: 30, backgroundColor: palette.accentDark, borderRadius: radii.lg, gap: 20 },
+  problemSectionWide: { flexDirection: "row", alignItems: "center", paddingHorizontal: 40, paddingVertical: 38, gap: 30 },
+  problemIcon: { width: 58, height: 58, borderRadius: 18, backgroundColor: palette.accentSoft, alignItems: "center", justifyContent: "center", alignSelf: "flex-start" },
+  problemCopy: { flex: 1 },
+  problemKicker: { color: palette.paper, opacity: 0.82 },
+  problemTitle: { maxWidth: 720, fontFamily: typography.serif, color: palette.paper, fontSize: 29, lineHeight: 35, fontWeight: "700" },
+  problemBody: { maxWidth: 720, color: palette.background, opacity: 0.78, fontSize: 15, lineHeight: 23, marginTop: 10 },
   section: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 20, paddingVertical: 58 },
+  howSection: { backgroundColor: palette.background, paddingTop: 76, paddingBottom: 96 },
+  howSteps: { width: "100%", maxWidth: 940, alignSelf: "center", gap: 76 },
+  howStep: { width: "100%", minHeight: 290, flexDirection: "row", alignItems: "center", gap: 56 },
+  howStepCompact: { minHeight: 220, gap: 36 },
+  howStepPhone: { minHeight: 180, gap: 20 },
+  howStepNarrow: { gap: 16 },
+  howStepVisual: { width: 330, height: 300, flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  howStepVisualCompact: { width: 230, height: 220 },
+  howStepVisualPhone: { width: 165, height: 175 },
+  howStepVisualNarrow: { width: 128, height: 145 },
+  howStepImage: { width: "100%", height: "100%" },
+  howStepCopy: { flex: 1, minWidth: 0, maxWidth: 510, justifyContent: "center", alignItems: "flex-start" },
+  howStepNumber: { color: palette.accentDark, fontSize: 11, lineHeight: 15, fontWeight: "900", letterSpacing: 2, marginBottom: 9 },
+  howStepTitle: { fontFamily: typography.serif, color: palette.ink, fontSize: 31, lineHeight: 38, fontWeight: "700" },
+  howStepTitlePhone: { fontSize: 27, lineHeight: 32 },
+  howStepTitleNarrow: { fontSize: 24, lineHeight: 29 },
+  howStepBody: { color: palette.textMuted, fontSize: 15, lineHeight: 24, marginTop: 9, maxWidth: 470 },
+  howStepBodyPhone: { fontSize: 14, lineHeight: 21 },
+  featuresSection: { maxWidth: "100%", backgroundColor: palette.surfaceMuted, paddingHorizontal: 20 },
+  pageGrid: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  pageCard: { width: "100%", minHeight: 200, backgroundColor: palette.paper, padding: 22, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, ...shadows.soft },
+  pageCardWide: { width: "31%", minWidth: 270, flexGrow: 1 },
+  pageCardHeading: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 19 },
+  pageCardIcon: { width: 52, height: 52, flexShrink: 0, borderRadius: 16, borderWidth: 1.5, borderColor: palette.borderStrong, alignItems: "center", justifyContent: "center" },
+  pageCardTitle: { flex: 1, minWidth: 0, fontFamily: typography.serif, color: palette.ink, fontSize: 23, lineHeight: 28, fontWeight: "700" },
+  pageCardBody: { color: palette.textMuted, fontSize: 14, lineHeight: 21, marginTop: 8 },
   previewSection: { paddingTop: 70 },
   sectionHeading: { maxWidth: 680, alignSelf: "center", alignItems: "center", marginBottom: 28 },
   sectionKicker: { color: palette.accentDark, fontSize: 12, fontWeight: "900", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 9 },
@@ -209,14 +315,6 @@ const styles = StyleSheet.create({
   previewNote: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, color: palette.textMuted, fontSize: 12, textAlign: "center", fontStyle: "italic" },
   previewFooter: { minHeight: 42, marginHorizontal: 12, marginTop: 5, paddingHorizontal: 10, borderTopWidth: 1, borderColor: palette.border, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6 },
   previewFooterText: { color: palette.textMuted, fontSize: 11, fontWeight: "700", textAlign: "center" },
-  featureGrid: { gap: 14 },
-  featureGridWide: { flexDirection: "row", alignItems: "stretch" },
-  featureCard: { flex: 1, minHeight: 230, backgroundColor: palette.paper, padding: 22, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, ...shadows.soft },
-  featureIcon: { width: 58, height: 58, borderRadius: 18, borderWidth: 1.5, borderColor: palette.borderStrong, alignItems: "center", justifyContent: "center", marginBottom: 20, position: "relative" },
-  numberBadge: { position: "absolute", right: -8, top: -8, width: 23, height: 23, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong },
-  numberText: { color: palette.ink, fontSize: 11, fontWeight: "900" },
-  featureTitle: { fontFamily: typography.serif, color: palette.ink, fontSize: 21, lineHeight: 25, fontWeight: "700" },
-  featureBody: { color: palette.textMuted, fontSize: 14, lineHeight: 21, marginTop: 9 },
   dataCard: { maxWidth: 920, backgroundColor: palette.accentSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, padding: 24, marginVertical: 46 },
   dataCardWide: { flexDirection: "row", alignItems: "center", gap: 26, paddingHorizontal: 34 },
   dataIcon: { width: 62, height: 62, borderRadius: 31, backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 18 },
