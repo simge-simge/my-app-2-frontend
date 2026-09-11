@@ -16,17 +16,17 @@ export default function LanguageSwitch({ style }: { style?: StyleProp<ViewStyle>
       onPress={() => setLanguage(isTurkish ? "en" : "tr")}
       style={({ pressed }) => [styles.container, style, pressed && styles.pressed]}
     >
-      <Text style={[styles.text, !isTurkish && styles.activeText]}>EN</Text>
-      <Text style={styles.separator}>|</Text>
       <Text style={[styles.text, isTurkish && styles.activeText]}>TR</Text>
+      <Text style={styles.separator}>/</Text>
+      <Text style={[styles.text, !isTurkish && styles.activeText]}>EN</Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { minWidth: 82, minHeight: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 5 },
+  container: { minWidth: 68, minHeight: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 2 },
   text: { color: palette.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.7, textAlign: "center" },
-  activeText: { color: palette.accentDark, fontWeight: "900", textDecorationLine: "underline" },
-  separator: { color: palette.borderStrong, fontSize: 12, opacity: 0.65 },
+  activeText: { color: palette.accentDark, fontWeight: "800" },
+  separator: { color: palette.textMuted, fontSize: 11, opacity: 0.55 },
   pressed: { opacity: 0.55 },
 })

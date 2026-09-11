@@ -14,6 +14,7 @@ import { layout, lightPalette as palette, radii, shadows, spacing, typography } 
 import { useTranslation } from "@/localization/LanguageContext"
 
 const heroArt = require("../assets/images/welcome-hero.png")
+const appIcon = require("../assets/images/icon.png")
 const howImages = {
   add: require("../assets/images/home_display/add_your_books.png"),
   discover: require("../assets/images/home_display/discover_nearby_reads.png"),
@@ -22,15 +23,23 @@ const howImages = {
 const previewRows = [HOME_PREVIEW_BOOKS.slice(0, 5), HOME_PREVIEW_BOOKS.slice(5)]
 
 export default function Index() {
-  const { t } = useTranslation()
-  const { width } = useWindowDimensions()
+  const { language, setLanguage, t } = useTranslation()
+  const { width, height } = useWindowDimensions()
   const scrollRef = useRef<ScrollView>(null)
   const [problemY, setProblemY] = useState(0)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const [mobileLanguageOpen, setMobileLanguageOpen] = useState(false)
   const isWide = width >= 800
-  const isHowCompact = width < 800
+  const isHowMobile = width < 768
+  const isHowTablet = width >= 768 && width < 1000
   const isPhone = width < 600
   const isNarrowPhone = width < 380
+  const mobileHeroStyle = isPhone
+    ? { minHeight: Math.max(0, height - 78), paddingBottom: Math.max(18, Math.min(30, Math.round(height * 0.035))) }
+    : undefined
+  const mobileArtStyle = isPhone
+    ? { height: Math.max(230, Math.min(390, Math.round(height * 0.42))) }
+    : undefined
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
@@ -53,27 +62,59 @@ export default function Index() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.topBar, isWide && styles.topBarWide, isPhone && styles.topBarPhone, isNarrowPhone && styles.topBarNarrow]}>
-          <View style={styles.brandRow} accessibilityRole="header">
-            <View style={styles.brandMark} />
-            <Text style={styles.brandName}>CommonShelf</Text>
+          <View style={[styles.brandRow, isPhone && styles.brandRowPhone, isNarrowPhone && styles.brandRowNarrow]} accessibilityRole="header">
+            <Image source={appIcon} style={[styles.brandIcon, isPhone && styles.brandIconPhone, isNarrowPhone && styles.brandIconNarrow]} resizeMode="contain" />
+            <Text style={[styles.brandName, isPhone && styles.brandNamePhone, isNarrowPhone && styles.brandNameNarrow]}>CommonShelf</Text>
           </View>
-          <View style={[styles.topActions, isPhone && styles.topActionsPhone, isNarrowPhone && styles.topActionsNarrow]}>
-            <LanguageSwitch />
-            <View style={styles.authLinks}>
-              <Pressable accessibilityRole="link" onPress={() => router.push("/login")} style={({ pressed }) => [styles.authLink, pressed && styles.pressed]}>
-                <Text style={styles.loginLinkText}>{t("login")}</Text>
-              </Pressable>
-              <Text style={styles.authSeparator} accessibilityElementsHidden>|</Text>
-              <Pressable accessibilityRole="link" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.authLink, pressed && styles.pressed]}>
-                <Text style={styles.signupLinkText}>{t("signupNow")}</Text>
+          {isPhone ? (
+            <View style={[styles.mobileHeaderActions, isNarrowPhone && styles.mobileHeaderActionsNarrow]}>
+              <View style={styles.mobileLanguageControl}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chooseLanguage")}
+                  accessibilityState={{ expanded: mobileLanguageOpen }}
+                  onPress={() => setMobileLanguageOpen((open) => !open)}
+                  style={({ pressed }) => [styles.mobileLanguageButton, isNarrowPhone && styles.mobileLanguageButtonNarrow, pressed && styles.pressed]}
+                >
+                  <Text style={[styles.mobileLanguageLabel, isNarrowPhone && styles.mobileControlTextNarrow]}>{language.toUpperCase()}</Text>
+                  <Ionicons name={mobileLanguageOpen ? "chevron-up" : "chevron-down"} size={12} color={palette.textMuted} />
+                </Pressable>
+                {mobileLanguageOpen ? (
+                  <View style={styles.mobileLanguageMenu}>
+                    {(["tr", "en"] as const).map((option) => (
+                      <Pressable
+                        key={option}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: language === option }}
+                        onPress={() => {
+                          setLanguage(option)
+                          setMobileLanguageOpen(false)
+                        }}
+                        style={({ pressed }) => [styles.mobileLanguageOption, language === option && styles.mobileLanguageOptionActive, pressed && styles.pressed]}
+                      >
+                        <Text style={[styles.mobileLanguageOptionText, language === option && styles.mobileLanguageOptionTextActive]}>{option.toUpperCase()}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+              <Pressable accessibilityRole="link" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.mobileSignupLink, pressed && styles.pressed]}>
+                <Text style={[styles.headerLinkText, styles.mobileSignupText, isNarrowPhone && styles.mobileControlTextNarrow]}>{t("signupNow")}</Text>
               </Pressable>
             </View>
-          </View>
+          ) : (
+            <View style={styles.topActions}>
+              <LanguageSwitch />
+              <Pressable accessibilityRole="link" onPress={() => router.push("/signup")} style={({ pressed }) => [styles.authLink, pressed && styles.pressed]}>
+                <Text style={styles.headerLinkText}>{t("signupNow")}</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
 
-        <View style={[styles.hero, isWide && styles.heroWide]}>
+        <View style={[styles.hero, isWide && styles.heroWide, isPhone && styles.heroPhone, mobileHeroStyle]}>
           <GentleEntrance style={[styles.copyColumn, isWide && styles.copyColumnWide]}>
-            <View style={styles.eyebrowRow}>
+            <View style={[styles.eyebrowRow, isPhone && styles.eyebrowRowPhone]}>
               <Ionicons name="book-outline" size={17} color={palette.accentDark} />
               <Text style={styles.eyebrow}>{t("publicEyebrow")}</Text>
             </View>
@@ -84,7 +125,7 @@ export default function Index() {
             </View>
           </GentleEntrance>
 
-          <GentleEntrance delay={110} style={[styles.artColumn, isWide && styles.artColumnWide]}>
+          <GentleEntrance delay={110} style={[styles.artColumn, isWide && styles.artColumnWide, isPhone && styles.artColumnPhone, mobileArtStyle]}>
             <View style={styles.artScene}>
               <View style={[styles.skyDot, styles.skyDotOne]} />
               <View style={[styles.skyDot, styles.skyDotTwo]} />
@@ -104,11 +145,7 @@ export default function Index() {
         </View>
 
         <View onLayout={(event) => setProblemY(event.nativeEvent.layout.y)} style={[styles.problemSection, isWide && styles.problemSectionWide]}>
-          <View style={styles.problemIcon}>
-            <Ionicons name="book-outline" size={27} color={palette.accentDark} />
-          </View>
           <View style={styles.problemCopy}>
-            <Text style={[styles.sectionKicker, styles.problemKicker]}>{t("problemKicker")}</Text>
             <Text accessibilityRole="header" style={styles.problemTitle}>{t("problemTitle")}</Text>
             <Text style={styles.problemBody}>{t("problemBody")}</Text>
           </View>
@@ -119,10 +156,10 @@ export default function Index() {
             <Text style={styles.sectionKicker}>{t("howItWorks")}</Text>
             <Text accessibilityRole="header" style={styles.sectionTitle}>{t("fromShelfToShare")}</Text>
           </View>
-          <View style={styles.howSteps}>
-            <HowStep number="01" image={howImages.add} title={t("howStepOneTitle")} body={t("howStepOneBody")} compact={isHowCompact} phone={isPhone} narrow={isNarrowPhone} />
-            <HowStep number="02" image={howImages.discover} title={t("howStepTwoTitle")} body={t("howStepTwoBody")} compact={isHowCompact} phone={isPhone} narrow={isNarrowPhone} />
-            <HowStep number="03" image={howImages.match} title={t("howStepThreeTitle")} body={t("howStepThreeBody")} compact={isHowCompact} phone={isPhone} narrow={isNarrowPhone} />
+          <View style={[styles.howSteps, isHowMobile && styles.howStepsMobile]}>
+            <HowStep number="01" image={howImages.add} title={t("howStepOneTitle")} body={t("howStepOneBody")} mobile={isHowMobile} tablet={isHowTablet} />
+            <HowStep number="02" image={howImages.discover} title={t("howStepTwoTitle")} body={t("howStepTwoBody")} mobile={isHowMobile} tablet={isHowTablet} />
+            <HowStep number="03" image={howImages.match} title={t("howStepThreeTitle")} body={t("howStepThreeBody")} mobile={isHowMobile} tablet={isHowTablet} />
           </View>
         </View>
 
@@ -195,16 +232,16 @@ export default function Index() {
   )
 }
 
-function HowStep({ number, image, title, body, compact, phone, narrow }: { number: string; image: ImageSourcePropType; title: string; body: string; compact: boolean; phone: boolean; narrow: boolean }) {
+function HowStep({ number, image, title, body, mobile, tablet }: { number: string; image: ImageSourcePropType; title: string; body: string; mobile: boolean; tablet: boolean }) {
   return (
-    <View style={[styles.howStep, compact && styles.howStepCompact, phone && styles.howStepPhone, narrow && styles.howStepNarrow]}>
-      <View style={[styles.howStepVisual, compact && styles.howStepVisualCompact, phone && styles.howStepVisualPhone, narrow && styles.howStepVisualNarrow]}>
+    <View style={[styles.howStep, tablet && styles.howStepTablet, mobile && styles.howStepMobile]}>
+      <View style={[styles.howStepVisual, tablet && styles.howStepVisualTablet, mobile && styles.howStepVisualMobile]}>
         <Image source={image} style={styles.howStepImage} resizeMode="contain" accessibilityLabel={title} />
       </View>
-      <View style={styles.howStepCopy}>
+      <View style={[styles.howStepCopy, mobile && styles.howStepCopyMobile]}>
         <Text style={styles.howStepNumber}>{number}</Text>
-        <Text accessibilityRole="header" style={[styles.howStepTitle, phone && styles.howStepTitlePhone, narrow && styles.howStepTitleNarrow]}>{title}</Text>
-        <Text style={[styles.howStepBody, phone && styles.howStepBodyPhone]}>{body}</Text>
+        <Text accessibilityRole="header" style={[styles.howStepTitle, mobile && styles.howStepTitleMobile]}>{title}</Text>
+        <Text style={styles.howStepBody}>{body}</Text>
       </View>
     </View>
   )
@@ -227,27 +264,44 @@ function PageCard({ icon, title, body, color, isWide }: { icon: keyof typeof Ion
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.background },
   page: { flexGrow: 1, paddingBottom: 28 },
-  topBar: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", minHeight: 72, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 4 },
+  topBar: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", minHeight: 72, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.lg },
   topBarWide: { minHeight: 84 },
-  topBarPhone: { minHeight: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10, alignItems: "stretch", flexDirection: "column", gap: 10 },
-  topBarNarrow: { minHeight: 104, position: "relative" },
+  topBarPhone: { minHeight: 78, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6, zIndex: 10 },
+  topBarNarrow: { paddingHorizontal: 10, paddingVertical: 8, flexWrap: "wrap", rowGap: spacing.xs },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  brandMark: { width: 15, height: 22, borderRadius: 4, backgroundColor: palette.orange, borderWidth: 1.5, borderColor: palette.borderStrong, transform: [{ rotate: "-6deg" }] },
+  brandRowPhone: { gap: 9 },
+  brandRowNarrow: { gap: spacing.sm },
+  brandIcon: { width: 34, height: 34 },
+  brandIconPhone: { width: 27, height: 27 },
+  brandIconNarrow: { width: 24, height: 24 },
   brandName: { fontFamily: typography.serif, fontSize: 18, fontWeight: "800", color: palette.ink },
-  topActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  topActionsPhone: { width: "100%", alignSelf: "stretch", justifyContent: "space-between", flexWrap: "wrap", gap: 4 },
-  topActionsNarrow: { position: "absolute", width: "auto", right: 20, top: 8, flexDirection: "column", alignItems: "flex-end", justifyContent: "flex-start", gap: 0 },
-  authLinks: { flexDirection: "row", alignItems: "center" },
-  authLink: { minHeight: 44, justifyContent: "center", paddingHorizontal: 7 },
-  authSeparator: { color: palette.borderStrong, fontSize: 14 },
-  loginLinkText: { color: palette.ink, fontSize: 13, fontWeight: "800" },
-  signupLinkText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
+  brandNamePhone: { fontSize: 21, fontWeight: "700" },
+  brandNameNarrow: { fontSize: 19 },
+  topActions: { flexDirection: "row", alignItems: "center", gap: spacing.xl },
+  authLink: { minHeight: 44, justifyContent: "center", paddingHorizontal: 2 },
+  headerLinkText: { color: palette.textMuted, fontSize: 13, fontWeight: "700" },
+  mobileHeaderActions: { marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 6 },
+  mobileHeaderActionsNarrow: { gap: spacing.xs },
+  mobileSignupLink: { minHeight: 36, justifyContent: "center", paddingHorizontal: 12, backgroundColor: palette.accent, borderWidth: 1, borderColor: palette.accentDark, borderRadius: radii.round },
+  mobileSignupText: { color: palette.paper, fontWeight: "800" },
+  mobileLanguageControl: { position: "relative", zIndex: 20 },
+  mobileLanguageButton: { minWidth: 42, minHeight: 40, paddingHorizontal: 5, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 2, borderRadius: radii.sm },
+  mobileLanguageButtonNarrow: { minWidth: 36, paddingHorizontal: 2 },
+  mobileLanguageLabel: { color: palette.textMuted, fontSize: 12, fontWeight: "800", letterSpacing: 0.4 },
+  mobileLanguageMenu: { position: "absolute", top: 40, right: 0, width: 58, paddingVertical: 4, overflow: "hidden", backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.border, borderRadius: radii.sm, shadowColor: palette.ink, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 3 },
+  mobileLanguageOption: { minHeight: 36, alignItems: "center", justifyContent: "center" },
+  mobileLanguageOptionActive: { backgroundColor: palette.accentSoft },
+  mobileLanguageOptionText: { color: palette.textMuted, fontSize: 12, fontWeight: "700" },
+  mobileLanguageOptionTextActive: { color: palette.accentDark, fontWeight: "900" },
+  mobileControlTextNarrow: { fontSize: 11 },
   pressed: { opacity: 0.65 },
   hero: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 20, paddingTop: 26, paddingBottom: 64 },
   heroWide: { minHeight: 610, flexDirection: "row", alignItems: "center", gap: 64, paddingTop: 18, paddingBottom: 72 },
+  heroPhone: { paddingTop: 28 },
   copyColumn: { width: "100%", maxWidth: 540, alignSelf: "center" },
   copyColumnWide: { flex: 0.95 },
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.md },
+  eyebrowRowPhone: { marginBottom: spacing.sm },
   eyebrow: { fontSize: 12, fontWeight: "800", color: palette.accentDark, textTransform: "uppercase", letterSpacing: 1.4 },
   title: { fontFamily: typography.serif, fontSize: 48, lineHeight: 52, fontWeight: "700", color: palette.ink, maxWidth: 530 },
   mobileTitle: { fontSize: 38, lineHeight: 42 },
@@ -259,6 +313,7 @@ const styles = StyleSheet.create({
   exploreCueText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
   artColumn: { width: "100%", height: 380, alignItems: "stretch", marginTop: 24 },
   artColumnWide: { flex: 1.05, height: 550, marginTop: 0 },
+  artColumnPhone: { minHeight: 0, marginTop: "auto" },
   artScene: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
   artHalo: { position: "absolute", height: "88%", aspectRatio: 1, maxWidth: 490, borderRadius: 999, backgroundColor: palette.yellow, opacity: 0.46, transform: [{ rotate: "-5deg" }] },
   heroArt: { width: "100%", height: "100%", zIndex: 2 },
@@ -268,30 +323,26 @@ const styles = StyleSheet.create({
   scribble: { position: "absolute", bottom: 18, width: "62%", height: 6, borderRadius: 99, backgroundColor: palette.green, opacity: 0.7, transform: [{ rotate: "-2deg" }] },
   problemSection: { width: "90%", maxWidth: 920, alignSelf: "center", marginVertical: 34, paddingHorizontal: 24, paddingVertical: 30, backgroundColor: palette.accentDark, borderRadius: radii.lg, gap: 20 },
   problemSectionWide: { flexDirection: "row", alignItems: "center", paddingHorizontal: 40, paddingVertical: 38, gap: 30 },
-  problemIcon: { width: 58, height: 58, borderRadius: 18, backgroundColor: palette.accentSoft, alignItems: "center", justifyContent: "center", alignSelf: "flex-start" },
   problemCopy: { flex: 1 },
-  problemKicker: { color: palette.paper, opacity: 0.82 },
   problemTitle: { maxWidth: 720, fontFamily: typography.serif, color: palette.paper, fontSize: 29, lineHeight: 35, fontWeight: "700" },
   problemBody: { maxWidth: 720, color: palette.background, opacity: 0.78, fontSize: 15, lineHeight: 23, marginTop: 10 },
   section: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 20, paddingVertical: 58 },
   howSection: { backgroundColor: palette.background, paddingTop: 32, paddingBottom: 72 },
   howSteps: { width: "100%", maxWidth: 940, alignSelf: "center", gap: 44 },
-  howStep: { width: "100%", minHeight: 290, flexDirection: "row", alignItems: "center", gap: 56 },
-  howStepCompact: { minHeight: 220, gap: 36 },
-  howStepPhone: { minHeight: 180, gap: 20 },
-  howStepNarrow: { gap: 16 },
-  howStepVisual: { width: 330, height: 300, flexShrink: 0, alignItems: "center", justifyContent: "center" },
-  howStepVisualCompact: { width: 230, height: 220 },
-  howStepVisualPhone: { width: 165, height: 175 },
-  howStepVisualNarrow: { width: 128, height: 145 },
+  howStepsMobile: { gap: 6 },
+  howStep: { width: "100%", minHeight: 380, flexDirection: "row", alignItems: "center", gap: 56 },
+  howStepTablet: { gap: 32 },
+  howStepMobile: { minHeight: 0, flexDirection: "column", alignItems: "stretch", gap: 22 },
+  howStepVisual: { width: "44%", maxWidth: 420, aspectRatio: 1, flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  howStepVisualTablet: { width: "44%", maxWidth: 360 },
+  howStepVisualMobile: { width: "100%", maxWidth: 520, alignSelf: "center" },
   howStepImage: { width: "100%", height: "100%" },
   howStepCopy: { flex: 1, minWidth: 0, maxWidth: 510, justifyContent: "center", alignItems: "flex-start" },
+  howStepCopyMobile: { flex: 0, width: "100%", maxWidth: 600, alignSelf: "center" },
   howStepNumber: { color: palette.accentDark, fontSize: 11, lineHeight: 15, fontWeight: "900", letterSpacing: 2, marginBottom: 9 },
   howStepTitle: { fontFamily: typography.serif, color: palette.ink, fontSize: 31, lineHeight: 38, fontWeight: "700" },
-  howStepTitlePhone: { fontSize: 27, lineHeight: 32 },
-  howStepTitleNarrow: { fontSize: 24, lineHeight: 29 },
+  howStepTitleMobile: { fontSize: 27, lineHeight: 32 },
   howStepBody: { color: palette.textMuted, fontSize: 15, lineHeight: 24, marginTop: 9, maxWidth: 470 },
-  howStepBodyPhone: { fontSize: 14, lineHeight: 21 },
   featuresSection: { maxWidth: "100%", backgroundColor: palette.surfaceMuted, paddingHorizontal: 20 },
   pageGrid: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", flexDirection: "row", flexWrap: "wrap", gap: 14 },
   pageCard: { width: "100%", minHeight: 200, backgroundColor: palette.paper, padding: 22, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, ...shadows.soft },
