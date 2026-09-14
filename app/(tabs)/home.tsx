@@ -23,6 +23,7 @@ import { getBookFeed, type Book } from "@/services/books"
 import { getInbox, type InboxResponse } from "@/services/inbox"
 import { getProfile, type Profile } from "@/services/profile"
 import { useTranslation } from "@/localization/LanguageContext"
+import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
 export default function Home() {
   const { t } = useTranslation()
@@ -48,12 +49,39 @@ export default function Home() {
   })
   const [booksError, setBooksError] = useState<string | null>(null)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const inboxUpdatePending = useRef(false)
+  const inboxRefreshGeneration = useRef(0)
+
+  const refreshInbox = useCallback((forceRefresh = false) => {
+    const refreshGeneration = ++inboxRefreshGeneration.current
+    void getInbox(forceRefresh)
+      .then((inbox) => {
+        if (!inboxUpdatePending.current && refreshGeneration === inboxRefreshGeneration.current) {
+          setUnreadCount(inbox.unread_count)
+        }
+      })
+      .catch((error) => console.error("Failed to load inbox summary", error))
+  }, [])
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion)
     return () => subscription.remove()
   }, [])
+
+  useEffect(() => subscribeToBackgroundActions((update) => {
+    if (update.event !== "inbox-unread-count") return
+
+    if (update.status === "pending" && typeof update.optimisticResult === "number") {
+      inboxUpdatePending.current = true
+      inboxRefreshGeneration.current += 1
+      setUnreadCount(update.optimisticResult)
+      return
+    }
+
+    inboxUpdatePending.current = false
+    refreshInbox(true)
+  }), [refreshInbox])
 
   const loadBooks = useCallback(async (currentProfile: Profile) => {
     setBooksLoading(true)
@@ -96,14 +124,12 @@ export default function Home() {
     setProfile(nextProfile)
     setProfileLoading(false)
     await loadBooks(nextProfile)
-    void getInbox()
-      .then((inbox) => setUnreadCount(inbox.unread_count))
-      .catch((error) => console.error("Failed to load inbox summary", error))
   }, [loadBooks])
 
   useFocusEffect(useCallback(() => {
-    loadHome()
-  }, [loadHome]))
+    refreshInbox()
+    void loadHome()
+  }, [loadHome, refreshInbox]))
 
   const hasCommunity = Boolean(profile?.community_id)
   const communityName = profile?.community_name || "your community"
@@ -238,7 +264,6 @@ export default function Home() {
               </View>
             ) : (
               <View style={styles.previewScene}>
-                <Text style={styles.previewNote}>{t("previewBooks")}</Text>
                 <LandingBookRail
                   books={previewRows[0]}
                   coverSources={HOME_PREVIEW_COVERS}
@@ -437,7 +462,6 @@ const styles = StyleSheet.create({
   shelfLine: { height: 9, marginTop: 4, marginHorizontal: 10, borderTopWidth: 2, borderColor: palette.borderStrong, backgroundColor: palette.orangeSoft, borderBottomLeftRadius: 5, borderBottomRightRadius: 5 },
   shelfHint: { textAlign: "center", color: palette.textMuted, fontSize: 11, paddingVertical: 9, fontStyle: "italic" },
   previewScene: { backgroundColor: palette.roseSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, overflow: "hidden", paddingVertical: 9, ...shadows.soft },
-  previewNote: { paddingHorizontal: 14, paddingVertical: 5, color: palette.textMuted, fontSize: 11, fontStyle: "italic" },
   previewFooter: { minHeight: 38, marginHorizontal: 10, marginTop: 3, paddingHorizontal: 10, borderTopWidth: 1, borderColor: palette.border, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6 },
   previewFooterText: { color: palette.textMuted, fontSize: 10, fontWeight: "700" },
   fullState: { flex: 1, width: "100%", maxWidth: "100%", minWidth: 0, overflow: "hidden", alignItems: "center", justifyContent: "center", gap: 10, padding: 26, backgroundColor: palette.background },

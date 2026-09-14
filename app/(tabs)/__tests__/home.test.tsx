@@ -6,6 +6,7 @@ import { getInbox } from "@/services/inbox"
 import { getMatches } from "@/services/matches"
 import { getProfile, type Profile } from "@/services/profile"
 import { book } from "@/test/factories"
+import { runInBackground } from "@/utils/backgroundAction"
 
 jest.mock("@/services/api", () => ({ getCachedApiData: jest.fn(() => undefined) }))
 jest.mock("@/services/books", () => ({
@@ -36,7 +37,7 @@ const profile: Profile = {
 }
 
 describe("home performance flow", () => {
-  it("renders profile before loading the inbox badge and skips ineffective prefetches", async () => {
+  it("loads the inbox badge without waiting for the book feed and skips ineffective prefetches", async () => {
     let finishFeed!: (books: ReturnType<typeof book>[]) => void
     jest.mocked(getProfile).mockResolvedValue(profile)
     jest.mocked(getBookFeed).mockImplementation(() => new Promise((resolve) => {
@@ -52,15 +53,38 @@ describe("home performance flow", () => {
     render(<Home />)
 
     expect(await screen.findByText("Hello, Ada")).toBeVisible()
-    expect(getInbox).not.toHaveBeenCalled()
+    expect(getInbox).toHaveBeenCalledTimes(1)
     expect(getMyBooks).not.toHaveBeenCalled()
     expect(getMatches).not.toHaveBeenCalled()
 
     await waitFor(() => expect(finishFeed).toBeDefined())
     await act(async () => { finishFeed([book()]) })
-    await waitFor(() => expect(getInbox).toHaveBeenCalledTimes(1))
     expect(getMyBooks).not.toHaveBeenCalled()
     expect(getMatches).not.toHaveBeenCalled()
+  })
+
+  it("updates the badge immediately from an optimistic inbox action", async () => {
+    let finishUpdate!: () => void
+    jest.mocked(getProfile).mockResolvedValue(profile)
+    jest.mocked(getBookFeed).mockResolvedValue([])
+    jest.mocked(getInbox)
+      .mockResolvedValueOnce({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 3 })
+      .mockResolvedValue({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 0 })
+
+    render(<Home />)
+    expect(await screen.findByText("3")).toBeVisible()
+
+    act(() => {
+      runInBackground(() => new Promise<void>((resolve) => { finishUpdate = resolve }), {
+        event: "inbox-unread-count",
+        optimisticResult: 0,
+        onError: jest.fn(),
+      })
+    })
+
+    await waitFor(() => expect(screen.queryByText("3")).toBeNull())
+    await act(async () => { finishUpdate() })
+    await waitFor(() => expect(getInbox).toHaveBeenCalledWith(true))
   })
 
   it("shows the local bilingual preview without searching for books", async () => {

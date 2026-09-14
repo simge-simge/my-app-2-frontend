@@ -101,6 +101,10 @@ export default function InboxScreen() {
     if (!notification.read_at) {
       setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item))
       runInBackground(() => markNotificationRead(notification.id), {
+        event: "inbox-unread-count",
+        optimisticResult: Math.max(0, notifications.filter((item) => !item.read_at).length - 1)
+          + requests.length
+          + borrowRequests.filter((item) => item.status === "pending").length,
         onError: (err) => {
           setNotifications((items) => items.map((item) => item.id === notification.id ? notification : item))
           console.error("Failed to mark notification read", err)
@@ -125,6 +129,8 @@ export default function InboxScreen() {
     const readAt = new Date().toISOString()
     setNotifications((items) => items.map((item) => ({ ...item, read_at: item.read_at ?? readAt })))
     runInBackground(markAllNotificationsRead, {
+      event: "inbox-unread-count",
+      optimisticResult: requests.length + borrowRequests.filter((item) => item.status === "pending").length,
       onError: (err) => {
         setNotifications(previous)
         console.error("Failed to mark inbox read", err)

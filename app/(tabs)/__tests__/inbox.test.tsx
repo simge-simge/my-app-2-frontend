@@ -3,8 +3,9 @@ import { router } from "expo-router"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import InboxScreen from "../inbox"
-import { decideBorrowRequest, getInbox } from "@/services/inbox"
+import { decideBorrowRequest, getInbox, markAllNotificationsRead } from "@/services/inbox"
 import type { BookBorrowRequest, InboxNotification, InboxResponse } from "@/services/inbox"
+import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
 jest.mock("@/services/api", () => ({ getCachedApiData: jest.fn(() => undefined) }))
 jest.mock("@/services/inbox", () => ({
@@ -76,5 +77,39 @@ describe("borrow request inbox history", () => {
 
     await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith("commonshelf.shelf-scan-job", "scan-1"))
     expect(router.push).toHaveBeenCalledWith("/books/shelf-scan")
+  })
+
+  it("publishes the new unread count immediately when all notifications are marked read", async () => {
+    let finishUpdate!: (result: { updated: number }) => void
+    const listener = jest.fn()
+    const unsubscribe = subscribeToBackgroundActions(listener)
+    jest.mocked(getInbox).mockResolvedValue(inbox([], [{
+      id: "notification-1",
+      type: "match_deleted",
+      title: "Match deleted",
+      message: "A match was deleted.",
+      metadata: {},
+      read_at: null,
+      created_at: "2026-01-03T12:00:00Z",
+    }]))
+    jest.mocked(markAllNotificationsRead).mockImplementation(() => new Promise((resolve) => {
+      finishUpdate = resolve
+    }))
+
+    render(<InboxScreen />)
+    fireEvent.press(await screen.findByText("Mark all read"))
+
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      event: "inbox-unread-count",
+      status: "pending",
+      optimisticResult: 0,
+    }))
+    await waitFor(() => expect(finishUpdate).toBeDefined())
+    finishUpdate({ updated: 1 })
+    await waitFor(() => expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      event: "inbox-unread-count",
+      status: "completed",
+    })))
+    unsubscribe()
   })
 })
