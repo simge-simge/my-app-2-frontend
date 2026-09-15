@@ -18,7 +18,7 @@ describe("match details", () => {
     jest.mocked(getMatch).mockResolvedValue(match())
   })
 
-  it("deletes only after confirmation and navigates after deletion finishes", async () => {
+  it("deletes only after confirmation and navigates immediately", async () => {
     let finishDelete!: () => void
     jest.mocked(deleteMatch).mockReturnValue(new Promise<{ message: string }>((resolve) => {
       finishDelete = () => resolve({ message: "Match deleted" })
@@ -26,23 +26,22 @@ describe("match details", () => {
 
     render(<MatchDetailScreen />)
 
-    const deleteButton = await screen.findByRole("button", { name: "Delete match" })
+    const deleteButton = await screen.findByLabelText("Delete match")
     fireEvent.press(deleteButton)
 
     expect(deleteMatch).not.toHaveBeenCalled()
     fireEvent.press(screen.getByRole("button", { name: "Delete" }))
 
-    expect(deleteMatch).toHaveBeenCalledWith(match().match_id)
-    expect(router.replace).not.toHaveBeenCalled()
+    expect(router.replace).toHaveBeenCalledWith("/matches")
+    await waitFor(() => expect(deleteMatch).toHaveBeenCalledWith(match().match_id))
 
     await act(async () => { finishDelete() })
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/matches"))
   })
 
   it("cancels deletion from the confirmation dialog", async () => {
     render(<MatchDetailScreen />)
 
-    fireEvent.press(await screen.findByRole("button", { name: "Delete match" }))
+    fireEvent.press(await screen.findByLabelText("Delete match"))
     fireEvent.press(screen.getByRole("button", { name: "Cancel" }))
 
     expect(deleteMatch).not.toHaveBeenCalled()

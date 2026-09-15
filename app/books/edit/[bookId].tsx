@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { Alert } from "react-native"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import type { ImagePickerAsset } from "expo-image-picker"
@@ -22,12 +22,13 @@ export default function EditBookScreen() {
   const cachePath = bookId ? `/books/${bookId}` : ""
   const cachedBook = getCachedApiData<Book>(cachePath)
   const [book, setBook] = useState<Book | null>(() => cachedBook ?? null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => cachedBook === undefined)
+  const hasLoaded = useRef(cachedBook !== undefined)
 
   const loadBook = useCallback(async () => {
     if (!bookId) return
     try {
-      setLoading(true)
+      if (!hasLoaded.current) setLoading(true)
       const [{ data }, response] = await Promise.all([
         supabase.auth.getSession(),
         getBook(bookId),
@@ -38,11 +39,13 @@ export default function EditBookScreen() {
         return
       }
       setBook(response)
+      hasLoaded.current = true
     } catch (err) {
       console.error("Failed to load book editor", err)
       Alert.alert(t("error"), t("selectedBookLoadError"))
-      router.back()
+      if (!hasLoaded.current) router.back()
     } finally {
+      hasLoaded.current = true
       setLoading(false)
     }
   }, [bookId, t])
@@ -54,6 +57,14 @@ export default function EditBookScreen() {
     coverAsset: ImagePickerAsset | null,
   ) => {
     if (!bookId || !book) return
+    const optimisticBook: Book = {
+      ...book,
+      title: values.title,
+      author: values.author || null,
+      description: values.description || null,
+      cover_url: coverAsset?.uri ?? values.cover_url,
+      isbn: values.isbn || null,
+    }
     router.back()
     runInBackground(async () => {
       const coverUrl = coverAsset ? await uploadBookCover(coverAsset) : values.cover_url
@@ -65,7 +76,8 @@ export default function EditBookScreen() {
         isbn: values.isbn || null,
       })
     }, {
-      event: "books",
+      event: "book-updated",
+      optimisticResult: { book: optimisticBook, previous: book },
       onError: (err) => {
         console.error("Failed to update book", err)
         Alert.alert(t("changesNotSaved"), err instanceof Error ? err.message : t("updateBookError"))
@@ -74,10 +86,11 @@ export default function EditBookScreen() {
   }
 
   const handleDelete = () => {
-    if (!bookId) return
+    if (!bookId || !book) return
     router.replace("/library")
     runInBackground(() => deleteBook(bookId), {
-      event: "books",
+      event: "book-deleted",
+      optimisticResult: { book },
       onError: (err) => {
         console.error("Failed to delete book", err)
         Alert.alert(t("bookNotDeleted"), err instanceof Error ? err.message : t("couldNotDeleteBook"))

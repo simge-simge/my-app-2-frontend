@@ -23,6 +23,8 @@ import { getBookFeed, type Book } from "@/services/books"
 import { getProfile, type Profile } from "@/services/profile"
 import { createSwipe, type SwipeDirection } from "@/services/swipes"
 
+type FeedOutcome = { books: Book[] } | { error: unknown }
+
 const SWIPE_THRESHOLD = 120
 const SWIPE_OUT_DURATION = 170
 const STACK_SIZE = 3
@@ -34,6 +36,7 @@ export default function Explore() {
   const [books, setBooks] = useState<Book[]>(() => cachedProfile?.community_id ? cachedBooks ?? [] : [])
   const [hasCommunity, setHasCommunity] = useState<boolean | null>(() => cachedProfile ? Boolean(cachedProfile.community_id) : null)
   const [loading, setLoading] = useState(() => !cachedProfile || Boolean(cachedProfile.community_id && cachedBooks === undefined))
+  const profileRef = useRef<Profile | null>(cachedProfile ?? null)
   const hasLoaded = useRef(Boolean(cachedProfile && (!cachedProfile.community_id || cachedBooks !== undefined)))
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,10 +64,15 @@ export default function Explore() {
 
   const loadExplore = useCallback(async (showLoader = false) => {
     if (showLoader && !hasLoaded.current) setLoading(true)
+    const knownCommunityId = profileRef.current?.community_id
+    const pendingFeed: Promise<FeedOutcome> | undefined = knownCommunityId
+      ? getBookFeed().then((books) => ({ books }), (error) => ({ error }))
+      : undefined
 
     try {
       setError(null)
       const profile = await getProfile()
+      profileRef.current = profile
       const isCommunityMember = Boolean(profile.community_id)
       setHasCommunity(isCommunityMember)
 
@@ -78,7 +86,11 @@ export default function Explore() {
         return
       }
 
-      const response = await getBookFeed()
+      const feedOutcome = knownCommunityId === profile.community_id && pendingFeed
+        ? await pendingFeed
+        : { books: await getBookFeed() }
+      if ("error" in feedOutcome) throw feedOutcome.error
+      const response = feedOutcome.books
       setBooks(response)
       setCurrentIndex(0)
       setIsAnimatingSwipe(false)

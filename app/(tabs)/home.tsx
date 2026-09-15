@@ -25,6 +25,8 @@ import { getProfile, type Profile } from "@/services/profile"
 import { useTranslation } from "@/localization/LanguageContext"
 import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
+type FeedOutcome = { books: Book[] } | { error: unknown }
+
 export default function Home() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -49,6 +51,9 @@ export default function Home() {
   })
   const [booksError, setBooksError] = useState<string | null>(null)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const booksScope = useRef<string | null>(cachedProfile ? cachedProfile.community_id ?? "preview" : null)
+  const booksHaveLoaded = useRef(Boolean(cachedProfile && (!cachedProfile.community_id || cachedFeed !== undefined)))
+  const booksRefreshGeneration = useRef(0)
   const inboxUpdatePending = useRef(false)
   const inboxRefreshGeneration = useRef(0)
 
@@ -83,32 +88,52 @@ export default function Home() {
     refreshInbox(true)
   }), [refreshInbox])
 
-  const loadBooks = useCallback(async (currentProfile: Profile) => {
-    setBooksLoading(true)
+  const loadBooks = useCallback(async (currentProfile: Profile, pendingFeed?: Promise<FeedOutcome>) => {
+    const nextScope = currentProfile.community_id ?? "preview"
+    const refreshGeneration = ++booksRefreshGeneration.current
+    const hasCurrentSnapshot = booksHaveLoaded.current && booksScope.current === nextScope
+
+    if (!hasCurrentSnapshot) {
+      if (booksScope.current !== nextScope) setBooks([])
+      booksScope.current = nextScope
+      booksHaveLoaded.current = false
+      setBooksLoading(true)
+    }
     setBooksError(null)
 
     try {
+      let nextBooks = HOME_PREVIEW_BOOKS
       if (currentProfile.community_id) {
-        setBooks(await getBookFeed())
-      } else {
-        setBooks(HOME_PREVIEW_BOOKS)
+        const feedOutcome = pendingFeed ? await pendingFeed : { books: await getBookFeed() }
+        if ("error" in feedOutcome) throw feedOutcome.error
+        nextBooks = feedOutcome.books
       }
+      if (refreshGeneration !== booksRefreshGeneration.current) return
+
+      booksScope.current = nextScope
+      booksHaveLoaded.current = true
+      setBooks(nextBooks)
     } catch (error) {
+      if (refreshGeneration !== booksRefreshGeneration.current) return
       console.error("Failed to load landing-page books", error)
-      setBooks([])
+      if (!hasCurrentSnapshot) setBooks([])
       setBooksError(
         currentProfile.community_id
           ? "We couldn’t open your community shelf right now."
           : "We couldn’t open the community preview right now.",
       )
     } finally {
-      setBooksLoading(false)
+      if (refreshGeneration === booksRefreshGeneration.current) setBooksLoading(false)
     }
   }, [])
 
   const loadHome = useCallback(async () => {
     if (!profileRef.current) setProfileLoading(true)
     setProfileError(null)
+    const knownCommunityId = profileRef.current?.community_id
+    const pendingFeed: Promise<FeedOutcome> | undefined = knownCommunityId
+      ? getBookFeed().then((books) => ({ books }), (error) => ({ error }))
+      : undefined
 
     let nextProfile: Profile
     try {
@@ -123,7 +148,10 @@ export default function Home() {
     profileRef.current = nextProfile
     setProfile(nextProfile)
     setProfileLoading(false)
-    await loadBooks(nextProfile)
+    await loadBooks(
+      nextProfile,
+      knownCommunityId === nextProfile.community_id ? pendingFeed : undefined,
+    )
   }, [loadBooks])
 
   useFocusEffect(useCallback(() => {
@@ -224,9 +252,10 @@ export default function Home() {
               ) : null}
             </View>
 
+            {booksError && books.length > 0 ? <Text style={styles.shelfRefreshError}>{booksError}</Text> : null}
             {booksLoading ? (
               <BookPreviewLoading />
-            ) : booksError ? (
+            ) : booksError && books.length === 0 ? (
               <ShelfState
                 icon="cloud-offline-outline"
                 title="The shelf won’t open just yet."
@@ -456,6 +485,7 @@ const styles = StyleSheet.create({
   sectionHeadingCopy: { flex: 1, minWidth: 0 },
   sectionEyebrow: { color: palette.orange, fontSize: 10, fontWeight: "900", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 3 },
   sectionTitle: { fontFamily: typography.serif, color: palette.ink, fontSize: 21, lineHeight: 26, fontWeight: "700" },
+  shelfRefreshError: { marginBottom: 9, color: palette.danger, fontSize: 12 },
   textLink: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 4 },
   textLinkLabel: { color: palette.accentDark, fontSize: 12, fontWeight: "800", textDecorationLine: "underline" },
   railPaper: { backgroundColor: palette.blueSoft, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, overflow: "hidden", paddingTop: 13, ...shadows.soft },

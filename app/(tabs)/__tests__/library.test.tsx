@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native"
 import { router } from "expo-router"
-import { Image } from "react-native"
+import { Image } from "expo-image"
 
 import Library from "../library"
 import { getMyBooks } from "@/services/books"
@@ -92,6 +92,26 @@ describe("library", () => {
     expect(getMyBooks).toHaveBeenCalledTimes(1)
   })
 
+  it("shows a published shelf-import batch to a late subscriber", async () => {
+    let finishCleanup!: (books: ReturnType<typeof book>[]) => void
+    const importedBooks = [
+      book({ id: "imported-piranesi", title: "Piranesi" }),
+      book({ id: "imported-earthsea", title: "Earthsea" }),
+    ]
+    runInBackground(() => new Promise((resolve) => { finishCleanup = resolve }), {
+      event: "books",
+      optimisticResult: importedBooks,
+      onError: jest.fn(),
+    })
+    jest.mocked(getMyBooks).mockResolvedValue([])
+
+    render(<Library />)
+
+    expect(await screen.findByText("Piranesi")).toBeVisible()
+    expect(screen.getByText("Earthsea")).toBeVisible()
+    await act(async () => { finishCleanup(importedBooks) })
+  })
+
   it("shows an optimistic book immediately and keeps it visually stable after saving", async () => {
     jest.mocked(getMyBooks).mockResolvedValue([])
     render(<Library />)
@@ -120,5 +140,41 @@ describe("library", () => {
     expect(screen.UNSAFE_getByType(Image).props.source).toEqual({ uri: "file:///local-cover.jpg" })
     expect(screen.getAllByLabelText("Saving Book by Ursula K. Le Guin")).toHaveLength(1)
     expect(getMyBooks).toHaveBeenCalledTimes(1)
+  })
+
+  it("rolls back optimistic edits and deletes when persistence fails", async () => {
+    const originalBook = book({ id: "rollback-book", title: "Original Title" })
+    const editedBook = { ...originalBook, title: "Edited Title" }
+    jest.mocked(getMyBooks).mockResolvedValue([originalBook])
+    render(<Library />)
+    expect(await screen.findByText("Original Title")).toBeVisible()
+
+    let failEdit!: (error: Error) => void
+    const editRequest = new Promise<never>((_, reject) => { failEdit = reject })
+    act(() => {
+      runInBackground(() => editRequest, {
+        event: "book-updated",
+        optimisticResult: { book: editedBook, previous: originalBook },
+        onError: jest.fn(),
+      })
+    })
+    expect(screen.getByText("Edited Title")).toBeVisible()
+
+    await act(async () => { failEdit(new Error("offline")) })
+    expect(await screen.findByText("Original Title")).toBeVisible()
+
+    let failDelete!: (error: Error) => void
+    const deleteRequest = new Promise<never>((_, reject) => { failDelete = reject })
+    act(() => {
+      runInBackground(() => deleteRequest, {
+        event: "book-deleted",
+        optimisticResult: { book: originalBook, index: 0 },
+        onError: jest.fn(),
+      })
+    })
+    expect(screen.queryByText("Original Title")).toBeNull()
+
+    await act(async () => { failDelete(new Error("offline")) })
+    expect(await screen.findByText("Original Title")).toBeVisible()
   })
 })

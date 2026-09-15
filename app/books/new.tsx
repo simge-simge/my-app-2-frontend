@@ -11,8 +11,9 @@ import type { ImagePickerAsset } from "expo-image-picker"
 import BookForm, { type BookFormValues } from "@/components/BookForm"
 import IsbnCameraScanner from "@/components/IsbnCameraScanner"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
-import { createBook, lookupBookByIsbn, uploadBookCover, type IsbnBookLookup } from "@/services/books"
+import { createBook, lookupBookByIsbn, uploadBookCover, type Book, type IsbnBookLookup } from "@/services/books"
 import { useTranslation } from "@/localization/LanguageContext"
+import { runInBackground } from "@/utils/backgroundAction"
 
 type AddMethod = "choose" | "manual" | "isbn" | "scan" | "details"
 type IsbnSource = "entered" | "scanned"
@@ -51,19 +52,34 @@ export default function NewBookScreen() {
   const handleSave = async (values: BookFormValues, coverAsset: ImagePickerAsset | null) => {
     if (saving) return
     setSaving(true)
-    try {
+
+    const optimisticBook: Book = {
+      id: `pending-${Date.now()}`,
+      owner_id: "pending",
+      community_id: "pending",
+      title: values.title,
+      author: values.author || null,
+      description: values.description || null,
+      cover_url: coverAsset?.uri ?? values.cover_url,
+      isbn: values.isbn || null,
+      status: "available",
+      created_at: new Date().toISOString(),
+    }
+    router.back()
+    runInBackground(async () => {
       const coverUrl = coverAsset ? await uploadBookCover(coverAsset) : values.cover_url
-      await createBook({
+      return createBook({
         title: values.title, author: values.author || null, description: values.description || null,
         cover_url: coverUrl, isbn: values.isbn || null,
       })
-      router.back()
-    } catch (err) {
-      console.error("Failed to create book", err)
-      Alert.alert(t("bookNotSaved"), err instanceof Error ? err.message : t("couldNotSaveBook"))
-    } finally {
-      setSaving(false)
-    }
+    }, {
+      event: "books",
+      optimisticResult: optimisticBook,
+      onError: (err) => {
+        console.error("Failed to create book", err)
+        Alert.alert(t("bookNotSaved"), err instanceof Error ? err.message : t("couldNotSaveBook"))
+      },
+    })
   }
 
   const findBook = async (rawIsbn: string, source: IsbnSource) => {

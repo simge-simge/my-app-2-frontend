@@ -20,6 +20,7 @@ export function createCommunity(data: {
   return apiFetch("/admin/communities", {
     method: "POST",
     body: JSON.stringify(data),
+    invalidate: ["communities", "profile"],
   }) as Promise<CommunityAdminResult>
 }
 
@@ -27,5 +28,6 @@ export function assignCommunityAdmin(communityId: string, adminEmail: string) {
   return apiFetch(`/admin/communities/${communityId}/admins`, {
     method: "PUT",
     body: JSON.stringify({ admin_email: adminEmail }),
+    invalidate: ["communities", "profile"],
   }) as Promise<CommunityAdminResult>
 }

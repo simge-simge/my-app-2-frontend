@@ -35,5 +35,6 @@ export function createSwipe(data: CreateSwipeInput) {
   return apiFetch("/swipes/", {
     method: "POST",
     body: JSON.stringify(data),
+    invalidate: ["books", "matches", "inbox"],
   }) as Promise<CreateSwipeResponse>
 }

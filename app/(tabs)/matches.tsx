@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   FlatList,
@@ -16,8 +16,12 @@ import ConfirmationModal from "@/components/ConfirmationModal"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { deleteMatch, getMatches, revealMatchContact, type Match, type MatchBook, type MatchContacts } from "@/services/matches"
-import { runInBackground } from "@/utils/backgroundAction"
+import { runInBackground, subscribeToBackgroundActions } from "@/utils/backgroundAction"
 import { useTranslation } from "@/localization/LanguageContext"
+
+function isOptimisticMatchDelete(value: unknown): value is { match: Match; index?: number } {
+  return Boolean(value && typeof value === "object" && "match" in value && (value.match as Match)?.match_id)
+}
 
 export default function MatchesScreen() {
   const { t } = useTranslation()
@@ -25,21 +29,24 @@ export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>(() => cachedMatches ?? [])
   const [loading, setLoading] = useState(() => cachedMatches === undefined)
   const hasLoaded = useRef(cachedMatches !== undefined)
+  const matchesRevision = useRef(0)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
 
   const loadMatches = useCallback(async (showLoader = false) => {
+    const revisionAtStart = matchesRevision.current
     if (showLoader && !hasLoaded.current) setLoading(true)
 
     try {
       setError(null)
       const response = await getMatches()
-      setMatches(response)
+      if (revisionAtStart === matchesRevision.current) setMatches(response)
     } catch (err) {
       console.error("Failed to load matches", err)
-      setError(t("couldNotLoadMatches"))
+      if (revisionAtStart === matchesRevision.current) {
+        setError(t("couldNotLoadMatches"))
+      }
     } finally {
       hasLoaded.current = true
       setLoading(false)
@@ -48,6 +55,25 @@ export default function MatchesScreen() {
   }, [t])
 
   useFocusEffect(useCallback(() => { loadMatches(true) }, [loadMatches]))
+
+  useEffect(() => subscribeToBackgroundActions((update) => {
+    if (update.event !== "match-deleted" || !isOptimisticMatchDelete(update.optimisticResult)) return
+    const { match: deletedMatch, index = 0 } = update.optimisticResult
+    matchesRevision.current += 1
+
+    if (update.status === "pending") {
+      setMatches((items) => items.filter((item) => item.match_id !== deletedMatch.match_id))
+    } else if (update.status === "failed") {
+      setMatches((items) => {
+        if (items.some((item) => item.match_id === deletedMatch.match_id)) return items
+        const next = [...items]
+        next.splice(Math.min(index, next.length), 0, deletedMatch)
+        return next
+      })
+    } else if (update.status === "completed") {
+      void loadMatches()
+    }
+  }), [loadMatches])
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -73,22 +99,23 @@ export default function MatchesScreen() {
     })
   }, [loadMatches, matches, t])
 
-  const handleDelete = useCallback(async () => {
-    if (!pendingDeleteId || deletingMatchId) return
+  const handleDelete = useCallback(() => {
+    if (!pendingDeleteId) return
     const matchId = pendingDeleteId
+    const index = matches.findIndex((item) => item.match_id === matchId)
+    const deletedMatch = matches[index]
+    if (!deletedMatch) return
     setPendingDeleteId(null)
-    setDeletingMatchId(matchId)
     setError(null)
-    try {
-      await deleteMatch(matchId)
-      setMatches((items) => items.filter((item) => item.match_id !== matchId))
-    } catch (err) {
-      console.error("Failed to delete match", err)
-      setError(t("couldNotDeleteMatch"))
-    } finally {
-      setDeletingMatchId(null)
-    }
-  }, [deletingMatchId, pendingDeleteId, t])
+    runInBackground(() => deleteMatch(matchId), {
+      event: "match-deleted",
+      optimisticResult: { match: deletedMatch, index },
+      onError: (err) => {
+        console.error("Failed to delete match", err)
+        setError(t("couldNotDeleteMatch"))
+      },
+    })
+  }, [matches, pendingDeleteId, t])
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
@@ -114,7 +141,7 @@ export default function MatchesScreen() {
         keyExtractor={(item) => item.match_id}
         renderItem={({ item }) => (
           <MatchRow
-            deleting={deletingMatchId === item.match_id}
+            deleting={false}
             match={item}
             onDelete={setPendingDeleteId}
             onReveal={handleReveal}

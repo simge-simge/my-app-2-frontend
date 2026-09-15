@@ -23,6 +23,15 @@ function isBook(value: unknown): value is Book {
     && typeof candidate.title === "string"
 }
 
+function isBookList(value: unknown): value is Book[] {
+  return Array.isArray(value) && value.every(isBook)
+}
+
+function isOptimisticBookChange(value: unknown): value is { book: Book; previous?: Book; index?: number } {
+  if (!value || typeof value !== "object" || !("book" in value)) return false
+  return isBook(value.book)
+}
+
 export default function Library() {
   const { t } = useTranslation()
   const cachedBooks = getCachedApiData<Book[]>("/books/me")
@@ -34,7 +43,7 @@ export default function Library() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadBooks = useCallback(async (showLoader = false) => {
+  const loadBooks = useCallback(async (showLoader = false, forceRefresh = false) => {
     const revisionAtStart = booksRevision.current
     if (showLoader && !hasLoaded.current) {
       setLoading(true)
@@ -42,7 +51,7 @@ export default function Library() {
 
     try {
       setError(null)
-      const response = await getMyBooks()
+      const response = await getMyBooks(forceRefresh)
       if (revisionAtStart === booksRevision.current) {
         setBooks(response)
       }
@@ -65,7 +74,64 @@ export default function Library() {
   )
 
   useEffect(() => subscribeToBackgroundActions((update) => {
+    if (update.event === "book-updated" && isOptimisticBookChange(update.optimisticResult)) {
+      const { book: optimisticBook, previous } = update.optimisticResult
+      booksRevision.current += 1
+      if (update.status === "pending") {
+        setPendingBookIds((ids) => new Set(ids).add(optimisticBook.id))
+        setBooks((items) => items.some((book) => book.id === optimisticBook.id)
+          ? items.map((book) => book.id === optimisticBook.id ? optimisticBook : book)
+          : [optimisticBook, ...items])
+      } else {
+        setPendingBookIds((ids) => {
+          const next = new Set(ids)
+          next.delete(optimisticBook.id)
+          return next
+        })
+        if (update.status === "failed" && previous) {
+          setBooks((items) => items.some((book) => book.id === previous.id)
+            ? items.map((book) => book.id === previous.id ? previous : book)
+            : [previous, ...items])
+        } else if (update.status === "completed" && isBook(update.result)) {
+          const savedBook = { ...update.result, cover_url: optimisticBook.cover_url }
+          setBooks((items) => items.some((book) => book.id === savedBook.id)
+            ? items.map((book) => book.id === savedBook.id ? savedBook : book)
+            : [savedBook, ...items])
+        }
+      }
+      return
+    }
+
+    if (update.event === "book-deleted" && isOptimisticBookChange(update.optimisticResult)) {
+      const { book: deletedBook, index = 0 } = update.optimisticResult
+      booksRevision.current += 1
+      if (update.status === "pending") {
+        setBooks((items) => items.filter((book) => book.id !== deletedBook.id))
+      } else if (update.status === "failed") {
+        setBooks((items) => {
+          if (items.some((book) => book.id === deletedBook.id)) return items
+          const next = [...items]
+          next.splice(Math.min(index, next.length), 0, deletedBook)
+          return next
+        })
+      }
+      return
+    }
+
     if (update.event !== "books") return
+
+    const publishedBooks = isBookList(update.result)
+      ? update.result
+      : undefined
+
+    if ((update.status === "pending" || update.status === "completed") && publishedBooks) {
+      booksRevision.current += 1
+      setBooks((currentBooks) => [
+        ...publishedBooks,
+        ...currentBooks.filter((book) => !publishedBooks.some((createdBook) => createdBook.id === book.id)),
+      ])
+      return
+    }
 
     const optimisticBook = isBook(update.optimisticResult)
       ? update.optimisticResult
@@ -136,7 +202,7 @@ export default function Library() {
 
   const handleRefresh = () => {
     setRefreshing(true)
-    loadBooks()
+    loadBooks(false, true)
   }
 
   if (loading) {

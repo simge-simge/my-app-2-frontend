@@ -1,9 +1,8 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native"
+import { Image } from "expo-image"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
@@ -18,6 +18,13 @@ import { getBook, type Book } from "@/services/books"
 import { supabase } from "@/utils/supabase"
 import { useBookStatusLabel } from "@/localization/bookStatus"
 import { useTranslation } from "@/localization/LanguageContext"
+import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
+
+function getOptimisticBookChange(value: unknown): { book: Book; previous?: Book } | undefined {
+  if (!value || typeof value !== "object" || !("book" in value)) return undefined
+  const change = value as { book?: Book; previous?: Book }
+  return change.book?.id ? { book: change.book, previous: change.previous } : undefined
+}
 
 export default function BookDetailsScreen() {
   const bookStatusLabel = useBookStatusLabel()
@@ -31,9 +38,11 @@ export default function BookDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const hasLoaded = useRef(cachedBook !== undefined)
+  const bookRevision = useRef(0)
 
   const loadBook = useCallback(async (refresh = false) => {
     if (!bookId) return
+    const revisionAtStart = bookRevision.current
     if (refresh) setRefreshing(true)
     else if (!hasLoaded.current) setLoading(true)
 
@@ -44,11 +53,13 @@ export default function BookDetailsScreen() {
         getBook(bookId),
       ])
       setCurrentUserId(data.session?.user.id ?? null)
-      setBook(response)
+      if (revisionAtStart === bookRevision.current) setBook(response)
       hasLoaded.current = true
     } catch (err) {
       console.error("Failed to load book", err)
-      setError(t("bookLoadError"))
+      if (revisionAtStart === bookRevision.current) {
+        setError(t("bookLoadError"))
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -56,6 +67,19 @@ export default function BookDetailsScreen() {
   }, [bookId, t])
 
   useFocusEffect(useCallback(() => { loadBook() }, [loadBook]))
+
+  useEffect(() => subscribeToBackgroundActions((update) => {
+    if (update.event !== "book-updated") return
+    const change = getOptimisticBookChange(update.optimisticResult)
+    if (!change || change.book.id !== bookId) return
+    bookRevision.current += 1
+
+    if (update.status === "pending") setBook(change.book)
+    else if (update.status === "failed" && change.previous) setBook(change.previous)
+    else if (update.status === "completed" && update.result && typeof update.result === "object") {
+      setBook(update.result as Book)
+    }
+  }), [bookId])
 
   const isOwner = Boolean(book && currentUserId && book.owner_id === currentUserId)
   const openEditor = () => {
@@ -87,7 +111,7 @@ export default function BookDetailsScreen() {
         <View style={styles.hero}>
           <View style={styles.coverWrap}>
             {book.cover_url ? (
-              <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" />
+              <Image source={{ uri: book.cover_url }} style={styles.cover} contentFit="contain" cachePolicy="memory-disk" transition={120} />
             ) : (
               <View style={[styles.cover, styles.coverFallback]}>
                 <Text style={styles.coverLetter}>{book.title.slice(0, 1).toUpperCase()}</Text>

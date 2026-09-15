@@ -32,12 +32,15 @@ export default function CommunitySearch() {
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
+    setLoading(false)
     const timer = setTimeout(async () => {
+      setLoading(true)
       try {
-        setLoading(true)
-        const communities = await searchCommunities(query, location?.id)
+        const communities = await searchCommunities(query, location?.id, controller.signal)
         if (active) setResults(communities)
       } catch (err) {
+        if (controller.signal.aborted) return
         if (active) {
           console.error("Failed to search communities", err)
           Alert.alert(t("error"), err instanceof ApiError ? err.message : t("couldNotLoadCommunities"))
@@ -50,6 +53,7 @@ export default function CommunitySearch() {
     return () => {
       active = false
       clearTimeout(timer)
+      controller.abort()
     }
   }, [query, location?.id, t])
 
@@ -78,6 +82,7 @@ export default function CommunitySearch() {
           autoFocus
           returnKeyType="search"
         />
+        {loading ? <ActivityIndicator size="small" color={palette.accent} /> : null}
       </View>
 
       <LocationPicker
@@ -86,7 +91,7 @@ export default function CommunitySearch() {
         onSelect={setLocation}
       />
 
-      {loading ? (
+      {loading && results.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={palette.accent} />
         </View>

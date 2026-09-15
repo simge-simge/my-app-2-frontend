@@ -58,13 +58,14 @@ export default function LocationPicker({
     }
 
     let active = true
+    const controller = new AbortController()
     const timer = setTimeout(async () => {
       try {
         setLoading(true)
-        const matches = await searchLocations(term)
+        const matches = await searchLocations(term, controller.signal)
         if (active) setResults(matches)
       } catch {
-        if (active) setResults([])
+        if (active && !controller.signal.aborted) setResults([])
       } finally {
         if (active) setLoading(false)
       }
@@ -73,6 +74,7 @@ export default function LocationPicker({
     return () => {
       active = false
       clearTimeout(timer)
+      controller.abort()
     }
   }, [disabled, query, selectedDisplayName])
 

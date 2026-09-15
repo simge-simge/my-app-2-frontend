@@ -42,8 +42,8 @@ export type Book = {
   created_at: string
 }
 
-export function getMyBooks() {
-  return apiFetch("/books/me", { cache: "no-store" }) as Promise<Book[]>
+export function getMyBooks(forceRefresh = false) {
+  return apiFetch("/books/me", forceRefresh ? { cache: "no-store" } : {}) as Promise<Book[]>
 }
 
 export type IsbnBookLookup = Pick<
@@ -85,19 +85,19 @@ export function getBookFeed() {
 
 export type SearchScope = "community" | "all"
 
-export function searchBooks(query: string, scope: SearchScope = "community") {
+export function searchBooks(query: string, scope: SearchScope = "community", signal?: AbortSignal) {
   const normalizedQuery = query.trim()
   const queryParameter = normalizedQuery
     ? `&q=${encodeURIComponent(normalizedQuery)}`
     : ""
-  return apiFetch(
-    `/books/search?scope=${scope}${queryParameter}`,
-  ) as Promise<Book[]>
+  const path = `/books/search?scope=${scope}${queryParameter}`
+  return (signal ? apiFetch(path, { signal }) : apiFetch(path)) as Promise<Book[]>
 }
 
 export function requestToBorrowBook(bookId: string) {
   return apiFetch(`/books/${bookId}/borrow-request`, {
     method: "POST",
+    invalidate: ["books"],
   }) as Promise<{ message: string; request_id: string }>
 }
 
@@ -115,6 +115,7 @@ export function createBook(data: CreateBookInput) {
       cover_url: data.cover_url || null,
       isbn: data.isbn || null,
     }),
+    invalidate: ["books"],
   }) as Promise<Book>
 }
 
@@ -122,6 +123,7 @@ export function updateBook(bookId: string, data: UpdateBookInput) {
   return apiFetch(`/books/${bookId}`, {
     method: "PATCH",
     body: JSON.stringify(data),
+    invalidate: ["books", "matches"],
   }) as Promise<Book>
 }
 
@@ -146,6 +148,7 @@ export async function startShelfScan(asset: ImagePickerAsset) {
   return apiFetch("/books/shelf-scan", {
     method: "POST",
     body: JSON.stringify({ image_base64: image.base64, mime_type: "image/jpeg" }),
+    invalidate: [],
   }) as Promise<Pick<ShelfScanJob, "id" | "status">>
 }
 
@@ -158,6 +161,7 @@ export function getShelfScanJob(jobId: string) {
 export function deleteShelfScanJob(jobId: string) {
   return apiFetch(`/books/shelf-scan/${encodeURIComponent(jobId)}`, {
     method: "DELETE",
+    invalidate: [],
   }) as Promise<{ message: string }>
 }
 
@@ -165,12 +169,14 @@ export function bulkCreateBooks(books: CreateBookInput[]) {
   return apiFetch("/books/bulk", {
     method: "POST",
     body: JSON.stringify({ books }),
+    invalidate: ["books"],
   }) as Promise<BulkCreateBooksResult>
 }
 
 export function deleteBook(bookId: string) {
   return apiFetch(`/books/${bookId}`, {
     method: "DELETE",
+    invalidate: ["books", "matches", "inbox"],
   }) as Promise<{ message: string }>
 }
 

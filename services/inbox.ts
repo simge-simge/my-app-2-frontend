@@ -60,17 +60,24 @@ export function getInbox(forceRefresh = false) {
 }
 
 export function markNotificationRead(notificationId: string) {
-  return apiFetch(`/inbox/notifications/${notificationId}/read`, { method: "PATCH" })
+  return apiFetch(`/inbox/notifications/${notificationId}/read`, {
+    method: "PATCH",
+    invalidate: ["inbox"],
+  })
 }
 
 export function markAllNotificationsRead() {
-  return apiFetch("/inbox/notifications/read-all", { method: "PATCH" }) as Promise<{ updated: number }>
+  return apiFetch("/inbox/notifications/read-all", {
+    method: "PATCH",
+    invalidate: ["inbox"],
+  }) as Promise<{ updated: number }>
 }
 
 export function decideCommunityRequest(requestId: string, decision: "approved" | "declined") {
   return apiFetch(`/inbox/community-requests/${requestId}`, {
     method: "PATCH",
     body: JSON.stringify({ decision }),
+    invalidate: ["inbox", "communities", "profile", "books"],
   })
 }
 
@@ -78,5 +85,6 @@ export function decideBorrowRequest(requestId: string, decision: "accepted" | "d
   return apiFetch(`/inbox/borrow-requests/${requestId}`, {
     method: "PATCH",
     body: JSON.stringify({ decision }),
+    invalidate: ["inbox", "books", "matches"],
   })
 }

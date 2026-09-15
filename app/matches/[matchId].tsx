@@ -74,19 +74,21 @@ export default function MatchDetailScreen() {
     })
   }, [loadMatch, match, matchId, t])
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!matchId || deleting) return
     setShowDeleteConfirmation(false)
     setDeleting(true)
-    try {
-      await deleteMatch(matchId)
-      router.replace("/matches")
-    } catch (err) {
-      console.error("Failed to delete match", err)
-      Alert.alert(t("matchNotDeleted"), t("couldNotDeleteMatch"))
-      setDeleting(false)
-    }
-  }, [deleting, matchId, t])
+    const deletedMatch = match
+    router.replace("/matches")
+    runInBackground(() => deleteMatch(matchId), {
+      event: "match-deleted",
+      optimisticResult: deletedMatch ? { match: deletedMatch } : undefined,
+      onError: (err) => {
+        console.error("Failed to delete match", err)
+        Alert.alert(t("matchNotDeleted"), t("couldNotDeleteMatch"))
+      },
+    })
+  }, [deleting, match, matchId, t])
 
   const confirmDelete = useCallback(() => {
     setShowDeleteConfirmation(true)

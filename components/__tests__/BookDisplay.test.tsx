@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native"
-import { Image } from "react-native"
+import { Image } from "expo-image"
 
 import BookDisplay from "../BookDisplay"
 import { book } from "@/test/factories"
@@ -18,7 +18,8 @@ describe("BookDisplay", () => {
       />,
     )
 
-    expect(screen.UNSAFE_getByType(Image).props.resizeMode).toBe("contain")
+    expect(screen.UNSAFE_getByType(Image).props.contentFit).toBe("contain")
+    expect(screen.UNSAFE_getByType(Image).props.cachePolicy).toBe("memory-disk")
     expect(screen.getByText("Available")).toBeVisible()
     fireEvent.press(screen.getAllByRole("button", { name: "Ask to borrow this book" })[0])
     expect(onActionPress).toHaveBeenCalledTimes(1)

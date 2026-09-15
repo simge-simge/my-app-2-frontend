@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native"
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native"
+import { Image } from "expo-image"
 
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
@@ -27,7 +28,7 @@ export default function BookDisplay({ book, actionAccessibilityLabel, actionDisa
   const cover = (
     <View style={[styles.coverWrap, variant === "list" && styles.listCoverWrap]}>
       <View style={styles.spine} />
-      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" /> : (
+      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} contentFit="contain" cachePolicy="memory-disk" transition={120} /> : (
         <View style={[styles.cover, styles.coverFallback]}>
           <View style={styles.fallbackFrame}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>
         </View>

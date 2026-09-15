@@ -97,7 +97,7 @@ export default function InboxScreen() {
     router.push("/matches")
   }
 
-  const handleNotification = async (notification: InboxNotification) => {
+  const handleNotification = (notification: InboxNotification) => {
     if (!notification.read_at) {
       setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item))
       runInBackground(() => markNotificationRead(notification.id), {
@@ -119,8 +119,10 @@ export default function InboxScreen() {
     }
     const shelfScanJobId = notification.metadata?.shelf_scan_job_id
     if (typeof shelfScanJobId === "string") {
-      await AsyncStorage.setItem(ACTIVE_SHELF_SCAN_JOB_KEY, shelfScanJobId)
-      router.push("/books/shelf-scan")
+      router.push({ pathname: "/books/shelf-scan", params: { jobId: shelfScanJobId } })
+      runInBackground(() => AsyncStorage.setItem(ACTIVE_SHELF_SCAN_JOB_KEY, shelfScanJobId), {
+        onError: (err) => console.warn("Shelf scan job could not be saved locally", err),
+      })
     }
   }
 
@@ -245,7 +247,7 @@ export default function InboxScreen() {
           {notifications.map((notification) => {
             const copy = localizeInboxNotification(notification, language, t)
             return (
-              <Pressable key={notification.id} style={[styles.notificationCard, !notification.read_at && styles.unreadCard]} onPress={() => void handleNotification(notification)}>
+              <Pressable key={notification.id} style={[styles.notificationCard, !notification.read_at && styles.unreadCard]} onPress={() => handleNotification(notification)}>
                 <View style={[styles.dot, notification.read_at && styles.readDot]} />
                 <View style={styles.cardBody}>
                   <Text style={styles.cardTitle}>{copy.title}</Text>

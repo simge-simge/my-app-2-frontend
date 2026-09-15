@@ -59,11 +59,13 @@ export function getMatch(matchId: string) {
 export function revealMatchContact(matchId: string) {
   return apiFetch(`/matches/${matchId}/reveal`, {
     method: "PATCH",
+    invalidate: ["matches", "books", "inbox"],
   }) as Promise<RevealMatchResponse>
 }
 
 export function deleteMatch(matchId: string) {
   return apiFetch(`/matches/${matchId}`, {
     method: "DELETE",
+    invalidate: ["matches", "books", "inbox"],
   }) as Promise<{ message: string }>
 }

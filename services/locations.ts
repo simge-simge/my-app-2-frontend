@@ -9,8 +9,9 @@ export type Location = {
   country_code: string
 }
 
-export function searchLocations(query: string) {
+export function searchLocations(query: string, signal?: AbortSignal) {
   return apiFetch(`/locations?q=${encodeURIComponent(query.trim())}`, {
     cache: "no-store",
+    signal,
   }) as Promise<Location[]>
 }

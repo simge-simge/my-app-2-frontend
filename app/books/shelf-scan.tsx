@@ -6,7 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as ImagePicker from "expo-image-picker"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { ApiError } from "@/services/api"
@@ -14,6 +14,7 @@ import {
   bulkCreateBooks, deleteShelfScanJob, getShelfScanJob, startShelfScan, type ShelfBookCandidate,
 } from "@/services/books"
 import { useTranslation } from "@/localization/LanguageContext"
+import { runInBackground } from "@/utils/backgroundAction"
 import { ACTIVE_SHELF_SCAN_JOB_KEY } from "@/utils/storageKeys"
 import WebCameraCapture from "@/components/WebCameraCapture"
 import WebImageCropper from "@/components/WebImageCropper"
@@ -22,6 +23,7 @@ type ReviewBook = ShelfBookCandidate & { key: string; selected: boolean }
 
 export default function ShelfScanScreen() {
   const { language, t } = useTranslation()
+  const { jobId: routedJobId } = useLocalSearchParams<{ jobId?: string }>()
   const analysisStages = [
     { title: t("readingSpines"), detail: t("findingTitlesAuthors") },
     { title: t("matchingTitles"), detail: t("checkingCatalog") },
@@ -39,6 +41,11 @@ export default function ShelfScanScreen() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (routedJobId) {
+      setJobId(routedJobId)
+      setAnalyzing(true)
+      return
+    }
     let active = true
     void AsyncStorage.getItem(ACTIVE_SHELF_SCAN_JOB_KEY).then((storedJobId) => {
       if (!active || !storedJobId) return
@@ -46,7 +53,7 @@ export default function ShelfScanScreen() {
       setAnalyzing(true)
     })
     return () => { active = false }
-  }, [])
+  }, [routedJobId])
 
   useEffect(() => {
     if (!jobId) return
@@ -204,16 +211,24 @@ export default function ShelfScanScreen() {
         ? t(result.skipped_duplicates === 1 ? "duplicateSkipped" : "duplicatesSkipped", { count: result.skipped_duplicates })
         : ""
       Alert.alert(t("shelfAdded"), t(result.created.length === 1 ? "bookAddedCount" : "booksAddedCount", { count: result.created.length, skipped }))
-      if (jobId) {
-        try {
-          await deleteShelfScanJob(jobId)
-        } catch (cleanupError) {
-          console.warn("Imported shelf scan job could not be removed", cleanupError)
-        }
-      }
-      await AsyncStorage.removeItem(ACTIVE_SHELF_SCAN_JOB_KEY)
-      setJobId(null)
       router.replace("/library")
+      runInBackground(async () => {
+        if (jobId) {
+          try {
+            await deleteShelfScanJob(jobId)
+          } catch (cleanupError) {
+            console.warn("Imported shelf scan job could not be removed", cleanupError)
+          }
+        }
+        await AsyncStorage.removeItem(ACTIVE_SHELF_SCAN_JOB_KEY)
+        return result.created
+      }, {
+        event: "books",
+        optimisticResult: result.created,
+        onError: (cleanupError) => {
+          console.warn("Imported shelf scan state could not be removed", cleanupError)
+        },
+      })
     } catch (reason) {
       Alert.alert(t("booksNotAdded"), reason instanceof Error ? reason.message : t("tryAgain"))
     } finally {

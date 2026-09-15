@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Image,
@@ -12,34 +12,39 @@ import {
 import AdminBadge from "@/components/AdminBadge"
 import LibraryBrowser from "@/components/LibraryBrowser"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
-import { ApiError } from "@/services/api"
+import { ApiError, getCachedApiData } from "@/services/api"
 import { getMemberLibrary, type MemberLibrary } from "@/services/profile"
 import { useTranslation } from "@/localization/LanguageContext"
 
 export default function MemberLibraryScreen() {
   const { language, t } = useTranslation()
   const { memberId } = useLocalSearchParams<{ memberId: string }>()
-  const [library, setLibrary] = useState<MemberLibrary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cachePath = memberId ? `/profile/members/${memberId}` : ""
+  const cachedLibrary = getCachedApiData<MemberLibrary>(cachePath)
+  const [library, setLibrary] = useState<MemberLibrary | null>(() => cachedLibrary ?? null)
+  const [loading, setLoading] = useState(() => cachedLibrary === undefined)
+  const hasLoaded = useRef(cachedLibrary !== undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadLibrary = useCallback(async (refresh = false) => {
     if (!memberId) return
     if (refresh) setRefreshing(true)
-    else setLoading(true)
+    else if (!hasLoaded.current) setLoading(true)
     try {
       setError(null)
       setLibrary(await getMemberLibrary(memberId))
+      hasLoaded.current = true
     } catch (err) {
       console.error("Failed to load member library", err)
-      setLibrary(null)
+      if (!hasLoaded.current || (err instanceof ApiError && err.status === 403)) setLibrary(null)
       setError(
         err instanceof ApiError && err.status === 403
           ? t("communityLibraryOnly")
           : t("memberLibraryLoadError"),
       )
     } finally {
+      hasLoaded.current = true
       setLoading(false)
       setRefreshing(false)
     }

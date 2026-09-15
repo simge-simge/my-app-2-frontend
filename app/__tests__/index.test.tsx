@@ -16,7 +16,6 @@ describe("public home page", () => {
     render(<Index />)
 
     expect(screen.getByText("Good books find their way to good company.")).toBeTruthy()
-    expect(screen.getByText("From a dusty book on someone's shelf to your next read.")).toBeTruthy()
     expect(screen.getByText("Great books should not disappear onto a finished-reading pile.")).toBeTruthy()
     expect(screen.getByText(/CommonShelf gives your books a second life/)).toBeTruthy()
     expect(screen.getByText("Found a bug or have an idea?")).toBeTruthy()

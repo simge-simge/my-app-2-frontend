@@ -45,14 +45,13 @@ export type MemberLibrary = {
   books: Book[]
 }
 
-export function searchProfiles(query: string, scope: SearchScope = "community") {
+export function searchProfiles(query: string, scope: SearchScope = "community", signal?: AbortSignal) {
   const normalizedQuery = query.trim()
   const queryParameter = normalizedQuery
     ? `&q=${encodeURIComponent(normalizedQuery)}`
     : ""
-  return apiFetch(
-    `/profile/me/search?scope=${scope}${queryParameter}`,
-  ) as Promise<ProfileSearchResult[]>
+  const path = `/profile/me/search?scope=${scope}${queryParameter}`
+  return (signal ? apiFetch(path, { signal }) : apiFetch(path)) as Promise<ProfileSearchResult[]>
 }
 
 export function getProfile() {
@@ -67,11 +66,13 @@ export function updateProfile(data: Record<string, unknown>) {
   return apiFetch("/profile/me/", {
     method: "PATCH",
     body: JSON.stringify(data),
+    invalidate: ["profile", "communities", "books", "matches", "inbox"],
   }) as Promise<Profile>
 }
 
 export function deleteAccount() {
   return apiFetch("/profile/me/", {
     method: "DELETE",
+    invalidate: "all",
   })
 }

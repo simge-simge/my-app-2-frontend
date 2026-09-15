@@ -6,6 +6,7 @@ import * as ImagePicker from "expo-image-picker"
 
 import ShelfScanScreen from "../shelf-scan"
 import { bulkCreateBooks, deleteShelfScanJob, getShelfScanJob, startShelfScan } from "@/services/books"
+import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
 jest.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync: jest.fn(),
@@ -89,6 +90,40 @@ describe("ShelfScanScreen", () => {
     expect(router.replace).toHaveBeenCalledWith("/library")
     expect(deleteShelfScanJob).toHaveBeenCalledWith("scan-1")
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith("commonshelf.shelf-scan-job")
+  })
+
+  it("publishes created books and navigates without waiting for cleanup", async () => {
+    let finishCleanup!: () => void
+    const createdBooks = [
+      { id: "book-1", owner_id: "owner-1", community_id: "community-1", title: "Piranesi", author: "Susanna Clarke", description: null, cover_url: null, isbn: null, status: "available" as const, created_at: "2026-01-02T12:00:00Z" },
+    ]
+    await AsyncStorage.setItem("commonshelf.shelf-scan-job", "scan-1")
+    jest.mocked(getShelfScanJob).mockResolvedValue({
+      id: "scan-1", status: "completed", error: null, created_at: "2026-01-02T12:00:00Z",
+      books: [{ title: "Piranesi", author: "Susanna Clarke", description: null, cover_url: null, isbn: null, raw_spine_text: "PIRANESI", confidence: 0.96, catalog_matched: true }],
+    })
+    jest.mocked(bulkCreateBooks).mockResolvedValue({ created: createdBooks, skipped_duplicates: 0 })
+    jest.mocked(deleteShelfScanJob).mockImplementation(() => new Promise((resolve) => {
+      finishCleanup = () => resolve({ message: "Shelf scan removed" })
+    }))
+    const listener = jest.fn()
+    const unsubscribe = subscribeToBackgroundActions(listener)
+    render(<ShelfScanScreen />)
+
+    await waitFor(() => expect(screen.getByDisplayValue("Piranesi")).toBeVisible())
+    fireEvent.press(screen.getByRole("button", { name: "Add 1 book" }))
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/library"))
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({
+      event: "books",
+      status: "pending",
+      result: createdBooks,
+    }))
+    expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith("commonshelf.shelf-scan-job")
+
+    finishCleanup()
+    await waitFor(() => expect(AsyncStorage.removeItem).toHaveBeenCalledWith("commonshelf.shelf-scan-job"))
+    unsubscribe()
   })
 
   it("explains catalog matching when analysis takes longer", async () => {

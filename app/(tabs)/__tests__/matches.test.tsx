@@ -33,9 +33,9 @@ describe("matches", () => {
     await waitFor(() => expect(getMatches).toHaveBeenCalledTimes(2))
   })
 
-  it("confirms deletion and removes the match after the request succeeds", async () => {
+  it("confirms deletion and removes the match immediately", async () => {
     let finishDelete!: () => void
-    jest.mocked(getMatches).mockResolvedValue([match()])
+    jest.mocked(getMatches).mockResolvedValueOnce([match()]).mockResolvedValueOnce([])
     jest.mocked(deleteMatch).mockReturnValue(new Promise<{ message: string }>((resolve) => {
       finishDelete = () => resolve({ message: "Match deleted" })
     }))
@@ -46,11 +46,27 @@ describe("matches", () => {
     expect(screen.getByText("Remove this match from your list?")).toBeVisible()
     fireEvent.press(screen.getByTestId("confirmation-modal-confirm"))
 
-    expect(deleteMatch).toHaveBeenCalledWith(match().match_id)
-    expect(screen.getByText("Ada Reader")).toBeVisible()
+    expect(screen.queryByText("Ada Reader")).toBeNull()
+    await waitFor(() => expect(deleteMatch).toHaveBeenCalledWith(match().match_id))
 
     await act(async () => { finishDelete() })
     await waitFor(() => expect(screen.queryByText("Ada Reader")).toBeNull())
+  })
+
+  it("restores a match when an optimistic deletion fails", async () => {
+    let failDelete!: (error: Error) => void
+    jest.mocked(getMatches).mockResolvedValue([match()])
+    jest.mocked(deleteMatch).mockReturnValue(new Promise((_, reject) => { failDelete = reject }))
+    render(<MatchesScreen />)
+
+    fireEvent.press(await screen.findByRole("button", { name: "Delete match" }))
+    fireEvent.press(screen.getByTestId("confirmation-modal-confirm"))
+    expect(screen.queryByText("Ada Reader")).toBeNull()
+
+    await waitFor(() => expect(failDelete).toBeDefined())
+    await act(async () => { failDelete(new Error("offline")) })
+    expect(await screen.findByText("Ada Reader")).toBeVisible()
+    expect(screen.getByText("Could not delete this match.")).toBeVisible()
   })
 
   it("renders empty and failed states", async () => {

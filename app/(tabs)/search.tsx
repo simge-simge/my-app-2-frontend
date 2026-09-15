@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -55,6 +55,7 @@ export default function Search() {
   const [removingUserIds, setRemovingUserIds] = useState<Set<string>>(() => new Set())
   const [pendingRemoval, setPendingRemoval] = useState<ProfileSearchResult | null>(null)
   const [requestedBookIds, setRequestedBookIds] = useState<Set<string>>(() => new Set())
+  const searchContext = useRef("")
   const adminCommunityId = mode === "users" && scope === "community" && currentProfile?.admin
     ? currentProfile.community_id
     : null
@@ -77,33 +78,40 @@ export default function Search() {
 
   useEffect(() => {
     const searchTerm = query.trim()
+    const nextSearchContext = `${mode}:${scope}:${adminCommunityId ?? ""}`
+    if (searchContext.current !== nextSearchContext) {
+      if (mode === "books") setBooks([])
+      else setUsers([])
+      searchContext.current = nextSearchContext
+    }
 
     let cancelled = false
-    setLoading(true)
+    const controller = new AbortController()
+    setLoading(false)
     setError(null)
 
     const timeout = setTimeout(async () => {
+      setLoading(true)
       try {
         if (mode === "books") {
-          const response = await searchBooks(searchTerm, scope)
+          const response = await searchBooks(searchTerm, scope, controller.signal)
           if (!cancelled) {
             setBooks(response)
             setUsers([])
           }
         } else {
           const response = adminCommunityId
-            ? await listCommunityMembers(adminCommunityId, searchTerm)
-            : await searchProfiles(searchTerm, scope)
+            ? await listCommunityMembers(adminCommunityId, searchTerm, controller.signal)
+            : await searchProfiles(searchTerm, scope, controller.signal)
           if (!cancelled) {
             setUsers(response)
             setBooks([])
           }
         }
       } catch (err) {
+        if (controller.signal.aborted) return
         console.error(`Failed to search ${mode}`, err)
         if (!cancelled) {
-          setBooks([])
-          setUsers([])
           setError(t("searchFailed", { type: t(mode) }))
         }
       } finally {
@@ -114,6 +122,7 @@ export default function Search() {
     return () => {
       cancelled = true
       clearTimeout(timeout)
+      controller.abort()
     }
   }, [adminCommunityId, mode, query, scope, t])
 
@@ -249,6 +258,7 @@ export default function Search() {
           style={styles.input}
           value={query}
         />
+        {loading ? <ActivityIndicator size="small" color={palette.accent} /> : null}
         {query ? (
           <Pressable
             accessibilityLabel={t("clearSearch")}
@@ -326,7 +336,7 @@ export default function Search() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {loading ? (
+      {loading && (mode === "books" ? books.length === 0 : users.length === 0) ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={palette.text} />
         </View>

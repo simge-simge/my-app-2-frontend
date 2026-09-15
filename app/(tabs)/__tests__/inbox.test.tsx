@@ -62,6 +62,10 @@ describe("borrow request inbox history", () => {
   })
 
   it("opens a completed shelf scan from its inbox notification", async () => {
+    let finishStorage!: () => void
+    jest.mocked(AsyncStorage.setItem).mockImplementationOnce(() => new Promise((resolve) => {
+      finishStorage = () => resolve()
+    }))
     jest.mocked(getInbox).mockResolvedValue(inbox([], [{
       id: "notification-1",
       type: "shelf_scan_completed",
@@ -75,8 +79,10 @@ describe("borrow request inbox history", () => {
 
     fireEvent.press(await screen.findByText("Your shelf scan is ready"))
 
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/books/shelf-scan", params: { jobId: "scan-1" } })
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled()
     await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith("commonshelf.shelf-scan-job", "scan-1"))
-    expect(router.push).toHaveBeenCalledWith("/books/shelf-scan")
+    finishStorage()
   })
 
   it("publishes the new unread count immediately when all notifications are marked read", async () => {
