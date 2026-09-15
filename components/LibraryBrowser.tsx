@@ -46,6 +46,7 @@ export default function LibraryBrowser({
   const [viewMode, setViewMode] = useState<ViewMode>("card")
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZES)[number]>(10)
   const [page, setPage] = useState(1)
+  const [optionsOpen, setOptionsOpen] = useState(false)
 
   const visibleBooks = useMemo(() => {
     const locale = language === "tr" ? "tr-TR" : "en-US"
@@ -79,40 +80,47 @@ export default function LibraryBrowser({
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
       <View style={styles.controlsCard}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color={palette.textMuted} />
-          <TextInput accessibilityLabel={t("searchMyLibrary")} value={query} onChangeText={setQuery} placeholder={t("searchLibraryPlaceholder")} placeholderTextColor={palette.textMuted} returnKeyType="search" style={styles.searchInput} />
-          {query ? <Pressable accessibilityRole="button" accessibilityLabel={t("clearLibrarySearch")} hitSlop={8} onPress={() => setQuery("")} style={styles.clearButton}><Ionicons name="close-circle" size={20} color={palette.textMuted} /></Pressable> : null}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={20} color={palette.textMuted} />
+            <TextInput accessibilityLabel={t("searchMyLibrary")} value={query} onChangeText={setQuery} placeholder={t("searchLibraryPlaceholder")} placeholderTextColor={palette.textMuted} returnKeyType="search" style={styles.searchInput} />
+            {query ? <Pressable accessibilityRole="button" accessibilityLabel={t("clearLibrarySearch")} hitSlop={8} onPress={() => setQuery("")} style={styles.clearButton}><Ionicons name="close-circle" size={20} color={palette.textMuted} /></Pressable> : null}
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("options")} accessibilityState={{ expanded: optionsOpen }} onPress={() => setOptionsOpen((open) => !open)} style={({ pressed }) => [styles.optionsButton, optionsOpen && styles.optionsButtonSelected, pressed && styles.optionsTogglePressed]}>
+            <Ionicons name="options-outline" size={21} color={optionsOpen ? palette.paper : palette.textMuted} />
+          </Pressable>
         </View>
 
-        <View style={styles.controlSection}>
-          <Text style={styles.controlLabel}>{t("sortBy")}</Text>
-          <View style={styles.chipRow}>
-            {([[
-              "newest", "newestFirst",
-            ], ["oldest", "oldestFirst"], ["titleAsc", "titleAscending"], ["titleDesc", "titleDescending"]] as const).map(([value, label]) => (
-              <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: sortBy === value }} onPress={() => setSortBy(value)} style={[styles.chip, sortBy === value && styles.chipSelected]}>
-                <Text style={[styles.chipText, sortBy === value && styles.chipTextSelected]}>{t(label)}</Text>
-              </Pressable>
-            ))}
+        {optionsOpen ? <View style={styles.advancedOptions}>
+          <View style={styles.controlSection}>
+            <Text style={styles.controlLabel}>{t("sortBy")}</Text>
+            <View style={styles.chipRow}>
+              {([[
+                "newest", "newestFirst",
+              ], ["oldest", "oldestFirst"], ["titleAsc", "titleAscending"], ["titleDesc", "titleDescending"]] as const).map(([value, label]) => (
+                <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: sortBy === value }} onPress={() => setSortBy(value)} style={[styles.chip, sortBy === value && styles.chipSelected]}>
+                  <Text style={[styles.chipText, sortBy === value && styles.chipTextSelected]}>{t(label)}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.optionsRow}>
-          <View style={styles.compactControl}>
-            <Text style={styles.compactLabel}>{t("displayAs")}</Text>
-            <View style={styles.compactOptions}>
-              <Pressable accessibilityRole="button" accessibilityLabel={t("cardView")} accessibilityState={{ selected: viewMode === "card" }} onPress={() => setViewMode("card")} style={[styles.iconOption, viewMode === "card" && styles.optionSelected]}><Ionicons name="grid-outline" size={17} color={viewMode === "card" ? palette.paper : palette.textMuted} /></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel={t("listView")} accessibilityState={{ selected: viewMode === "list" }} onPress={() => setViewMode("list")} style={[styles.iconOption, viewMode === "list" && styles.optionSelected]}><Ionicons name="list-outline" size={18} color={viewMode === "list" ? palette.paper : palette.textMuted} /></Pressable>
+          <View style={styles.optionsRow}>
+            <View style={styles.compactControl}>
+              <Text style={styles.compactLabel}>{t("displayAs")}</Text>
+              <View style={styles.compactOptions}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("cardView")} accessibilityState={{ selected: viewMode === "card" }} onPress={() => setViewMode("card")} style={[styles.iconOption, viewMode === "card" && styles.optionSelected]}><Ionicons name="grid-outline" size={17} color={viewMode === "card" ? palette.paper : palette.textMuted} /></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("listView")} accessibilityState={{ selected: viewMode === "list" }} onPress={() => setViewMode("list")} style={[styles.iconOption, viewMode === "list" && styles.optionSelected]}><Ionicons name="list-outline" size={18} color={viewMode === "list" ? palette.paper : palette.textMuted} /></Pressable>
+              </View>
+            </View>
+            <View style={styles.compactControl}>
+              <Text style={styles.compactLabel}>{t("booksPerPage")}</Text>
+              <View style={styles.compactOptions}>
+                {PAGE_SIZES.map((size) => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: pageSize === size }} onPress={() => setPageSize(size)} style={[styles.pageSizeOption, pageSize === size && styles.optionSelected]}><Text style={[styles.pageSizeText, pageSize === size && styles.selectedText]}>{size}</Text></Pressable>)}
+              </View>
             </View>
           </View>
-          <View style={styles.compactControl}>
-            <Text style={styles.compactLabel}>{t("booksPerPage")}</Text>
-            <View style={styles.compactOptions}>
-              {PAGE_SIZES.map((size) => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: pageSize === size }} onPress={() => setPageSize(size)} style={[styles.pageSizeOption, pageSize === size && styles.optionSelected]}><Text style={[styles.pageSizeText, pageSize === size && styles.selectedText]}>{size}</Text></Pressable>)}
-            </View>
-          </View>
-        </View>
+        </View> : null}
       </View>
       <Text style={styles.resultCount}>{t(visibleBooks.length === 1 ? "libraryResult" : "libraryResults", { count: visibleBooks.length })}</Text>
     </>
@@ -148,9 +156,14 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 6, color: palette.textMuted, fontSize: 15 },
   message: { marginTop: 10, color: palette.danger },
   controlsCard: { gap: 14, marginTop: 18, marginBottom: 12, padding: 14, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surface, ...shadows.soft },
-  searchBox: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  searchBox: { flex: 1, height: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
   searchInput: { flex: 1, minWidth: 0, color: palette.text, fontSize: 14, paddingVertical: 10 },
   clearButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  optionsButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
+  optionsButtonSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
+  optionsTogglePressed: { opacity: 0.72 },
+  advancedOptions: { gap: 14, paddingTop: 2 },
   controlSection: { gap: 7 },
   controlLabel: { color: palette.textMuted, fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },

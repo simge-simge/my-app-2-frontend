@@ -4,12 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native"
 
 import AdminBadge from "@/components/AdminBadge"
@@ -19,13 +22,15 @@ import LandingBookRail from "@/components/LandingBookRail"
 import { HOME_PREVIEW_BOOKS, HOME_PREVIEW_COVERS } from "@/constants/homePreviewBooks"
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
-import { getBookFeed, type Book } from "@/services/books"
+import { searchBooks, type Book } from "@/services/books"
 import { getInbox, type InboxResponse } from "@/services/inbox"
 import { getProfile, type Profile } from "@/services/profile"
 import { useTranslation } from "@/localization/LanguageContext"
 import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
 type FeedOutcome = { books: Book[] } | { error: unknown }
+
+const appIcon = require("../../assets/images/icon.png")
 
 export default function Home() {
   const { t } = useTranslation()
@@ -34,7 +39,7 @@ export default function Home() {
   const isWide = width >= 880
   const cachedProfile = getCachedApiData<Profile>("/profile/me/")
   const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
-  const cachedFeed = getCachedApiData<Book[]>("/books/feed")
+  const cachedCommunityBooks = getCachedApiData<Book[]>("/books/search?scope=community")
 
   const [profile, setProfile] = useState<Profile | null>(() => cachedProfile ?? null)
   const profileRef = useRef<Profile | null>(cachedProfile ?? null)
@@ -43,16 +48,16 @@ export default function Home() {
   const [unreadCount, setUnreadCount] = useState(() => cachedInbox?.unread_count ?? 0)
   const [books, setBooks] = useState<Book[]>(() => {
     if (!cachedProfile) return []
-    return cachedProfile.community_id ? cachedFeed ?? [] : HOME_PREVIEW_BOOKS
+    return cachedProfile.community_id ? cachedCommunityBooks ?? [] : HOME_PREVIEW_BOOKS
   })
   const [booksLoading, setBooksLoading] = useState(() => {
     if (!cachedProfile) return true
-    return cachedProfile.community_id ? cachedFeed === undefined : false
+    return cachedProfile.community_id ? cachedCommunityBooks === undefined : false
   })
   const [booksError, setBooksError] = useState<string | null>(null)
   const [reduceMotion, setReduceMotion] = useState(false)
   const booksScope = useRef<string | null>(cachedProfile ? cachedProfile.community_id ?? "preview" : null)
-  const booksHaveLoaded = useRef(Boolean(cachedProfile && (!cachedProfile.community_id || cachedFeed !== undefined)))
+  const booksHaveLoaded = useRef(Boolean(cachedProfile && (!cachedProfile.community_id || cachedCommunityBooks !== undefined)))
   const booksRefreshGeneration = useRef(0)
   const inboxUpdatePending = useRef(false)
   const inboxRefreshGeneration = useRef(0)
@@ -104,7 +109,7 @@ export default function Home() {
     try {
       let nextBooks = HOME_PREVIEW_BOOKS
       if (currentProfile.community_id) {
-        const feedOutcome = pendingFeed ? await pendingFeed : { books: await getBookFeed() }
+        const feedOutcome = pendingFeed ? await pendingFeed : { books: await searchBooks("", "community") }
         if ("error" in feedOutcome) throw feedOutcome.error
         nextBooks = feedOutcome.books
       }
@@ -132,7 +137,7 @@ export default function Home() {
     setProfileError(null)
     const knownCommunityId = profileRef.current?.community_id
     const pendingFeed: Promise<FeedOutcome> | undefined = knownCommunityId
-      ? getBookFeed().then((books) => ({ books }), (error) => ({ error }))
+      ? searchBooks("", "community").then((books) => ({ books }), (error) => ({ error }))
       : undefined
 
     let nextProfile: Profile
@@ -161,15 +166,12 @@ export default function Home() {
 
   const hasCommunity = Boolean(profile?.community_id)
   const communityName = profile?.community_name || "your community"
-  const availableBooks = useMemo(
-    () => books.filter((book) => book.status === "available"),
-    [books],
-  )
+  const shelfBooks = books
   const previewRows = useMemo(() => {
-    const visible = availableBooks.slice(0, 10)
+    const visible = shelfBooks.slice(0, 10)
     const midpoint = Math.max(1, Math.ceil(visible.length / 2))
     return [visible.slice(0, midpoint), visible.slice(midpoint)]
-  }, [availableBooks])
+  }, [shelfBooks])
 
   if (profileLoading && !profile) return <MembershipLoading />
 
@@ -212,12 +214,10 @@ export default function Home() {
 
             {hasCommunity ? (
               <>
-                <Text style={styles.communityHeroName}>{communityName}</Text>
                 <Text style={styles.heroTitle}>{t("nextFavorite")}</Text>
                 <Text style={styles.heroBody}>{t("exploreCommunity", { name: communityName })}</Text>
-                <View style={[styles.heroActions, isWide && styles.heroActionsWide]}>
-                  <PrimaryAction label={t("startSwiping")} icon="heart" onPress={() => router.push("/explore")} />
-                  <SecondaryAction label={t("searchBooks")} icon="search" onPress={() => router.push("/search")} />
+                <View style={styles.heroActions}>
+                  <PrimaryAction style={styles.heroAction} label={t("startSwiping")} icon="heart" onPress={() => router.push("/explore")} />
                 </View>
               </>
             ) : (
@@ -240,7 +240,7 @@ export default function Home() {
                 <Text style={styles.sectionEyebrow}>{hasCommunity ? t("sharedNearby") : t("peekInside")}</Text>
                 <Text style={styles.sectionTitle}>{hasCommunity ? t("shelvesIn", { name: communityName }) : t("booksFindingReaders")}</Text>
               </View>
-              {hasCommunity && availableBooks.length > 0 ? (
+              {hasCommunity && shelfBooks.length > 0 ? (
                 <Pressable
                   accessibilityRole="link"
                   onPress={() => router.push("/explore")}
@@ -263,13 +263,13 @@ export default function Home() {
                 actionLabel="Try again"
                 onAction={() => profile && loadBooks(profile)}
               />
-            ) : availableBooks.length === 0 ? (
+            ) : shelfBooks.length === 0 ? (
               hasCommunity ? (
                 <ShelfState
                   icon="library-outline"
-                  title="Your community shelf is waiting for its first story."
-                  body="Add a book to your library and help another reader discover it."
-                  actionLabel="Add a book"
+                  title={t("communityShelfFirstStory")}
+                  body={t("addBookDiscoverReader")}
+                  actionLabel={t("addBookLabel")}
                   onAction={() => router.push("/books/new")}
                 />
               ) : (
@@ -284,9 +284,10 @@ export default function Home() {
             ) : hasCommunity ? (
               <View style={styles.railPaper}>
                 <LandingBookRail
-                  books={availableBooks.slice(0, 7)}
+                  books={shelfBooks.slice(0, 7)}
                   reduceMotion={reduceMotion}
-                  onBookPress={() => router.push("/explore")}
+                  onRailPress={() => router.push("/explore")}
+                  railAccessibilityLabel={t("startSwiping")}
                 />
                 <View style={styles.shelfLine} />
                 <Text style={styles.shelfHint}>{t("tapBook")}</Text>
@@ -341,7 +342,10 @@ function HomeHeader({
   return (
     <View style={styles.header}>
       <View style={styles.headerDetails}>
-        <Text style={styles.headerEyebrow}>CommonShelf</Text>
+        <View style={styles.headerBrand}>
+          <Image source={appIcon} style={styles.headerBrandIcon} resizeMode="contain" />
+          <Text style={styles.headerEyebrow}>CommonShelf</Text>
+        </View>
         <View style={styles.nameRow}>
           <Text style={styles.name}>{t("helloReader", { name: profile?.display_name || t("reader") })}</Text>
           {profile?.admin ? <AdminBadge /> : null}
@@ -375,18 +379,18 @@ function HeaderAction({ icon, label, onPress, badge = 0 }: { icon: keyof typeof 
   )
 }
 
-function PrimaryAction({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+function PrimaryAction({ label, icon, onPress, style }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; style?: StyleProp<ViewStyle> }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.primaryAction, pressed && styles.actionPressed]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.primaryAction, style, pressed && styles.actionPressed]}>
       <Text style={styles.primaryActionText}>{label}</Text>
       <Ionicons name={icon} size={19} color={palette.paper} />
     </Pressable>
   )
 }
 
-function SecondaryAction({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+function SecondaryAction({ label, icon, onPress, style }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; style?: StyleProp<ViewStyle> }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.secondaryAction, pressed && styles.actionPressed]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.secondaryAction, style, pressed && styles.actionPressed]}>
       <Ionicons name={icon} size={18} color={palette.ink} />
       <Text style={styles.secondaryActionText}>{label}</Text>
     </Pressable>
@@ -444,7 +448,9 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 18, paddingTop: 14, paddingBottom: 112, gap: 20 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
   headerDetails: { flex: 1, minWidth: 0 },
-  headerEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase", color: palette.accentDark, marginBottom: 4 },
+  headerBrand: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  headerBrandIcon: { width: 18, height: 18, borderRadius: 4 },
+  headerEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase", color: palette.accentDark },
   nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   name: { fontFamily: typography.serif, fontSize: 25, lineHeight: 31, fontWeight: "700", color: palette.ink },
   headerCommunity: { fontSize: 14, color: palette.textMuted, marginTop: 3 },
@@ -457,7 +463,7 @@ const styles = StyleSheet.create({
   pressed: { transform: [{ scale: 0.94 }] },
   badge: { position: "absolute", right: -4, top: -4, minWidth: 19, height: 19, paddingHorizontal: 4, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: palette.danger, borderWidth: 2, borderColor: palette.background },
   badgeText: { color: palette.paper, fontSize: 9, fontWeight: "800" },
-  landingGrid: { gap: 18 },
+  landingGrid: { gap: 36 },
   landingGridWide: { flexDirection: "row", alignItems: "stretch", gap: 24, paddingTop: 18 },
   hero: { position: "relative", overflow: "hidden", backgroundColor: palette.yellow, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, borderCurve: "continuous", padding: 20, ...shadows.soft },
   heroWide: { flex: 0.84, justifyContent: "center", padding: 30, minHeight: 560 },
@@ -466,11 +472,10 @@ const styles = StyleSheet.create({
   heroDash: { position: "absolute", width: 82, height: 6, borderRadius: 4, right: 22, bottom: 20, backgroundColor: palette.orange, transform: [{ rotate: "-3deg" }], opacity: 0.75 },
   heroEyebrowRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 10 },
   heroEyebrow: { fontSize: 11, fontWeight: "900", letterSpacing: 1.3, textTransform: "uppercase", color: palette.accentDark },
-  communityHeroName: { alignSelf: "flex-start", fontSize: 13, lineHeight: 18, fontWeight: "800", color: palette.ink, backgroundColor: palette.paper, borderWidth: 1, borderColor: palette.borderStrong, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 9, transform: [{ rotate: "-1deg" }] },
   heroTitle: { maxWidth: 540, fontFamily: typography.serif, fontSize: 34, lineHeight: 38, fontWeight: "700", color: palette.ink },
   heroBody: { maxWidth: 510, marginTop: 12, fontSize: 15, lineHeight: 22, color: palette.textMuted },
-  heroActions: { marginTop: 8 },
-  heroActionsWide: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  heroActions: { marginTop: 8, flexDirection: "row", alignItems: "stretch", gap: 10 },
+  heroAction: { flex: 1, minWidth: 0, height: 48, minHeight: 48, marginTop: 16, paddingHorizontal: 10 },
   primaryAction: { minHeight: 52, marginTop: 16, paddingHorizontal: 19, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: palette.accent, borderWidth: 1.5, borderColor: palette.accentDark, ...shadows.soft },
   primaryActionText: { color: palette.paper, fontSize: 15, fontWeight: "900" },
   secondaryAction: { minHeight: 48, marginTop: 10, paddingHorizontal: 16, borderRadius: radii.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong },
@@ -481,7 +486,7 @@ const styles = StyleSheet.create({
   communityTypeText: { color: palette.ink, fontSize: 10, fontWeight: "700" },
   shelfSection: { minWidth: 0 },
   shelfSectionWide: { flex: 1.16, justifyContent: "center", minHeight: 560 },
-  sectionHeadingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", gap: 10, marginBottom: 9, paddingHorizontal: 2 },
+  sectionHeadingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 9, paddingHorizontal: 2 },
   sectionHeadingCopy: { flex: 1, minWidth: 0 },
   sectionEyebrow: { color: palette.orange, fontSize: 10, fontWeight: "900", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 3 },
   sectionTitle: { fontFamily: typography.serif, color: palette.ink, fontSize: 21, lineHeight: 26, fontWeight: "700" },

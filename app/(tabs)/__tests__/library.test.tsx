@@ -49,6 +49,7 @@ describe("library", () => {
     expect(screen.getByText("Beloved")).toBeVisible()
     expect(screen.queryByText("A Wizard of Earthsea")).toBeNull()
 
+    fireEvent.press(screen.getByRole("button", { name: "Options" }))
     const listView = screen.getByRole("button", { name: "List view" })
     fireEvent.press(listView)
     expect(screen.getByRole("button", { name: "List view" }).props.accessibilityState).toMatchObject({ selected: true })

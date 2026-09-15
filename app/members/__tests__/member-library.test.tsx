@@ -20,7 +20,10 @@ describe("member library", () => {
     expect(await screen.findByText("Ada Reader's library")).toBeVisible()
     const item = screen.getByRole("button", { name: "The Left Hand of Darkness by Ursula K. Le Guin" })
     fireEvent.press(item)
-    expect(router.push).toHaveBeenCalledWith({ pathname: "/books/[bookId]", params: { bookId: book().id } })
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/books/[bookId]",
+      params: { bookId: book().id, ownerName: "Ada Reader", communityName: "Readers" },
+    })
   })
 
   it("renders empty and unauthorized states", async () => {
@@ -47,6 +50,7 @@ describe("member library", () => {
     expect(screen.getByText("Beloved")).toBeVisible()
     expect(screen.queryByText("A Wizard of Earthsea")).toBeNull()
 
+    fireEvent.press(screen.getByRole("button", { name: "Options" }))
     fireEvent.press(screen.getByRole("button", { name: "List view" }))
     expect(screen.getByRole("button", { name: "List view" }).props.accessibilityState).toMatchObject({ selected: true })
   })

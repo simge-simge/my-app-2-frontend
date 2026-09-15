@@ -79,7 +79,7 @@ export default function MemberLibraryScreen() {
         emptyText={t("emptyMemberShelf", { name: displayName })}
         refreshing={refreshing}
         onRefresh={() => loadLibrary(true)}
-        onBookPress={(book) => router.push({ pathname: "/books/[bookId]", params: { bookId: book.id } })}
+        onBookPress={(book) => router.push({ pathname: "/books/[bookId]", params: { bookId: book.id, ownerName: displayName, communityName: member.community_name ?? "" } })}
         header={(
           <View style={styles.profileCard}>
             {member.avatar_url ? <Image source={{ uri: member.avatar_url }} style={styles.avatar} /> : <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarText}>{displayName.slice(0, 1).toUpperCase()}</Text></View>}

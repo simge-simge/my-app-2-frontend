@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react-native"
 
 import Home from "../home"
 import { getCachedApiData } from "@/services/api"
-import { getBookFeed, getMyBooks, searchBooks } from "@/services/books"
+import { getMyBooks, searchBooks } from "@/services/books"
 import { getInbox } from "@/services/inbox"
 import { getMatches } from "@/services/matches"
 import { getProfile, type Profile } from "@/services/profile"
@@ -42,10 +42,10 @@ describe("home performance flow", () => {
     jest.mocked(getCachedApiData).mockReturnValue(undefined)
   })
 
-  it("loads the inbox badge without waiting for the book feed and skips ineffective prefetches", async () => {
+  it("loads the inbox badge without waiting for the community shelf and skips ineffective prefetches", async () => {
     let finishFeed!: (books: ReturnType<typeof book>[]) => void
     jest.mocked(getProfile).mockResolvedValue(profile)
-    jest.mocked(getBookFeed).mockImplementation(() => new Promise((resolve) => {
+    jest.mocked(searchBooks).mockImplementation(() => new Promise((resolve) => {
       finishFeed = resolve
     }))
     jest.mocked(getInbox).mockResolvedValue({
@@ -71,7 +71,7 @@ describe("home performance flow", () => {
   it("updates the badge immediately from an optimistic inbox action", async () => {
     let finishUpdate!: () => void
     jest.mocked(getProfile).mockResolvedValue(profile)
-    jest.mocked(getBookFeed).mockResolvedValue([])
+    jest.mocked(searchBooks).mockResolvedValue([])
     jest.mocked(getInbox)
       .mockResolvedValueOnce({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 3 })
       .mockResolvedValue({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 0 })
@@ -97,12 +97,12 @@ describe("home performance flow", () => {
     let finishFeed!: (books: ReturnType<typeof book>[]) => void
     jest.mocked(getCachedApiData).mockImplementation((path) => {
       if (path === "/profile/me/") return profile
-      if (path === "/books/feed") return [cachedBook]
+      if (path === "/books/search?scope=community") return [cachedBook]
       return undefined
     })
     jest.mocked(getProfile).mockResolvedValue(profile)
     jest.mocked(getInbox).mockResolvedValue({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 0 })
-    jest.mocked(getBookFeed).mockImplementation(() => new Promise((resolve) => {
+    jest.mocked(searchBooks).mockImplementation(() => new Promise((resolve) => {
       finishFeed = resolve
     }))
 
@@ -113,6 +113,23 @@ describe("home performance flow", () => {
 
     await act(async () => { finishFeed([book({ id: "fresh-book", title: "Fresh Shelf Book" })]) })
     expect(await screen.findByText("Fresh Shelf Book")).toBeTruthy()
+  })
+
+  it("shows community books regardless of owner or status", async () => {
+    jest.mocked(getProfile).mockResolvedValue(profile)
+    jest.mocked(getInbox).mockResolvedValue({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 0 })
+    jest.mocked(searchBooks).mockResolvedValue([
+      book({ id: "my-community-book", owner_id: profile.id, title: "My Matched Book", status: "matched" }),
+      book({ id: "lent-community-book", owner_id: "user-b", title: "Their Lent Book", status: "lent" }),
+    ])
+
+    render(<Home />)
+
+    expect(await screen.findByText("My Matched Book")).toBeTruthy()
+    expect(screen.getByText("Their Lent Book")).toBeTruthy()
+    expect(screen.queryByText("Your community shelf is waiting for its first story.")).toBeNull()
+    expect(searchBooks).toHaveBeenCalledWith("", "community")
+
   })
 
   it("shows the local bilingual preview without searching for books", async () => {
@@ -133,6 +150,5 @@ describe("home performance flow", () => {
     expect(await screen.findByText("Kürk Mantolu Madonna")).toBeTruthy()
     expect(screen.getByText("The Left Hand of Darkness")).toBeTruthy()
     expect(searchBooks).not.toHaveBeenCalled()
-    expect(getBookFeed).not.toHaveBeenCalled()
   })
 })

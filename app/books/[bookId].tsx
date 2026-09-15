@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,11 +15,11 @@ import { Image } from "expo-image"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
-import { getBook, type Book } from "@/services/books"
+import { getBook, requestToBorrowBook, type Book } from "@/services/books"
 import { supabase } from "@/utils/supabase"
 import { useBookStatusLabel } from "@/localization/bookStatus"
 import { useTranslation } from "@/localization/LanguageContext"
-import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
+import { runInBackground, subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
 function getOptimisticBookChange(value: unknown): { book: Book; previous?: Book } | undefined {
   if (!value || typeof value !== "object" || !("book" in value)) return undefined
@@ -29,10 +30,15 @@ function getOptimisticBookChange(value: unknown): { book: Book; previous?: Book 
 export default function BookDetailsScreen() {
   const bookStatusLabel = useBookStatusLabel()
   const { language, t } = useTranslation()
-  const { bookId } = useLocalSearchParams<{ bookId: string }>()
+  const { bookId, ownerName: ownerNameParam, communityName: communityNameParam } = useLocalSearchParams<{
+    bookId: string
+    ownerName?: string
+    communityName?: string
+  }>()
   const cachePath = bookId ? `/books/${bookId}` : ""
   const cachedBook = getCachedApiData<Book>(cachePath)
   const [book, setBook] = useState<Book | null>(() => cachedBook ?? null)
+  const [borrowRequested, setBorrowRequested] = useState(() => cachedBook?.borrow_requested ?? false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(() => cachedBook === undefined)
   const [refreshing, setRefreshing] = useState(false)
@@ -53,7 +59,10 @@ export default function BookDetailsScreen() {
         getBook(bookId),
       ])
       setCurrentUserId(data.session?.user.id ?? null)
-      if (revisionAtStart === bookRevision.current) setBook(response)
+      if (revisionAtStart === bookRevision.current) {
+        setBook(response)
+        setBorrowRequested(response.borrow_requested ?? false)
+      }
       hasLoaded.current = true
     } catch (err) {
       console.error("Failed to load book", err)
@@ -82,9 +91,23 @@ export default function BookDetailsScreen() {
   }), [bookId])
 
   const isOwner = Boolean(book && currentUserId && book.owner_id === currentUserId)
+  const ownerName = book?.owner_name || ownerNameParam
+  const communityName = book?.community_name || communityNameParam
   const openEditor = () => {
     if (!bookId || !isOwner) return
     router.push({ pathname: "/books/edit/[bookId]", params: { bookId } })
+  }
+
+  const handleBorrowRequest = () => {
+    if (!book || book.status !== "available" || isOwner || borrowRequested) return
+    setBorrowRequested(true)
+    runInBackground(() => requestToBorrowBook(book.id), {
+      onError: (err) => {
+        setBorrowRequested(false)
+        console.error("Failed to send borrow request", err)
+        Alert.alert(t("requestNotSent"), err instanceof Error ? err.message : t("tryAgain"))
+      },
+    })
   }
 
   if (loading) {
@@ -135,8 +158,30 @@ export default function BookDetailsScreen() {
           </View>
         </View>
 
+        {!isOwner ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("askBorrowBook", { title: book.title })}
+            accessibilityState={{ disabled: book.status !== "available" || borrowRequested }}
+            disabled={book.status !== "available" || borrowRequested}
+            onPress={handleBorrowRequest}
+            style={({ pressed }) => [
+              styles.borrowButton,
+              (book.status !== "available" || borrowRequested) && styles.borrowButtonDisabled,
+              pressed && styles.borrowButtonPressed,
+            ]}
+          >
+            <Ionicons name={borrowRequested ? "checkmark-circle" : "hand-left-outline"} size={18} color={palette.paper} />
+            <Text style={styles.borrowButtonText}>
+              {book.status !== "available" ? t("bookUnavailable") : borrowRequested ? t("requestSent") : t("askBorrow")}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>{t("bookInformation")}</Text>
+          {ownerName ? <DetailRow icon="person-outline" label={t("ownerLabel")} value={ownerName} /> : null}
+          {communityName ? <DetailRow icon="location-outline" label={t("community")} value={communityName} /> : null}
           <DetailRow label={t("author")} value={book.author || t("unknownAuthor")} />
           <DetailRow label={t("isbn")} value={book.isbn || t("notProvided")} />
           <DetailRow label={t("added")} value={formatDate(book.created_at, language, t("unknown"))} />
@@ -149,10 +194,13 @@ export default function BookDetailsScreen() {
   )
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ icon, label, value }: { icon?: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return (
     <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
+      <View style={styles.detailLabelRow}>
+        {icon ? <Ionicons name={icon} size={16} color={palette.textMuted} /> : null}
+        <Text style={styles.detailLabel}>{label}</Text>
+      </View>
       <Text style={styles.detailValue}>{value}</Text>
     </View>
   )
@@ -174,6 +222,10 @@ const styles = StyleSheet.create({
   editButtonPressed: { opacity: 0.7 },
   inlineEditButton: { marginTop: 14 },
   editButtonText: { color: palette.accentDark, fontSize: 14, fontWeight: "800" },
+  borrowButton: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 15, borderRadius: radii.round, backgroundColor: palette.accent, ...shadows.soft },
+  borrowButtonDisabled: { backgroundColor: palette.textSoft },
+  borrowButtonPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
+  borrowButtonText: { color: palette.paper, fontSize: 14, fontWeight: "800" },
   hero: { flexDirection: "row", alignItems: "center", gap: 22, padding: 20, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, backgroundColor: palette.paper, ...shadows.lifted },
   coverWrap: { width: 142, height: 208, position: "relative" },
   cover: { width: "100%", height: "100%", borderRadius: radii.sm, backgroundColor: palette.surfaceMuted },
@@ -189,6 +241,7 @@ const styles = StyleSheet.create({
   detailsCard: { padding: 20, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surface, ...shadows.soft },
   sectionTitle: { marginBottom: 7, fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text },
   detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 20, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  detailLabelRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   detailLabel: { color: palette.textMuted, fontSize: 13, fontWeight: "700" },
   detailValue: { flex: 1, color: palette.text, fontSize: 14, textAlign: "right" },
   descriptionBlock: { paddingTop: 16, gap: 8 },

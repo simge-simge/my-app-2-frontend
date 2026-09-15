@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native"
 import { router } from "expo-router"
+import { FlatList } from "react-native"
 
 import Search from "../search"
 import { searchBooks } from "@/services/books"
@@ -15,6 +16,18 @@ jest.mock("@/utils/supabase", () => ({
 }))
 
 describe("search", () => {
+  const selectType = (current: "All" | "Books" | "Users", next: "All" | "Books" | "Users") => {
+    fireEvent.press(screen.getByRole("button", { name: `Search type: ${current}` }))
+    fireEvent.press(screen.getByRole("button", { name: next }))
+  }
+
+  const selectScope = (current: "All" | "Community", next: "All" | "Community") => {
+    fireEvent.press(screen.getByRole("button", { name: `Search scope: ${current}` }))
+    fireEvent.press(screen.getByRole("button", { name: next }))
+  }
+
+  const openOptions = () => fireEvent.press(screen.getByRole("button", { name: "Options" }))
+
   const regularProfile: Profile = {
     id: "current-user",
     display_name: "Current Reader",
@@ -36,19 +49,53 @@ describe("search", () => {
   beforeEach(() => {
     jest.useFakeTimers()
     jest.mocked(getProfile).mockResolvedValue(regularProfile)
+    jest.mocked(searchBooks).mockResolvedValue([])
+    jest.mocked(searchProfiles).mockResolvedValue([])
   })
   afterEach(() => jest.useRealTimers())
+
+  it("defaults both dropdown filters to all and combines result types", async () => {
+    jest.mocked(searchBooks).mockResolvedValue([book({ title: "A Book" })])
+    jest.mocked(searchProfiles).mockResolvedValue([
+      { id: "member-1", display_name: "Ada Reader", avatar_url: null, community_id: "community", community_name: "Readers", admin: false },
+    ])
+
+    render(<Search />)
+    expect(screen.getByRole("button", { name: "Search type: All" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Search scope: All" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Options" }).props.accessibilityState).toMatchObject({ expanded: false })
+    expect(screen.queryByRole("button", { name: "Card view" })).toBeNull()
+    await act(async () => jest.advanceTimersByTime(300))
+
+    expect(searchBooks).toHaveBeenCalledWith("", "all", expect.anything())
+    expect(searchProfiles).toHaveBeenCalledWith("", "all", expect.anything())
+    expect(await screen.findByText("A Book")).toBeVisible()
+    expect(screen.getByText("Ada Reader")).toBeVisible()
+  })
+
+  it("closes an open filter when the user starts scrolling results", () => {
+    render(<Search />)
+    fireEvent.press(screen.getByRole("button", { name: "Search type: All" }))
+    expect(screen.getByRole("button", { name: "Search type: All" }).props.accessibilityState).toMatchObject({ expanded: true })
+    expect(screen.getByRole("button", { name: "Books" })).toBeVisible()
+
+    fireEvent(screen.UNSAFE_getByType(FlatList), "scrollBeginDrag")
+
+    expect(screen.getByRole("button", { name: "Search type: All" }).props.accessibilityState).toMatchObject({ expanded: false })
+    expect(screen.queryByRole("button", { name: "Books" })).toBeNull()
+  })
 
   it("debounces book search and opens a result", async () => {
     jest.mocked(searchBooks).mockResolvedValue([book()])
     render(<Search />)
+    selectType("All", "Books")
     fireEvent.changeText(screen.getByPlaceholderText("Search books..."), "Le Guin")
     expect(searchBooks).not.toHaveBeenCalled()
     await act(async () => jest.advanceTimersByTime(300))
     expect(await screen.findByRole("button", { name: "The Left Hand of Darkness by Ursula K. Le Guin" })).toBeVisible()
     fireEvent.press(screen.getByRole("button", { name: "The Left Hand of Darkness by Ursula K. Le Guin" }))
     expect(router.push).toHaveBeenCalledWith({ pathname: "/books/[bookId]", params: { bookId: book().id } })
-    expect(searchBooks).toHaveBeenCalledWith("Le Guin", "community", expect.anything())
+    expect(searchBooks).toHaveBeenCalledWith("Le Guin", "all", expect.anything())
   })
 
   it("lists and sorts books when the search field is empty", async () => {
@@ -57,11 +104,13 @@ describe("search", () => {
       book({ id: "newer-a", title: "Alpha", created_at: "2026-01-01T00:00:00Z" }),
     ])
     render(<Search />)
+    selectType("All", "Books")
     await act(async () => jest.advanceTimersByTime(300))
 
-    expect(searchBooks).toHaveBeenCalledWith("", "community", expect.anything())
+    expect(searchBooks).toHaveBeenCalledWith("", "all", expect.anything())
     expect(screen.getAllByText(/^(Alpha|Zeta)$/).map((node) => node.props.children)).toEqual(["Alpha", "Zeta"])
 
+    openOptions()
     fireEvent.press(screen.getByRole("button", { name: "Oldest" }))
     expect(screen.getAllByText(/^(Alpha|Zeta)$/).map((node) => node.props.children)).toEqual(["Zeta", "Alpha"])
   })
@@ -72,8 +121,10 @@ describe("search", () => {
       book({ id: "book-2", title: "Second Book" }),
     ])
     render(<Search />)
+    selectType("All", "Books")
     await act(async () => jest.advanceTimersByTime(300))
 
+    openOptions()
     expect(screen.getByRole("button", { name: "List view" }).props.accessibilityState).toMatchObject({ selected: true })
     expect(screen.getByText("First Book")).toBeVisible()
     expect(screen.getByText("Second Book")).toBeVisible()
@@ -81,8 +132,24 @@ describe("search", () => {
     fireEvent.press(screen.getByRole("button", { name: "Card view" }))
     expect(screen.getByRole("button", { name: "Card view" }).props.accessibilityState).toMatchObject({ selected: true })
 
-    fireEvent.press(screen.getByRole("button", { name: "Search Users" }))
+    selectType("Books", "Users")
     expect(screen.queryByRole("button", { name: "List view" })).toBeNull()
+  })
+
+  it("paginates search results using the selected page size", async () => {
+    jest.mocked(searchBooks).mockResolvedValue(Array.from({ length: 11 }, (_, index) => book({
+      id: `book-${index + 1}`,
+      title: `Book ${index + 1}`,
+      created_at: `2026-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`,
+    })))
+    render(<Search />)
+    selectType("All", "Books")
+    await act(async () => jest.advanceTimersByTime(300))
+
+    expect(screen.getByText("Page 1 of 2")).toBeVisible()
+    expect(screen.queryByText("Book 1")).toBeNull()
+    fireEvent.press(screen.getByRole("button", { name: "Next page" }))
+    expect(screen.getByText("Book 1")).toBeVisible()
   })
 
   it("keeps current results visible while refining the search", async () => {
@@ -92,6 +159,7 @@ describe("search", () => {
       .mockImplementationOnce(() => new Promise((resolve) => { finishSearch = resolve }))
 
     render(<Search />)
+    selectType("All", "Books")
     fireEvent.changeText(screen.getByPlaceholderText("Search books..."), "current")
     await act(async () => jest.advanceTimersByTime(300))
     expect(await screen.findByText("Current Result")).toBeVisible()
@@ -110,6 +178,7 @@ describe("search", () => {
     jest.mocked(searchBooks).mockImplementation(() => new Promise(() => {}))
 
     render(<Search />)
+    selectType("All", "Books")
     fireEvent.changeText(screen.getByPlaceholderText("Search books..."), "first")
     await act(async () => jest.advanceTimersByTime(300))
     const firstSignal = jest.mocked(searchBooks).mock.calls[0][2]
@@ -122,6 +191,7 @@ describe("search", () => {
   it("shows unavailable books with their status and disables borrowing", async () => {
     jest.mocked(searchBooks).mockResolvedValue([book({ status: "matched" })])
     render(<Search />)
+    selectType("All", "Books")
     fireEvent.changeText(screen.getByPlaceholderText("Search books..."), "Le Guin")
     await act(async () => jest.advanceTimersByTime(300))
 
@@ -133,7 +203,7 @@ describe("search", () => {
   it("switches to people search and opens the member library", async () => {
     jest.mocked(searchProfiles).mockResolvedValue([{ id: "member-1", display_name: "Ada Reader", avatar_url: null, community_id: "community", community_name: "Readers", admin: false }])
     render(<Search />)
-    fireEvent.press(screen.getByRole("button", { name: "Search Users" }))
+    selectType("All", "Users")
     fireEvent.changeText(screen.getByPlaceholderText("Search users..."), "Ada")
     await act(async () => jest.advanceTimersByTime(300))
     const result = await screen.findByRole("button", { name: "View Ada Reader's library" })
@@ -144,8 +214,7 @@ describe("search", () => {
   it("shows users without communities in all-user results", async () => {
     jest.mocked(searchProfiles).mockResolvedValue([{ id: "member-1", display_name: "Ada Reader", avatar_url: null, community_id: null, community_name: null, admin: false }])
     render(<Search />)
-    fireEvent.press(screen.getByRole("button", { name: "Search Users" }))
-    fireEvent.press(screen.getByRole("button", { name: "All" }))
+    selectType("All", "Users")
     fireEvent.changeText(screen.getByPlaceholderText("Search users..."), "Ada")
     await act(async () => jest.advanceTimersByTime(300))
 
@@ -160,13 +229,13 @@ describe("search", () => {
       { id: "member-a", display_name: "Ada", avatar_url: null, community_id: "community", community_name: "Readers", admin: false },
     ])
     render(<Search />)
-    fireEvent.press(screen.getByRole("button", { name: "Search Users" }))
-    fireEvent.press(screen.getByRole("button", { name: "All" }))
+    selectType("All", "Users")
     await act(async () => jest.advanceTimersByTime(300))
 
     expect(searchProfiles).toHaveBeenCalledWith("", "all", expect.anything())
     expect(screen.getAllByText(/^(Ada|Zeynep)$/).map((node) => node.props.children)).toEqual(["Ada", "Zeynep"])
 
+    openOptions()
     fireEvent.press(screen.getByRole("button", { name: "Name Z–A" }))
     expect(screen.getAllByText(/^(Ada|Zeynep)$/).map((node) => node.props.children)).toEqual(["Zeynep", "Ada"])
   })
@@ -174,6 +243,7 @@ describe("search", () => {
   it("shows an empty state and request failure", async () => {
     jest.mocked(searchBooks).mockResolvedValueOnce([]).mockRejectedValueOnce(new Error("offline"))
     render(<Search />)
+    selectType("All", "Books")
     fireEvent.changeText(screen.getByPlaceholderText("Search books..."), "missing")
     await act(async () => jest.advanceTimersByTime(300))
     expect(await screen.findByText("No matching books")).toBeVisible()
@@ -189,7 +259,8 @@ describe("search", () => {
     ])
     jest.mocked(removeCommunityMember).mockResolvedValue({ message: "Community member removed", member_id: "member-1" })
     render(<Search />)
-    fireEvent.press(screen.getByRole("button", { name: "Search Users" }))
+    selectType("All", "Users")
+    selectScope("All", "Community")
     await act(async () => { await Promise.resolve(); await jest.advanceTimersByTimeAsync(300) })
 
     expect(await screen.findByRole("button", { name: "Remove Ada Reader from community" })).toBeVisible()

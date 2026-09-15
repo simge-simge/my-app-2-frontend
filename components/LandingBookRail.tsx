@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useEffect, useRef, useState } from "react"
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Animated, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native"
 
 import { palette, radii, shadows, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
@@ -13,7 +13,9 @@ type Props = {
   reduceMotion: boolean
   showCommunity?: boolean
   coverSources?: Record<string, ImageSourcePropType>
-  onBookPress: (book: Book) => void
+  onBookPress?: (book: Book) => void
+  onRailPress?: () => void
+  railAccessibilityLabel?: string
 }
 
 const CARD_WIDTH = 142
@@ -26,9 +28,15 @@ export default function LandingBookRail({
   showCommunity = false,
   coverSources,
   onBookPress,
+  onRailPress,
+  railAccessibilityLabel,
 }: Props) {
   const travel = useRef(new Animated.Value(direction === "left" ? 8 : -38)).current
   const animation = useRef<Animated.CompositeAnimation | null>(null)
+  const scrollRef = useRef<ScrollView>(null)
+  const scrollOffset = useRef(0)
+  const dragStartOffset = useRef(0)
+  const dragging = useRef(false)
   const [paused, setPaused] = useState(false)
   const lastDragEnd = useRef(0)
   const minTravel = -46
@@ -61,19 +69,79 @@ export default function LandingBookRail({
     return () => animation.current?.stop()
   }, [books.length, direction, maxTravel, minTravel, paused, reduceMotion, travel])
 
+  const finishDrag = useCallback(() => {
+    if (!dragging.current) return
+    dragging.current = false
+    lastDragEnd.current = Date.now()
+    setPaused(false)
+  }, [])
+
+  const panResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_event, gesture) => (
+      Math.abs(gesture.dx) > 4 && Math.abs(gesture.dx) > Math.abs(gesture.dy)
+    ),
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => (
+      Math.abs(gesture.dx) > 4 && Math.abs(gesture.dx) > Math.abs(gesture.dy)
+    ),
+    onPanResponderGrant: () => {
+      dragging.current = true
+      dragStartOffset.current = scrollOffset.current
+      animation.current?.stop()
+      travel.stopAnimation()
+      setPaused(true)
+    },
+    onPanResponderMove: (_event, gesture) => {
+      scrollRef.current?.scrollTo({
+        x: Math.max(0, dragStartOffset.current - gesture.dx),
+        animated: false,
+      })
+    },
+    onPanResponderRelease: finishDrag,
+    onPanResponderTerminate: finishDrag,
+  }), [finishDrag, travel])
+
   const handleBookPress = (book: Book) => {
     if (Date.now() - lastDragEnd.current < 300) return
-    onBookPress(book)
+    onBookPress?.(book)
   }
+
+  const handleRailPress = () => {
+    if (Date.now() - lastDragEnd.current < 300) return
+    onRailPress?.()
+  }
+
+  const bookRow = (
+    <Animated.View style={[styles.row, { transform: [{ translateX: travel }] }]}>
+      {books.map((book, index) => (
+        <LandingBookCard
+          key={`${direction}-${book.id}-${index}`}
+          book={book}
+          index={index}
+          showCommunity={showCommunity}
+          coverSource={coverSources?.[book.id]}
+          onPress={onBookPress ? () => handleBookPress(book) : undefined}
+          onInteractionStart={() => setPaused(true)}
+          onInteractionEnd={() => {
+            if (!dragging.current) setPaused(false)
+          }}
+        />
+      ))}
+    </Animated.View>
+  )
 
   return (
     <View style={styles.viewport}>
       <ScrollView
+        ref={scrollRef}
+        {...panResponder.panHandlers}
         horizontal
         directionalLockEnabled
         nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scroller}
+        onScroll={(event) => { scrollOffset.current = event.nativeEvent.contentOffset.x }}
+        scrollEventThrottle={16}
         onScrollBeginDrag={() => setPaused(true)}
         onScrollEndDrag={() => {
           lastDragEnd.current = Date.now()
@@ -81,20 +149,15 @@ export default function LandingBookRail({
         }}
         onMomentumScrollEnd={() => setPaused(false)}
       >
-        <Animated.View style={[styles.row, { transform: [{ translateX: travel }] }]}>
-          {books.map((book, index) => (
-            <LandingBookCard
-              key={`${direction}-${book.id}-${index}`}
-              book={book}
-              index={index}
-              showCommunity={showCommunity}
-              coverSource={coverSources?.[book.id]}
-              onPress={() => handleBookPress(book)}
-              onInteractionStart={() => setPaused(true)}
-              onInteractionEnd={() => setPaused(false)}
-            />
-          ))}
-        </Animated.View>
+        {onRailPress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={railAccessibilityLabel}
+            onPress={handleRailPress}
+          >
+            {bookRow}
+          </Pressable>
+        ) : bookRow}
       </ScrollView>
     </View>
   )
@@ -113,7 +176,7 @@ function LandingBookCard({
   index: number
   showCommunity: boolean
   coverSource?: ImageSourcePropType
-  onPress: () => void
+  onPress?: () => void
   onInteractionStart: () => void
   onInteractionEnd: () => void
 }) {
@@ -124,8 +187,9 @@ function LandingBookCard({
 
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t("bookBy", { title: book.title, author: book.author || t("unknownAuthor") })}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={onPress ? t("bookBy", { title: book.title, author: book.author || t("unknownAuthor") }) : undefined}
+      disabled={!onPress}
       onPress={onPress}
       onPressIn={onInteractionStart}
       onPressOut={onInteractionEnd}
