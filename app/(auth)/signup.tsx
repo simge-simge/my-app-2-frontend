@@ -172,9 +172,9 @@ export default function Signup() {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: palette.background },
   container: { flexGrow: 1, justifyContent: "center", padding: 20, paddingVertical: 32 },
-  card: { width: "100%", maxWidth: layout.formMax, alignSelf: "center", backgroundColor: palette.paper, borderRadius: radii.xl, borderCurve: "continuous", padding: 24, borderWidth: 1.5, borderColor: palette.borderStrong, ...shadows.lifted },
+  card: { width: "100%", maxWidth: layout.formMax, alignSelf: "center", backgroundColor: palette.paper, borderRadius: radii.xl, borderCurve: "continuous", padding: 26, borderWidth: 1, borderColor: palette.border, ...shadows.lifted },
   eyebrow: { marginTop: 12, fontSize: 12, fontWeight: "800", color: palette.accentDark, textTransform: "uppercase", letterSpacing: 1.4 },
-  title: { marginTop: 7, fontFamily: typography.serif, fontSize: 32, lineHeight: 38, fontWeight: "700", color: palette.ink },
+  title: { marginTop: 7, fontFamily: typography.serif, fontSize: 30, lineHeight: 37, fontWeight: "700", letterSpacing: -0.6, color: palette.ink },
   subtitle: { marginTop: 7, fontSize: 15, lineHeight: 22, color: palette.textMuted },
   form: { marginTop: 22 },
   optionalHint: { marginTop: 3, marginBottom: 13, color: palette.textMuted, fontSize: 13, fontWeight: "700" },

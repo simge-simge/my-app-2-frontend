@@ -341,7 +341,7 @@ function BookCard({ book }: { book: Book }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, width: "100%", maxWidth: 620, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 18 },
-  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
+  title: { fontFamily: typography.serif, fontSize: 28, lineHeight: 34, fontWeight: "700", letterSpacing: -0.5, color: palette.text },
   subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
   error: { color: palette.danger, marginBottom: 12 },
   content: { flex: 1, paddingBottom: 28 },
@@ -353,8 +353,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radii.lg,
     borderCurve: "continuous",
-    borderWidth: 1.5,
-    borderColor: palette.borderStrong,
+    borderWidth: 1,
+    borderColor: palette.border,
     overflow: "hidden",
     ...shadows.lifted,
   },
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   author: { flex: 1, textAlign: "right", fontSize: 14, color: palette.textMuted },
-  cardTitle: { fontFamily: typography.serif, fontSize: 26, fontWeight: "700", lineHeight: 31, color: palette.text },
+  cardTitle: { fontFamily: typography.serif, fontSize: 25, fontWeight: "700", letterSpacing: -0.4, lineHeight: 31, color: palette.text },
   description: { fontSize: 15, lineHeight: 22, color: palette.textMuted },
   swipeIndicator: {
     position: "absolute",

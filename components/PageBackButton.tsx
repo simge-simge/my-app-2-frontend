@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { router, type Href } from "expo-router"
 import { Pressable, StyleSheet, Text } from "react-native"
 
-import { palette, typography } from "@/constants/theme"
+import { palette, radii, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
 
 export default function PageBackButton({ label, fallback = "/home" }: { label?: string; fallback?: Href }) {
@@ -41,11 +41,11 @@ const styles = StyleSheet.create({
     gap: 6,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: palette.borderStrong,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: palette.border,
     backgroundColor: palette.paper,
   },
   label: { color: palette.ink, fontFamily: typography.sans, fontSize: 14, fontWeight: "700" },
-  pressed: { transform: [{ scale: 0.94 }], opacity: 0.78 },
+  pressed: { backgroundColor: palette.surfaceMuted, opacity: 0.82 },
 })

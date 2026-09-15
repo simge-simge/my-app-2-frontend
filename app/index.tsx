@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
-import { router } from "expo-router"
+import { Redirect, router } from "expo-router"
 import Head from "expo-router/head"
 import { useEffect, useRef, useState } from "react"
 import { AccessibilityInfo, Animated, Image, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType } from "react-native"
@@ -13,6 +13,7 @@ import LanguageSwitch from "@/components/LanguageSwitch"
 import { HOME_PREVIEW_BOOKS, HOME_PREVIEW_COVERS } from "@/constants/homePreviewBooks"
 import { layout, lightPalette as palette, radii, shadows, spacing, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
+import { useAuthSession } from "@/services/authSession"
 
 const heroArt = require("../assets/images/welcome-hero.png")
 const appIcon = require("../assets/images/icon.png")
@@ -25,6 +26,7 @@ const previewRows = [HOME_PREVIEW_BOOKS.slice(0, 5), HOME_PREVIEW_BOOKS.slice(5)
 const contactEmail = "commonshelf0@gmail.com"
 
 export default function Index() {
+  const { session, loading } = useAuthSession()
   const { language, setLanguage, t } = useTranslation()
   const { width, height } = useWindowDimensions()
   const insets = useSafeAreaInsets()
@@ -55,6 +57,8 @@ export default function Index() {
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion)
     return () => subscription.remove()
   }, [])
+
+  if (!loading && session) return <Redirect href="/home" />
 
   const openApp = () => router.push("/app")
 

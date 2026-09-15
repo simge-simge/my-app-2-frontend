@@ -17,7 +17,7 @@ import type { ImagePickerAsset } from "expo-image-picker"
 import AppButton from "@/components/AppButton"
 import WebCameraCapture from "@/components/WebCameraCapture"
 import WebImageCropper from "@/components/WebImageCropper"
-import { layout, palette, radii, shadows, typography } from "@/constants/theme"
+import { layout, palette, radii, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 import { useTranslation } from "@/localization/LanguageContext"
 
@@ -289,15 +289,16 @@ const styles = StyleSheet.create({
     backgroundColor: palette.background,
   },
   container: {
-    padding: 24,
-    paddingBottom: 40,
+    padding: 20,
+    paddingBottom: 48,
     width: "100%",
     maxWidth: layout.formMax,
     alignSelf: "center",
   },
   title: {
     fontFamily: typography.serif,
-    fontSize: 30,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: "700",
     color: palette.text,
   },
@@ -318,12 +319,12 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 52,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: palette.border,
     borderRadius: radii.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: palette.surface,
+    backgroundColor: palette.paper,
     fontSize: 15,
     color: palette.text,
   },
@@ -338,15 +339,14 @@ const styles = StyleSheet.create({
   },
   coverButton: {
     minHeight: 52,
-    borderWidth: 1.5,
-    borderColor: palette.borderStrong,
+    borderWidth: 1,
+    borderColor: palette.border,
     borderRadius: radii.md,
     paddingHorizontal: 14,
     paddingVertical: 14,
     backgroundColor: palette.surface,
     alignItems: "center",
     justifyContent: "center",
-    ...shadows.soft,
   },
   coverActions: {
     flexDirection: "row",

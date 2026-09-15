@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native"
 
 import BookDisplay from "@/components/BookDisplay"
-import { layout, palette, radii, shadows, typography } from "@/constants/theme"
+import { layout, palette, radii, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
 import type { Book } from "@/services/books"
 
@@ -152,15 +152,15 @@ const styles = StyleSheet.create({
   emptyContent: { flexGrow: 1 },
   row: { justifyContent: "space-between" },
   eyebrow: { marginTop: 22, marginBottom: 5, color: palette.accentDark, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },
-  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
+  title: { fontFamily: typography.serif, fontSize: 28, lineHeight: 34, fontWeight: "700", letterSpacing: -0.5, color: palette.text },
   subtitle: { marginTop: 6, color: palette.textMuted, fontSize: 15 },
   message: { marginTop: 10, color: palette.danger },
-  controlsCard: { gap: 14, marginTop: 18, marginBottom: 12, padding: 14, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surface, ...shadows.soft },
+  controlsCard: { gap: 14, marginTop: 18, marginBottom: 12, padding: 14, borderWidth: 1, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surface },
   searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  searchBox: { flex: 1, height: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
+  searchBox: { flex: 1, height: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border, borderRadius: radii.md, backgroundColor: palette.paper },
   searchInput: { flex: 1, minWidth: 0, color: palette.text, fontSize: 14, paddingVertical: 10 },
   clearButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
-  optionsButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
+  optionsButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border, borderRadius: radii.md, backgroundColor: palette.paper },
   optionsButtonSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
   optionsTogglePressed: { opacity: 0.72 },
   advancedOptions: { gap: 14, paddingTop: 2 },

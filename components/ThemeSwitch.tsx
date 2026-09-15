@@ -17,9 +17,9 @@ export default function ThemeSwitch() {
         accessibilityHint={`${t("lightTheme")} / ${t("darkTheme")}`}
         value={isDark}
         onValueChange={(enabled) => setTheme(enabled ? "dark" : "light")}
-        trackColor={{ false: palette.blue, true: palette.accentSoft }}
-        thumbColor={isDark ? palette.accentDark : palette.yellow}
-        ios_backgroundColor={palette.blue}
+        trackColor={{ false: palette.borderStrong, true: palette.accent }}
+        thumbColor={palette.white}
+        ios_backgroundColor={palette.borderStrong}
       />
       <Ionicons name="moon-outline" size={17} color={isDark ? palette.accentDark : palette.textMuted} />
     </View>
@@ -27,5 +27,5 @@ export default function ThemeSwitch() {
 }
 
 const styles = StyleSheet.create({
-  container: { width: 130, height: 46, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
+  container: { width: 122, height: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8, borderWidth: 1, borderColor: palette.border, borderRadius: radii.md, backgroundColor: palette.paper },
 })

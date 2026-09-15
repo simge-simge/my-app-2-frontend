@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, Text, StyleSheet, ViewStyle } from "react-native"
-import { palette, radii, shadows } from "@/constants/theme"
+import { palette, radii } from "@/constants/theme"
 
 type Props = {
   title: string
@@ -36,9 +36,9 @@ export default function AppButton({ title, onPress, loading, variant = "primary"
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 54,
+    minHeight: 50,
     backgroundColor: palette.accent,
-    paddingVertical: 15,
+    paddingVertical: 13,
     paddingHorizontal: 20,
     borderRadius: radii.md,
     borderCurve: "continuous",
@@ -47,17 +47,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 9,
     marginTop: 10,
-    borderWidth: 1.5,
-    borderColor: palette.accentDark,
-    ...shadows.soft,
+    borderWidth: 1,
+    borderColor: palette.accent,
   },
   secondary: {
     backgroundColor: palette.paper,
-    borderColor: palette.borderStrong,
-    shadowOpacity: 0.04,
+    borderColor: palette.border,
   },
-  pressed: { transform: [{ scale: 0.98 }], shadowOpacity: 0.04 },
-  disabled: { opacity: 0.7 },
-  text: { color: palette.paper, fontWeight: "800", fontSize: 16, letterSpacing: 0.1 },
+  pressed: { opacity: 0.82 },
+  disabled: { opacity: 0.58 },
+  text: { color: palette.white, fontWeight: "700", fontSize: 15, letterSpacing: 0.1 },
   secondaryText: { color: palette.ink },
 })

@@ -34,12 +34,12 @@ describe("public home page", () => {
     expect(router.push).toHaveBeenCalledWith("/app")
   })
 
-  it("keeps the landing page available to authenticated readers", () => {
+  it("redirects authenticated readers from the root page to home", () => {
     mockUseAuthSession.mockReturnValue({ session: { user: { id: "reader" } }, loading: false })
 
     render(<Index />)
 
-    expect(screen.getByText("Good books find their way to good company.")).toBeTruthy()
+    expect(screen.getByText("Redirect:/home")).toBeTruthy()
   })
 
   it("shows a swipeable how-it-works carousel with position controls on mobile", () => {

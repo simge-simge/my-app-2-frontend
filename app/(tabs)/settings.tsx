@@ -447,7 +447,7 @@ export default function Settings() {
 }
 
 const styles = StyleSheet.create({
-  languageCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", backgroundColor: palette.paper, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, padding: 16 },
+  languageCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", backgroundColor: palette.paper, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, padding: 16 },
   container: {
     padding: 24,
     gap: 22,
@@ -462,8 +462,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radii.lg,
     padding: 22,
-    borderWidth: 1.5,
-    borderColor: palette.borderStrong,
+    borderWidth: 1,
+    borderColor: palette.border,
     ...shadows.soft,
   },
   section: {
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 52,
     width: "100%",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: palette.border,
     borderRadius: radii.md,
     padding: 14,

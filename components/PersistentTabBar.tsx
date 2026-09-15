@@ -26,7 +26,7 @@ export default function PersistentTabBar({ state, descriptors, navigation }: Bot
   if (!activeRoute || !(activeRoute.name in tabs)) return null
 
   return (
-    <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={[styles.bar, { width: Math.min(width - 24, layout.readingMax) }]} accessibilityRole="tablist">
         {state.routes.filter((route) => route.name in tabs).map((route) => {
           const routeIndex = state.routes.findIndex((item) => item.key === route.key)
@@ -97,30 +97,30 @@ function AnimatedTabIcon({ focused, outline, filled }: { focused: boolean; outli
         },
       ]}
     >
-      <Ionicons name={focused ? filled : outline} size={21} color={focused ? palette.paper : palette.textMuted} />
+      <Ionicons name={focused ? filled : outline} size={20} color={focused ? palette.accentDark : palette.textMuted} />
     </Animated.View>
   )
 }
 
 const styles = StyleSheet.create({
-  safeArea: { width: "100%", maxWidth: "100%", overflow: "hidden", backgroundColor: palette.background, paddingHorizontal: 12, paddingTop: 5, alignItems: "center" },
+  safeArea: { width: "100%", maxWidth: "100%", overflow: "hidden", backgroundColor: palette.background, paddingHorizontal: 14, paddingTop: 7, alignItems: "center" },
   bar: {
     alignSelf: "center",
-    minHeight: 66,
+    minHeight: 64,
     flexDirection: "row",
     paddingHorizontal: 5,
     paddingVertical: 5,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     borderCurve: "continuous",
-    borderWidth: 1.5,
-    borderColor: palette.borderStrong,
+    borderWidth: 1,
+    borderColor: palette.border,
     backgroundColor: palette.paper,
-    ...shadows.lifted,
+    ...shadows.soft,
   },
-  item: { flex: 1, minWidth: 0, minHeight: 54, alignItems: "center", justifyContent: "center", gap: 2, borderRadius: radii.lg },
-  pressed: { transform: [{ scale: 0.96 }] },
-  iconWrap: { width: 34, height: 29, alignItems: "center", justifyContent: "center", borderRadius: 15 },
-  activeIconWrap: { backgroundColor: palette.accent },
-  label: { color: palette.textMuted, fontSize: 10, fontWeight: "700" },
-  activeLabel: { color: palette.accentDark, fontWeight: "800" },
+  item: { flex: 1, minWidth: 0, minHeight: 52, alignItems: "center", justifyContent: "center", gap: 3, borderRadius: radii.md },
+  pressed: { backgroundColor: palette.surfaceMuted, opacity: 0.82 },
+  iconWrap: { width: 34, height: 28, alignItems: "center", justifyContent: "center", borderRadius: radii.sm },
+  activeIconWrap: { backgroundColor: palette.accentSoft },
+  label: { color: palette.textMuted, fontSize: 10, fontWeight: "600" },
+  activeLabel: { color: palette.accentDark, fontWeight: "700" },
 })

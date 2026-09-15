@@ -43,14 +43,14 @@ const styles = StyleSheet.create({
   labelFocused: { color: palette.accentDark },
   input: {
     minHeight: 54,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: palette.border,
     paddingHorizontal: 16,
     borderRadius: radii.md,
     borderCurve: "continuous",
-    backgroundColor: palette.paper,
+    backgroundColor: palette.surface,
     color: palette.text,
     fontSize: 16,
   },
-  inputFocused: { borderColor: palette.accent, backgroundColor: "#FFFFFA" },
+  inputFocused: { borderColor: palette.accent, backgroundColor: palette.surface },
 })

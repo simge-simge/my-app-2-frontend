@@ -31,6 +31,6 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0 },
   narrowCopy: { flex: 0, width: "100%" },
   trailing: { flexShrink: 0 },
-  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
-  subtitle: { fontSize: 14, color: palette.textMuted, marginTop: 5 },
+  title: { fontFamily: typography.serif, fontSize: 28, lineHeight: 34, fontWeight: "700", letterSpacing: -0.5, color: palette.text },
+  subtitle: { fontSize: 14, lineHeight: 20, color: palette.textMuted, marginTop: 4 },
 })
