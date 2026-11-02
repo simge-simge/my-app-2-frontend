@@ -1,3 +1,4 @@
+import DefaultBookCover from "@/components/DefaultBookCover"
 import { Ionicons } from "@expo/vector-icons"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Animated, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native"
@@ -211,10 +212,7 @@ function LandingBookCard({
         {coverSource || book.cover_url ? (
           <Image source={coverSource ?? { uri: book.cover_url! }} style={styles.cover} resizeMode="contain" />
         ) : (
-          <View style={[styles.cover, styles.coverFallback]}>
-            <Ionicons name="book-outline" size={24} color={palette.ink} />
-            <Text style={styles.fallbackLetter}>{book.title.slice(0, 1).toUpperCase()}</Text>
-          </View>
+          <DefaultBookCover title={book.title} author={book.author} style={styles.cover} />
         )}
         <View style={styles.pages} />
         <View style={[styles.bookmark, index % 2 === 0 && styles.bookmarkAlt]} />
@@ -256,8 +254,6 @@ const styles = StyleSheet.create({
   },
   coverWrap: { height: 142, margin: 7, marginBottom: 0, position: "relative" },
   cover: { width: "100%", height: "100%", borderRadius: radii.sm, backgroundColor: palette.surfaceMuted },
-  coverFallback: { alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: palette.blueSoft },
-  fallbackLetter: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.ink },
   spine: { position: "absolute", left: 5, top: 0, bottom: 0, width: 3, zIndex: 2, backgroundColor: "rgba(56,51,45,0.24)", borderRadius: 2 },
   pages: { position: "absolute", right: -3, bottom: 5, width: 4, height: "88%", backgroundColor: palette.yellow, borderWidth: 1, borderLeftWidth: 0, borderColor: palette.borderStrong, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
   bookmark: { position: "absolute", right: 12, top: -4, width: 12, height: 25, backgroundColor: palette.orange, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 },

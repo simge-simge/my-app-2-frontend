@@ -1,3 +1,4 @@
+import DefaultBookCover from "@/components/DefaultBookCover"
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect } from "expo-router"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
@@ -336,9 +337,7 @@ function BookCard({ book }: { book: Book }) {
       {book.cover_url ? (
         <Image key={`${book.id}-${book.cover_url}`} source={{ uri: book.cover_url }} style={[styles.cover, { height: coverHeight }]} resizeMode="contain" fadeDuration={0} />
       ) : (
-        <View key={`${book.id}-fallback`} style={[styles.cover, styles.coverFallback, { height: coverHeight }]}>
-          <Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text>
-        </View>
+        <DefaultBookCover key={`${book.id}-fallback`} title={book.title} author={book.author} style={[styles.cover, { height: coverHeight }]} />
       )}
 
       <View style={styles.cardContent}>
@@ -354,7 +353,7 @@ function BookCard({ book }: { book: Book }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, width: "100%", maxWidth: 620, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 18 },
+  container: { flex: 1, width: "100%", maxWidth: 620, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 8 },
   title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
   subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
   error: { color: palette.danger, marginBottom: 12 },
@@ -381,8 +380,6 @@ const styles = StyleSheet.create({
   emptyListContent: { flexGrow: 1, justifyContent: "center" },
   cardInner: { backgroundColor: palette.surface },
   cover: { width: "100%", backgroundColor: palette.surfaceMuted },
-  coverFallback: { alignItems: "center", justifyContent: "center" },
-  coverFallbackText: { fontSize: 48, fontWeight: "800", color: palette.textSoft },
   cardContent: { paddingHorizontal: 20, paddingVertical: 18, gap: 12 },
   metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   status: {

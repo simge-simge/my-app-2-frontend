@@ -17,7 +17,7 @@ describe("member library", () => {
   it("renders profile and public books and opens details", async () => {
     jest.mocked(getMemberLibrary).mockResolvedValue({ member, books: [book()] })
     render(<MemberLibraryScreen />)
-    expect(await screen.findByText("Ada Reader's library")).toBeVisible()
+    expect(await screen.findByText("Ada Reader")).toBeVisible()
     const item = screen.getByRole("button", { name: "The Left Hand of Darkness by Ursula K. Le Guin" })
     fireEvent.press(item)
     expect(router.push).toHaveBeenCalledWith({

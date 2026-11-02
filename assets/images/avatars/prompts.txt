@@ -1,0 +1,5 @@
+Built-in image_gen; five single-asset generations using the attached reference.
+
+Base prompt: Create a square default user profile avatar inspired by the attached reference image: a faceless rounded head above rounded shoulders, with an open upside-down book resting on the head like a hat, white pages draping over its upper sides, warm beige book cover, delicate pencil outlines and flat pastel illustration. Color variant: {color} head and shoulders, very pale {color} background. Center the entire book and head within the middle 75% width, shoulders at bottom. Match the reference simple charming muted hand drawn bookworm silhouette. No letters, no text, no watermark, no border. This is a single avatar asset, not a sheet.
+
+Colors: lavender, sage, blue, peach, rose.

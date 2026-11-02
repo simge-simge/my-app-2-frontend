@@ -13,7 +13,7 @@ const PAGE_SIZES = [10, 20] as const
 
 type Props = {
   books: Book[]
-  title: string
+  title?: string
   subtitle?: string
   eyebrow?: string
   header?: ReactNode
@@ -75,7 +75,7 @@ export default function LibraryBrowser({
     <>
       {header}
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-      <Text style={styles.title}>{title}</Text>
+      {title ? <Text style={styles.title}>{title}</Text> : null}
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
@@ -147,7 +147,7 @@ export default function LibraryBrowser({
 }
 
 const styles = StyleSheet.create({
-  content: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 },
+  content: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   emptyContent: { flexGrow: 1 },
   row: { justifyContent: "space-between" },
   eyebrow: { marginTop: 22, marginBottom: 5, color: palette.accentDark, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },

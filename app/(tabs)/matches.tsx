@@ -291,7 +291,7 @@ function formatMatchDate(value: string, locale: string, fallback: string) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 18 },
+  container: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 8 },
   title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
   subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
   error: { color: palette.danger, marginBottom: 12 },

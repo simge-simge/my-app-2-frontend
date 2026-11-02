@@ -3,7 +3,7 @@ import { supabase } from "@/utils/supabase"
 
 const GET_CACHE_MAX_AGE_MS = 30_000
 
-export type ApiCacheResource = "books" | "communities" | "inbox" | "locations" | "matches" | "profile"
+export type ApiCacheResource = "books" | "communities" | "inbox" | "locations" | "matches" | "messages" | "profile"
 type CacheResource = ApiCacheResource | "other"
 
 type ApiFetchOptions = RequestInit & {
@@ -155,6 +155,7 @@ function getCacheResource(path: string): CacheResource {
   if (path.startsWith("/inbox")) return "inbox"
   if (path.startsWith("/locations")) return "locations"
   if (path.startsWith("/matches")) return "matches"
+  if (path.startsWith("/messages")) return "messages"
   if (path.startsWith("/profile")) return "profile"
   return "other"
 }

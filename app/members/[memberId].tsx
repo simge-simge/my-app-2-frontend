@@ -1,9 +1,9 @@
+import UserAvatar from "@/components/UserAvatar"
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
-  Image,
   StyleSheet,
   Text,
   View,
@@ -74,7 +74,6 @@ export default function MemberLibraryScreen() {
       <LibraryBrowser
         books={library.books}
         eyebrow={t("publicShelf").toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")}
-        title={t("personsLibrary", { name: displayName })}
         emptyTitle={t("emptyShelf")}
         emptyText={t("emptyMemberShelf", { name: displayName })}
         refreshing={refreshing}
@@ -82,7 +81,7 @@ export default function MemberLibraryScreen() {
         onBookPress={(book) => router.push({ pathname: "/books/[bookId]", params: { bookId: book.id, ownerName: displayName, communityName: member.community_name ?? "" } })}
         header={(
           <View style={styles.profileCard}>
-            {member.avatar_url ? <Image source={{ uri: member.avatar_url }} style={styles.avatar} /> : <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarText}>{displayName.slice(0, 1).toUpperCase()}</Text></View>}
+            <UserAvatar userId={member.id} uri={member.avatar_url} size={64} />
             <View style={styles.profileText}>
               <View style={styles.nameRow}><Text style={styles.name}>{displayName}</Text>{member.admin ? <AdminBadge /> : null}</View>
               {member.community_name ? <View style={styles.metaRow}><Ionicons name="people-outline" size={15} color={palette.textMuted} /><Text style={styles.meta}>{member.community_name}</Text></View> : null}

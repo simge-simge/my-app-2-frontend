@@ -9,6 +9,7 @@ const titleKeys: Record<string, TranslationKey> = {
   book_swap_approved: "notificationExchangeApproved",
   book_swap_contact_revealed: "notificationSwapUpdate",
   match_book_unavailable: "notificationExchangeUnderway",
+  match_exchange_ended: "notificationMatchEnded",
   community_request_approved: "notificationCommunityApproved",
   community_member_added: "notificationMemberAdded",
   community_member_removed: "notificationMemberRemoved",
@@ -31,6 +32,8 @@ export function localizeInboxNotification(notification: InboxNotification, langu
   const quotedBook = notification.message.match(/"([^"]+)"/)?.[1]
 
   switch (notification.type) {
+    case "match_exchange_ended":
+      return { title, message: t("notificationMatchEndedMessage") }
     case "book_borrow_requested": {
       const name = notification.message.match(/^(.+?) would like to borrow/)?.[1]
       return { title, message: name && quotedBook ? t("notificationWantsBorrow", { name, book: quotedBook }) : notification.message }

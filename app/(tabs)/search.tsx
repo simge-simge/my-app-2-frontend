@@ -1,3 +1,4 @@
+import UserAvatar from "@/components/UserAvatar"
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -5,7 +6,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -664,13 +664,7 @@ function UserResult({
         onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: user.id } })}
         style={({ pressed }) => [styles.userMain, pressed && styles.userCardPressed]}
       >
-      {user.avatar_url ? (
-        <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFallback]}>
-          <Text style={styles.avatarText}>{displayName.slice(0, 1).toUpperCase()}</Text>
-        </View>
-      )}
+      <UserAvatar userId={user.id} uri={user.avatar_url} />
       <View style={styles.userDetails}>
         <View style={styles.userNameRow}>
           <Text numberOfLines={1} style={styles.userName}>{displayName}</Text>
@@ -704,7 +698,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
     paddingHorizontal: 18,
-    paddingTop: 16,
+    paddingTop: 8,
     width: "100%",
     maxWidth: layout.contentMax,
     alignSelf: "center",

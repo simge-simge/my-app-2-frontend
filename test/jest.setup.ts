@@ -8,16 +8,24 @@ jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 )
 
-jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
-  Redirect: ({ href }: { href: string }) =>
-    require("react").createElement(require("react-native").Text, null, `Redirect:${href}`),
-  Slot: () => null,
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
-  useFocusEffect: (callback: () => void | (() => void)) =>
-    jest.requireActual("react").useEffect(callback, [callback]),
-  useLocalSearchParams: jest.fn(() => ({})),
-}))
+jest.mock("expo-router", () => {
+  const React = require("react")
+  const MockStack = ({ children }: { children?: ReactNode }) => children ?? null
+  MockStack.Screen = ({ options }: { options?: { headerRight?: () => ReactNode } }) =>
+    options?.headerRight ? options.headerRight() : null
+
+  return {
+    router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
+    Redirect: ({ href }: { href: string }) =>
+      React.createElement(require("react-native").Text, null, `Redirect:${href}`),
+    Slot: () => null,
+    Stack: MockStack,
+    useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+    useFocusEffect: (callback: () => void | (() => void)) =>
+      jest.requireActual("react").useEffect(callback, [callback]),
+    useLocalSearchParams: jest.fn(() => ({})),
+  }
+})
 
 jest.mock("expo-linking", () => ({
   createURL: jest.fn((path: string) => `commonshelf://${path.replace(/^\//, "")}`),

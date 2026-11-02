@@ -103,6 +103,21 @@ describe("borrow request inbox history", () => {
     expect(router.push).not.toHaveBeenCalledWith({ pathname: "/matches/[matchId]", params: { matchId: "representative-match" } })
   })
 
+  it("opens the specific match from an exchange-ended notification", async () => {
+    jest.mocked(getInbox).mockResolvedValue(inbox([], [{
+      id: "ended-exchange",
+      type: "match_exchange_ended",
+      title: "Match ended",
+      message: 'This match has ended. Open the match and tap "End exchange" to unreserve your book and make it available again.',
+      metadata: { match_id: "ended-match" },
+      read_at: "2026-01-03T12:00:00Z",
+      created_at: "2026-01-03T12:00:00Z",
+    }]))
+    render(<InboxScreen />)
+    fireEvent.press(await screen.findByText("Match ended"))
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/matches/[matchId]", params: { matchId: "ended-match" } })
+  })
+
   it("publishes the new unread count immediately when all notifications are marked read", async () => {
     let finishUpdate!: (result: { updated: number }) => void
     const listener = jest.fn()

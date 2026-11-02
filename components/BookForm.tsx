@@ -11,13 +11,11 @@ import {
   TextInput,
   View,
 } from "react-native"
-import * as ImagePicker from "expo-image-picker"
 import type { ImagePickerAsset } from "expo-image-picker"
 
 import AppButton from "@/components/AppButton"
-import WebCameraCapture from "@/components/WebCameraCapture"
-import WebImageCropper from "@/components/WebImageCropper"
-import { layout, palette, radii, shadows, typography } from "@/constants/theme"
+import ImageUploadControls from "@/components/ImageUploadControls"
+import { layout, palette, radii, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 import { useTranslation } from "@/localization/LanguageContext"
 
@@ -59,8 +57,6 @@ export default function BookForm({
   const [coverUri, setCoverUri] = useState(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
   const [status, setStatus] = useState<"available" | "lent">(initialBook?.status === "available" ? "available" : "lent")
   const [coverAsset, setCoverAsset] = useState<ImagePickerAsset | null>(null)
-  const [coverCameraOpen, setCoverCameraOpen] = useState(false)
-  const [webCropAsset, setWebCropAsset] = useState<ImagePickerAsset | null>(null)
 
   const isEditMode = mode === "edit"
 
@@ -72,77 +68,12 @@ export default function BookForm({
     setCoverUri(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
     setStatus(initialBook?.status === "available" ? "available" : "lent")
     setCoverAsset(null)
-    setWebCropAsset(null)
-    setCoverCameraOpen(false)
   }, [initialBook, initialValues])
 
   const storeSelectedImage = (asset: ImagePickerAsset) => {
     setCoverAsset(asset)
     setCoverUri(asset.uri)
     console.log("Selected cover image URI:", asset.uri)
-  }
-
-  const editOrStoreSelectedImage = (asset: ImagePickerAsset) => {
-    if (Platform.OS === "web") {
-      setWebCropAsset(asset)
-      return
-    }
-    storeSelectedImage(asset)
-  }
-
-  const handlePickFromLibrary = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-
-    if (!permission.granted) {
-      Alert.alert(t("permissionNeeded"), t("allowPhotoCover"))
-      return
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      quality: 0.8,
-    })
-
-    if (result.canceled || !result.assets?.length) {
-      return
-    }
-
-    const selectedAsset = result.assets[0]
-
-    if (selectedAsset?.uri) {
-      editOrStoreSelectedImage(selectedAsset)
-    }
-  }
-
-  const handleCaptureImage = async () => {
-    if (Platform.OS === "web") {
-      setCoverCameraOpen(true)
-      return
-    }
-
-    const permission = await ImagePicker.requestCameraPermissionsAsync()
-
-    if (!permission.granted) {
-      Alert.alert(t("permissionNeeded"), t("allowCameraCover"))
-      return
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      quality: 0.8,
-    })
-
-    if (result.canceled || !result.assets?.length) {
-      return
-    }
-
-    const selectedAsset = result.assets[0]
-
-    if (selectedAsset?.uri) {
-      editOrStoreSelectedImage(selectedAsset)
-    }
   }
 
   const handleSubmit = async () => {
@@ -179,22 +110,6 @@ export default function BookForm({
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <WebImageCropper
-        asset={webCropAsset}
-        onCancel={() => setWebCropAsset(null)}
-        onComplete={(asset) => {
-          storeSelectedImage(asset)
-          setWebCropAsset(null)
-        }}
-      />
-      <WebCameraCapture
-        visible={coverCameraOpen}
-        onCancel={() => setCoverCameraOpen(false)}
-        onCapture={(asset) => {
-          setCoverCameraOpen(false)
-          editOrStoreSelectedImage(asset)
-        }}
-      />
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
@@ -243,14 +158,7 @@ export default function BookForm({
         <View style={styles.field}>
           <Text style={styles.label}>{t("coverImage")}</Text>
           {coverUri ? <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="contain" /> : null}
-          <View style={styles.coverActions}>
-            <Pressable accessibilityRole="button" style={[styles.coverButton, styles.coverPickerButton]} onPress={() => void handlePickFromLibrary()}>
-              <Text style={styles.coverButtonText}>{t("pickFromLibrary")}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" style={[styles.coverButton, styles.coverPickerButton]} onPress={() => void handleCaptureImage()}>
-              <Text style={styles.coverButtonText}>{t("captureNewImage")}</Text>
-            </Pressable>
-          </View>
+          <ImageUploadControls disabled={saving} onSelect={storeSelectedImage} />
         </View>
 
         <View style={styles.field}>
@@ -361,39 +269,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: palette.textMuted,
   },
-  coverButton: {
-    minHeight: 52,
-    borderWidth: 1.5,
-    borderColor: palette.borderStrong,
-    borderRadius: radii.md,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: palette.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.soft,
-  },
-  coverActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  coverPickerButton: {
-    minHeight: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
   coverPreview: {
     width: 104,
     height: 148,
     borderRadius: radii.sm,
     marginBottom: 12,
     backgroundColor: palette.surfaceMuted,
-  },
-  coverButtonText: {
-    color: palette.text,
-    fontSize: 13,
-    fontWeight: "700",
   },
   descriptionInput: {
     minHeight: 120,

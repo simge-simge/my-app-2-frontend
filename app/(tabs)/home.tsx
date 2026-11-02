@@ -23,14 +23,10 @@ import { HOME_PREVIEW_BOOKS, HOME_PREVIEW_COVERS } from "@/constants/homePreview
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
 import { searchBooks, type Book } from "@/services/books"
-import { getInbox, type InboxResponse } from "@/services/inbox"
 import { getProfile, type Profile } from "@/services/profile"
 import { useTranslation } from "@/localization/LanguageContext"
-import { subscribeToBackgroundActions } from "@/utils/backgroundAction"
 
 type FeedOutcome = { books: Book[] } | { error: unknown }
-
-const appIcon = require("../../assets/images/icon.png")
 
 export default function Home() {
   const { t } = useTranslation()
@@ -38,14 +34,12 @@ export default function Home() {
   const { width } = useWindowDimensions()
   const isWide = width >= 880
   const cachedProfile = getCachedApiData<Profile>("/profile/me/")
-  const cachedInbox = getCachedApiData<InboxResponse>("/inbox/")
   const cachedCommunityBooks = getCachedApiData<Book[]>("/books/search?scope=community")
 
   const [profile, setProfile] = useState<Profile | null>(() => cachedProfile ?? null)
   const profileRef = useRef<Profile | null>(cachedProfile ?? null)
   const [profileLoading, setProfileLoading] = useState(() => !cachedProfile)
   const [profileError, setProfileError] = useState<string | null>(null)
-  const [unreadCount, setUnreadCount] = useState(() => cachedInbox?.unread_count ?? 0)
   const [books, setBooks] = useState<Book[]>(() => {
     if (!cachedProfile) return []
     return cachedProfile.community_id ? cachedCommunityBooks ?? [] : HOME_PREVIEW_BOOKS
@@ -59,39 +53,11 @@ export default function Home() {
   const booksScope = useRef<string | null>(cachedProfile ? cachedProfile.community_id ?? "preview" : null)
   const booksHaveLoaded = useRef(Boolean(cachedProfile && (!cachedProfile.community_id || cachedCommunityBooks !== undefined)))
   const booksRefreshGeneration = useRef(0)
-  const inboxUpdatePending = useRef(false)
-  const inboxRefreshGeneration = useRef(0)
-
-  const refreshInbox = useCallback((forceRefresh = false) => {
-    const refreshGeneration = ++inboxRefreshGeneration.current
-    void getInbox(forceRefresh)
-      .then((inbox) => {
-        if (!inboxUpdatePending.current && refreshGeneration === inboxRefreshGeneration.current) {
-          setUnreadCount(inbox.unread_count)
-        }
-      })
-      .catch((error) => console.error("Failed to load inbox summary", error))
-  }, [])
-
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion)
     return () => subscription.remove()
   }, [])
-
-  useEffect(() => subscribeToBackgroundActions((update) => {
-    if (update.event !== "inbox-unread-count") return
-
-    if (update.status === "pending" && typeof update.optimisticResult === "number") {
-      inboxUpdatePending.current = true
-      inboxRefreshGeneration.current += 1
-      setUnreadCount(update.optimisticResult)
-      return
-    }
-
-    inboxUpdatePending.current = false
-    refreshInbox(true)
-  }), [refreshInbox])
 
   const loadBooks = useCallback(async (currentProfile: Profile, pendingFeed?: Promise<FeedOutcome>) => {
     const nextScope = currentProfile.community_id ?? "preview"
@@ -160,9 +126,8 @@ export default function Home() {
   }, [loadBooks])
 
   useFocusEffect(useCallback(() => {
-    refreshInbox()
     void loadHome()
-  }, [loadHome, refreshInbox]))
+  }, [loadHome]))
 
   const hasCommunity = Boolean(profile?.community_id)
   const communityName = profile?.community_name || "your community"
@@ -195,9 +160,6 @@ export default function Home() {
       >
         <HomeHeader
           profile={profile}
-          unreadCount={unreadCount}
-          onInbox={() => router.push("/inbox")}
-          onSettings={() => router.push("/settings")}
           onFindCommunity={() => router.push("/communities/search")}
         />
 
@@ -327,25 +289,15 @@ export default function Home() {
 
 function HomeHeader({
   profile,
-  unreadCount,
-  onInbox,
-  onSettings,
   onFindCommunity,
 }: {
   profile: Profile | null
-  unreadCount: number
-  onInbox: () => void
-  onSettings: () => void
   onFindCommunity: () => void
 }) {
   const { t } = useTranslation()
   return (
     <View style={styles.header}>
       <View style={styles.headerDetails}>
-        <View style={styles.headerBrand}>
-          <Image source={appIcon} style={styles.headerBrandIcon} resizeMode="contain" />
-          <Text style={styles.headerEyebrow}>CommonShelf</Text>
-        </View>
         <View style={styles.nameRow}>
           <Text style={styles.name}>{t("helloReader", { name: profile?.display_name || t("reader") })}</Text>
           {profile?.admin ? <AdminBadge /> : null}
@@ -362,20 +314,7 @@ function HomeHeader({
           </View>
         ) : null}
       </View>
-      <View style={styles.headerActions}>
-        <HeaderAction icon="mail-outline" label={t("openMessages")} onPress={onInbox} badge={unreadCount} />
-        <HeaderAction icon="settings-outline" label={t("openSettings")} onPress={onSettings} />
-      </View>
     </View>
-  )
-}
-
-function HeaderAction({ icon, label, onPress, badge = 0 }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; badge?: number }) {
-  return (
-    <Pressable style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]} onPress={onPress} accessibilityLabel={label}>
-      <Ionicons name={icon} size={21} color={palette.ink} />
-      {badge > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text></View> : null}
-    </Pressable>
   )
 }
 
@@ -445,12 +384,10 @@ function ShelfState({ icon, title, body, actionLabel, onAction }: { icon: keyof 
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.background },
-  container: { flexGrow: 1, width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 18, paddingTop: 14, paddingBottom: 112, gap: 20 },
+  container: { flexGrow: 1, width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 18, paddingTop: 8, paddingBottom: 112, gap: 20 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
   headerDetails: { flex: 1, minWidth: 0 },
-  headerBrand: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
-  headerBrandIcon: { width: 18, height: 18, borderRadius: 4 },
-  headerEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, textTransform: "uppercase", color: palette.accentDark },
+  pressed: { transform: [{ scale: 0.94 }] },
   nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   name: { fontFamily: typography.serif, fontSize: 25, lineHeight: 31, fontWeight: "700", color: palette.ink },
   headerCommunity: { fontSize: 14, color: palette.textMuted, marginTop: 3 },
@@ -458,11 +395,6 @@ const styles = StyleSheet.create({
   joinCommunityPrompt: { fontSize: 13, color: palette.accentDark, fontWeight: "800", textDecorationLine: "underline" },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2, minWidth: 0 },
   location: { flexShrink: 1, fontSize: 12, color: palette.textMuted },
-  headerActions: { flexDirection: "row", gap: 7 },
-  iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: palette.paper, borderWidth: 1.5, borderColor: palette.borderStrong },
-  pressed: { transform: [{ scale: 0.94 }] },
-  badge: { position: "absolute", right: -4, top: -4, minWidth: 19, height: 19, paddingHorizontal: 4, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: palette.danger, borderWidth: 2, borderColor: palette.background },
-  badgeText: { color: palette.paper, fontSize: 9, fontWeight: "800" },
   landingGrid: { gap: 36 },
   landingGridWide: { flexDirection: "row", alignItems: "stretch", gap: 24, paddingTop: 18 },
   hero: { position: "relative", overflow: "hidden", backgroundColor: palette.yellow, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, borderCurve: "continuous", padding: 20, ...shadows.soft },

@@ -8,17 +8,21 @@ import {
   ActivityIndicator,
   ScrollView,
   Switch,
+  Linking,
 } from "react-native"
+import type { ImagePickerAsset } from "expo-image-picker"
 import { useCallback, useState } from "react"
 import { useFocusEffect, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
 import { layout, palette, radii, typography } from "@/constants/theme"
+import UserAvatar, { avatarColors } from "@/components/UserAvatar"
+import ImageUploadControls from "@/components/ImageUploadControls"
 import AdminBadge from "@/components/AdminBadge"
 import ConfirmationModal from "@/components/ConfirmationModal"
 import PageHeader from "@/components/PageHeader"
 import LocationPicker from "@/components/LocationPicker"
-import { getProfile, updateProfile, deleteAccount, type Profile } from "@/services/profile"
+import { getProfile, updateProfile, uploadProfilePicture, deleteAccount, type Profile } from "@/services/profile"
 import { signOut } from "@/services/authentication"
 import { ApiError, getCachedApiData } from "@/services/api"
 import { createCommunity } from "@/services/admin"
@@ -31,6 +35,7 @@ import ThemeSwitch from "@/components/ThemeSwitch"
 import { useTranslation } from "@/localization/LanguageContext"
 
 type EditableField = "name" | "location" | "phone" | "instagram" | "telegram"
+const APP_CONTACT_EMAIL = "commonshelf0@gmail.com"
 
 export default function Settings() {
   const router = useRouter()
@@ -42,6 +47,12 @@ export default function Settings() {
   const [leavingCommunity, setLeavingCommunity] = useState(false)
   const [leaveConfirmationVisible, setLeaveConfirmationVisible] = useState(false)
   const [editingField, setEditingField] = useState<EditableField | null>(null)
+
+  const [profileId, setProfileId] = useState(cachedProfile?.id ?? "")
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(cachedProfile?.avatar_url ?? null)
+  const [changingPicture, setChangingPicture] = useState(false)
+  const [savingPicture, setSavingPicture] = useState(false)
+  const [pictureError, setPictureError] = useState(false)
 
   const [name, setName] = useState(() => cachedProfile?.display_name ?? "")
   const [location, setLocation] = useState<Location | null>(() => cachedProfile?.location ?? null)
@@ -57,6 +68,7 @@ export default function Settings() {
   const [communityLocation, setCommunityLocation] = useState<Location | null>(null)
   const [communityLocationValid, setCommunityLocationValid] = useState(true)
   const [communityAdminEmail, setCommunityAdminEmail] = useState("")
+  const [messagingEnabled, setMessagingEnabled] = useState(() => cachedProfile?.messaging_enabled ?? false)
 
   const [contacts, setContacts] = useState(() => ({
     email: cachedProfile?.contacts?.email ?? "",
@@ -69,6 +81,8 @@ export default function Settings() {
     try {
       const profile = await getProfile()
 
+      setProfileId(profile.id)
+      setAvatarUrl(profile.avatar_url)
       setName(profile.display_name ?? "")
       setLocation(profile.location)
       setSavedLocation(profile.location)
@@ -78,6 +92,7 @@ export default function Settings() {
       setCommunityPublic(Boolean(profile.community_public))
       setIsAppAdmin(profile.is_app_admin)
       setPendingCommunity(profile.pending_community_name)
+      setMessagingEnabled(Boolean(profile.messaging_enabled))
       setContacts({
         email: profile.contacts?.email ?? "",
         phone: profile.contacts?.phone ?? "",
@@ -96,6 +111,22 @@ export default function Settings() {
       loadProfile()
     }, [loadProfile]),
   )
+
+  const savePicture = async (picture: ImagePickerAsset | string) => {
+    if (savingPicture) return
+    setSavingPicture(true)
+    setPictureError(false)
+    try {
+      const url = typeof picture === "string" ? picture : await uploadProfilePicture(picture)
+      const updated = await updateProfile({ avatar_url: url })
+      setAvatarUrl(updated.avatar_url)
+      setChangingPicture(false)
+    } catch {
+      setPictureError(true)
+    } finally {
+      setSavingPicture(false)
+    }
+  }
 
   const updateContact = (key: "phone" | "instagram" | "telegram", value: string) => {
     setContacts((prev) => ({ ...prev, [key]: value }))
@@ -174,6 +205,19 @@ export default function Settings() {
     })
   }
 
+  const handleMessagingChange = (nextValue: boolean) => {
+    const previousValue = messagingEnabled
+    setMessagingEnabled(nextValue)
+    runInBackground(() => updateProfile({ messaging_enabled: nextValue }), {
+      onSuccess: (updated) => setMessagingEnabled(Boolean(updated.messaging_enabled)),
+      onError: (err) => {
+        setMessagingEnabled(previousValue)
+        console.error("Failed to update messaging preference", err)
+        Alert.alert(t("changeNotSaved"), t("failedUpdateProfile"))
+      },
+    })
+  }
+
   const confirmLeaveCommunity = async () => {
     try {
       setLeavingCommunity(true)
@@ -226,6 +270,14 @@ export default function Settings() {
     }
   }
 
+  const handleContactAdmin = async () => {
+    try {
+      await Linking.openURL(`mailto:${APP_CONTACT_EMAIL}?subject=${encodeURIComponent(t("contactEmailSubject"))}`)
+    } catch {
+      Alert.alert(t("error"), t("contactEmailFailed", { email: APP_CONTACT_EMAIL }))
+    }
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
@@ -264,6 +316,19 @@ export default function Settings() {
         </View>
         <ThemeSwitch />
       </View>
+      <View style={styles.languageCard}>
+        <View style={styles.preferenceCopy}>
+          <View style={styles.preferenceIcon}><Ionicons name="chatbubbles-outline" size={18} color={palette.accentDark} /></View>
+          <View style={{ flex: 1 }}><Text style={styles.preferenceTitle}>{t("messaging")}</Text><Text style={styles.preferenceHint}>{t("messagingPreferenceHint")}</Text></View>
+        </View>
+        <Switch
+          value={messagingEnabled}
+          onValueChange={handleMessagingChange}
+          trackColor={{ false: palette.border, true: palette.successSoft }}
+          thumbColor={messagingEnabled ? palette.success : palette.textMuted}
+          accessibilityLabel={t("messaging")}
+        />
+      </View>
       <View style={styles.card}>
         <View style={styles.sectionHeader}>
           <View style={styles.profileHeading}>
@@ -271,6 +336,29 @@ export default function Settings() {
             {isAdmin ? <AdminBadge /> : null}
           </View>
         </View>
+
+        <View style={styles.pictureRow}>
+          <UserAvatar userId={profileId} uri={avatarUrl} size={88} />
+          <View style={{ flex: 1, gap: 8 }}>
+            <Text style={styles.label}>{t("profilePicture")}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("changeProfilePicture")} disabled={savingPicture} onPress={() => { setChangingPicture(!changingPicture); setPictureError(false) }} style={styles.pictureChange}>
+              <Ionicons name="camera-outline" size={18} color={palette.accentDark} />
+              <Text style={styles.locationCancelText}>{t("changeProfilePicture")}</Text>
+            </Pressable>
+          </View>
+        </View>
+        {changingPicture ? <View style={styles.pictureEditor}>
+          <ImageUploadControls purpose="avatar" disabled={savingPicture} onSelect={(asset) => void savePicture(asset)} />
+          <Text style={styles.label}>{t("defaultProfilePictures")}</Text>
+          <View accessibilityRole="radiogroup" accessibilityLabel={t("defaultProfilePictures")} style={styles.pictureColors}>
+            {avatarColors.map((color) => <Pressable key={color} accessibilityRole="radio" accessibilityLabel={t("useAvatarColor", { color: t(color) })} aria-checked={avatarUrl === `default:${color}`} disabled={savingPicture} onPress={() => void savePicture(`default:${color}`)} style={[styles.pictureOption, avatarUrl === `default:${color}` && styles.pictureSelected]}>
+              <UserAvatar userId={profileId} uri={`default:${color}`} size={48} />
+            </Pressable>)}
+          </View>
+          <Pressable accessibilityRole="button" disabled={savingPicture} onPress={() => setChangingPicture(false)}><Text style={styles.locationCancelText}>{t("cancel")}</Text></Pressable>
+        </View> : null}
+        {savingPicture ? <ActivityIndicator accessibilityLabel={t("savingProfilePicture")} color={palette.accentDark} /> : null}
+        {pictureError ? <Text accessibilityRole="alert" style={styles.pictureError}>{t("profilePictureFailed")}</Text> : null}
 
         <Text style={styles.label}>{t("name")}</Text>
         <View style={styles.fieldControl}>
@@ -452,11 +540,34 @@ export default function Settings() {
         <Text style={styles.section}>{t("legal")}</Text>
         <LegalLinks />
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("contactAdminReportBugs")}
+        accessibilityHint={t("contactAdminHint")}
+        onPress={handleContactAdmin}
+        style={({ pressed }) => [styles.languageCard, pressed && styles.editButtonPressed]}
+      >
+        <View style={styles.preferenceCopy}>
+          <View style={styles.preferenceIcon}><Ionicons name="mail-outline" size={18} color={palette.accentDark} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.preferenceTitle}>{t("contactAdminReportBugs")}</Text>
+            <Text selectable style={styles.preferenceHint}>{APP_CONTACT_EMAIL}</Text>
+          </View>
+        </View>
+        <Ionicons name="open-outline" size={18} color={palette.accentDark} />
+      </Pressable>
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
+  pictureRow: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 20 },
+  pictureChange: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44, paddingHorizontal: 12, borderRadius: radii.md, backgroundColor: palette.accentSoft },
+  pictureEditor: { gap: 12, marginBottom: 18 },
+  pictureColors: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  pictureOption: { borderRadius: 30, borderWidth: 2, borderColor: "transparent", padding: 3 },
+  pictureSelected: { borderColor: palette.accentDark },
+  pictureError: { color: palette.danger, marginBottom: 12 },
   languageCard: { minHeight: 66, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", backgroundColor: palette.surface, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, paddingHorizontal: 13, paddingVertical: 10 },
   preferenceCopy: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
   preferenceIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: palette.accentSoft },
@@ -464,6 +575,7 @@ const styles = StyleSheet.create({
   preferenceHint: { marginTop: 2, color: palette.textMuted, fontSize: 11 },
   container: {
     padding: 16,
+    paddingTop: 8,
     paddingBottom: 28,
     gap: 12,
     backgroundColor: palette.background,
@@ -471,7 +583,7 @@ const styles = StyleSheet.create({
     maxWidth: layout.readingMax,
     alignSelf: "center",
   },
-  loadingScreen: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 24, backgroundColor: palette.background },
+  loadingScreen: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 24, paddingTop: 8, backgroundColor: palette.background },
   loadingCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
   card: {
     backgroundColor: palette.surface,

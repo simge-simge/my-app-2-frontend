@@ -137,10 +137,12 @@ export default function NewBookScreen() {
   if (method === "manual" || method === "details") {
     return (
       <View style={styles.flex}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("chooseAnotherAddMethod")} onPress={() => setMethod("choose")} style={styles.formBack}>
-          <Ionicons name="chevron-back" size={19} color={palette.accentDark} />
-          <Text style={styles.formBackText}>{t("addAnotherWay")}</Text>
-        </Pressable>
+        <View style={styles.formHeader}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("chooseAnotherAddMethod")} onPress={() => setMethod("choose")} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={22} color={palette.text} />
+          </Pressable>
+          <Text style={styles.formTitle}>{t(method === "manual" ? "addManually" : "bookDetails")}</Text>
+        </View>
         {isbnSource && initialValues?.isbn ? (
           <View accessibilityRole="summary" style={styles.isbnConfirmation}>
             <View style={styles.isbnConfirmationIcon}>
@@ -160,15 +162,15 @@ export default function NewBookScreen() {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        {method !== "choose" ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={t("backToAddOptions")} onPress={() => { setMethod("choose"); setScanLocked(false) }} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={20} color={palette.text} />
-            <Text style={styles.backText}>{t("back")}</Text>
-          </Pressable>
-        ) : null}
-
         <Text style={styles.eyebrow}>{t("addToLibrary").toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")}</Text>
-        <Text style={styles.title}>{method === "choose" ? t("chooseAddMethod") : method === "scan" ? t("scanIsbnBarcode") : t("enterIsbn")}</Text>
+        <View style={styles.titleRow}>
+          {method !== "choose" ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={t("backToAddOptions")} onPress={() => { setMethod("choose"); setScanLocked(false) }} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={22} color={palette.text} />
+            </Pressable>
+          ) : null}
+          <Text style={styles.title}>{method === "choose" ? t("chooseAddMethod") : method === "scan" ? t("scanIsbnBarcode") : t("enterIsbn")}</Text>
+        </View>
         <Text style={styles.subtitle}>
           {method === "choose" ? t("chooseAddMethodHint") : method === "scan" ? t("scanIsbnHint") : t("enterIsbnLocationHint")}
         </Text>
@@ -248,10 +250,10 @@ export default function NewBookScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: palette.background },
   container: { padding: 24, paddingBottom: 48, width: "100%", maxWidth: layout.formMax, alignSelf: "center" },
-  backButton: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 3, minHeight: 44, marginBottom: 12 },
-  backText: { color: palette.text, fontSize: 15, fontWeight: "700" },
+  backButton: { width: 44, height: 44, flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   eyebrow: { color: palette.accentDark, fontSize: 12, fontWeight: "800", letterSpacing: 1.25, marginBottom: 10 },
-  title: { color: palette.text, fontFamily: typography.serif, fontSize: 32, lineHeight: 39, fontWeight: "700" },
+  title: { flexShrink: 1, color: palette.text, fontFamily: typography.serif, fontSize: 32, lineHeight: 39, fontWeight: "700" },
   subtitle: { color: palette.textMuted, fontSize: 15, lineHeight: 22, marginTop: 8 },
   methodList: { gap: 13, marginTop: 28 },
   methodCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.border, backgroundColor: palette.surface, ...shadows.soft },
@@ -295,8 +297,8 @@ const styles = StyleSheet.create({
   scanTipText: { color: palette.textMuted, fontSize: 13 },
   textButton: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: 7 },
   textButtonText: { color: palette.accentDark, fontSize: 14, fontWeight: "800", textDecorationLine: "underline" },
-  formBack: { zIndex: 2, flexDirection: "row", alignItems: "center", gap: 3, minHeight: 44, paddingHorizontal: 24, maxWidth: layout.formMax, width: "100%", alignSelf: "center", backgroundColor: palette.background },
-  formBackText: { color: palette.accentDark, fontSize: 14, fontWeight: "800" },
+  formHeader: { zIndex: 2, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 24, maxWidth: layout.formMax, width: "100%", alignSelf: "center" },
+  formTitle: { flexShrink: 1, color: palette.text, fontFamily: typography.serif, fontSize: 24, fontWeight: "700" },
   isbnConfirmation: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, paddingVertical: 11, marginHorizontal: 24, marginBottom: 2, maxWidth: layout.formMax - 48, borderRadius: radii.md, borderWidth: 1, borderColor: palette.success, backgroundColor: palette.successSoft },
   isbnConfirmationIcon: { width: 32, height: 32, borderRadius: radii.round, alignItems: "center", justifyContent: "center", backgroundColor: palette.surface },
   isbnConfirmationCopy: { flex: 1 },

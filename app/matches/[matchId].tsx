@@ -1,3 +1,5 @@
+import ProfileAvatar from "@/components/UserAvatar"
+import DefaultBookCover from "@/components/DefaultBookCover"
 import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
@@ -18,6 +20,7 @@ import { getCachedApiData } from "@/services/api"
 import {
   approveMatch,
   deleteMatch,
+  endMatchExchange,
   getMatch,
   markMatchBookUnavailable,
   revealMatchContact,
@@ -28,6 +31,7 @@ import {
 } from "@/services/matches"
 import { runInBackground } from "@/utils/backgroundAction"
 import { useTranslation } from "@/localization/LanguageContext"
+import { startConversation } from "@/services/messages"
 
 export default function MatchDetailScreen() {
   const { language, t } = useTranslation()
@@ -40,6 +44,8 @@ export default function MatchDetailScreen() {
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [startingConversation, setStartingConversation] = useState(false)
+  const [endingExchange, setEndingExchange] = useState(false)
 
   const loadMatch = useCallback(async () => {
     if (!matchId) return
@@ -104,6 +110,20 @@ export default function MatchDetailScreen() {
     })
   }, [loadMatch, match, matchId, t])
 
+  const handleEndExchange = useCallback(async () => {
+    if (!matchId || endingExchange) return
+    setEndingExchange(true)
+    try {
+      await endMatchExchange(matchId)
+      await loadMatch()
+    } catch (err) {
+      console.error("Failed to end exchange", err)
+      Alert.alert(t("changeNotSaved"), t("endExchangeError"))
+    } finally {
+      setEndingExchange(false)
+    }
+  }, [endingExchange, loadMatch, matchId, t])
+
   const handleDelete = useCallback(() => {
     if (!matchId || deleting) return
     setShowDeleteConfirmation(false)
@@ -123,6 +143,29 @@ export default function MatchDetailScreen() {
   const confirmDelete = useCallback(() => {
     setShowDeleteConfirmation(true)
   }, [])
+
+  const handleConversation = useCallback(async () => {
+    if (!matchId || !match) return
+    if (match.conversation_id) {
+      router.push({ pathname: "/chats/[conversationId]", params: { conversationId: match.conversation_id } })
+      return
+    }
+    if (!match.my_messaging_enabled) {
+      router.push("/settings")
+      return
+    }
+    if (!match.their_messaging_enabled) return
+    try {
+      setStartingConversation(true)
+      const conversation = await startConversation(matchId)
+      router.push({ pathname: "/chats/[conversationId]", params: { conversationId: conversation.id } })
+    } catch (err) {
+      console.error("Failed to start conversation", err)
+      Alert.alert(t("conversationNotStarted"), t("tryAgain"))
+    } finally {
+      setStartingConversation(false)
+    }
+  }, [match, matchId, t])
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.text} /></View>
@@ -147,6 +190,8 @@ export default function MatchDetailScreen() {
   const myBookUnavailable = Boolean(isApprovedSwap && ["lent", "matched"].includes(match.my_book?.status ?? ""))
   const theirBookUnavailable = Boolean(isApprovedSwap && ["lent", "matched"].includes(match.their_book?.status ?? ""))
   const exchangeIsUnderway = myBookUnavailable || theirBookUnavailable
+  const canEndExchange = Boolean(match.my_book && ["lent", "matched"].includes(match.my_book.status ?? "")
+    && (!match.my_book.reserved_match_id || match.my_book.reserved_match_id === matchId))
 
   return (
     <>
@@ -194,6 +239,7 @@ export default function MatchDetailScreen() {
         </Pressable>
 
         <View style={styles.contactSection}>
+          <Text style={styles.exchangeGuidance}>{t("arrangeBookExchange")}</Text>
           <View style={styles.contactHeading}>
             <Ionicons name="lock-closed-outline" size={18} color={palette.textMuted} />
             <Text style={styles.contactsTitle}>{t("contactStatus")}</Text>
@@ -217,6 +263,19 @@ export default function MatchDetailScreen() {
               <Text style={styles.revealButtonText}>{t("revealMyContact")}</Text>
             </Pressable>
           ) : null}
+          <Pressable
+            accessibilityRole="button"
+            disabled={startingConversation || (Boolean(match.my_messaging_enabled) && !match.their_messaging_enabled && !match.conversation_id)}
+            onPress={() => void handleConversation()}
+            style={[styles.conversationButton, (!match.my_messaging_enabled || !match.their_messaging_enabled) && !match.conversation_id && styles.conversationButtonPassive]}
+          >
+            {startingConversation ? <ActivityIndicator color={palette.white} /> : <Ionicons name="chatbubbles-outline" size={20} color={match.conversation_id || (match.my_messaging_enabled && match.their_messaging_enabled) ? palette.white : palette.textMuted} />}
+            <Text style={[styles.conversationButtonText, !match.conversation_id && (!match.my_messaging_enabled || !match.their_messaging_enabled) && styles.conversationButtonPassiveText]}>
+              {match.conversation_id ? t("openChat") : t("startConversation")}
+            </Text>
+          </Pressable>
+          {!match.conversation_id && !match.my_messaging_enabled ? <Text style={styles.chatHint}>{t("activateMessagingHint")}</Text> : null}
+          {!match.conversation_id && match.my_messaging_enabled && !match.their_messaging_enabled ? <Text style={styles.chatHint}>{t("matchMessagingDisabled")}</Text> : null}
           {isApprovedSwap && !myBookUnavailable ? (
             <>
               <Pressable style={styles.unavailableButton} onPress={handleMarkUnavailable}>
@@ -227,6 +286,20 @@ export default function MatchDetailScreen() {
             </>
           ) : null}
           {exchangeIsUnderway ? <Text style={styles.exchangeUnderway}>{t("exchangeUnderway")}</Text> : null}
+          {canEndExchange ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                disabled={endingExchange}
+                onPress={() => void handleEndExchange()}
+                style={[styles.unavailableButton, endingExchange && styles.actionDisabled]}
+              >
+                {endingExchange ? <ActivityIndicator color={palette.success} /> : <Ionicons name="checkmark-done-outline" size={20} color={palette.success} />}
+                <Text style={styles.unavailableButtonText}>{t("endExchange")}</Text>
+              </Pressable>
+              <Text style={styles.reserveHint}>{t("endExchangeHint")}</Text>
+            </>
+          ) : null}
           {match.contacts ? <ContactList contacts={match.contacts} /> : null}
           </View>
 
@@ -248,17 +321,14 @@ export default function MatchDetailScreen() {
 }
 
 function UserAvatar({ user, size }: { user: MatchUser; size: number }) {
-  const { t } = useTranslation()
-  const displayName = user.display_name || t("unknownReader")
-  if (user.avatar_url) return <Image source={{ uri: user.avatar_url }} style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]} />
-  return <View style={[styles.avatar, styles.avatarFallback, { width: size, height: size, borderRadius: size / 2 }]}><Text style={styles.avatarFallbackText}>{displayName.slice(0, 1).toUpperCase()}</Text></View>
+  return <ProfileAvatar userId={user.id} uri={user.avatar_url} size={size} />
 }
 
 function BookVisual({ label, book }: { label: string; book: MatchBook }) {
   return (
     <View style={styles.bookVisual}>
       <Text style={styles.bookLabel}>{label}</Text>
-      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" /> : <View style={[styles.cover, styles.coverFallback]}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>}
+      {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" /> : <DefaultBookCover title={book.title} author={book.author} style={styles.cover} />}
       <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
     </View>
   )
@@ -278,7 +348,7 @@ function ContactList({ contacts }: { contacts: MatchContacts }) {
     { label: "Telegram", value: contacts.telegram },
   ].filter((item) => Boolean(item.value))
 
-  if (rows.length === 0) return <View style={styles.contactsCard}><Text style={styles.contactsTitle}>{t("contactInfo")}</Text><Text style={styles.contactsEmpty}>{t("noContactInfo")}</Text></View>
+  if (rows.length === 0) return null
 
   return (
     <View style={styles.contactsCard}>
@@ -315,10 +385,9 @@ const styles = StyleSheet.create({
   bookLabel: { fontSize: 12, fontWeight: "600", color: palette.textMuted },
   exchangeIcon: { alignSelf: "center", width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: palette.successSoft, borderWidth: 1, borderColor: palette.success },
   cover: { flex: 1, minHeight: 90, width: "100%", borderRadius: 12, backgroundColor: palette.surfaceMuted },
-  coverFallback: { alignItems: "center", justifyContent: "center" },
-  coverFallbackText: { fontSize: 42, fontWeight: "700", color: palette.textSoft },
   bookTitle: { fontFamily: typography.serif, fontSize: 15, lineHeight: 18, fontWeight: "700", color: palette.text, textAlign: "center" },
   contactSection: { flex: 1, gap: 7 },
+  exchangeGuidance: { fontSize: 13, lineHeight: 19, color: palette.textMuted },
   contactHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
   contactStatusPanel: { paddingHorizontal: 11, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
   contactStatusDivider: { height: 1, backgroundColor: palette.border },
@@ -329,6 +398,11 @@ const styles = StyleSheet.create({
   contactStatusShared: { color: palette.success, fontWeight: "700" },
   revealButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
   revealButtonText: { color: palette.white, fontSize: 14, fontWeight: "700" },
+  conversationButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
+  conversationButtonPassive: { backgroundColor: palette.surfaceMuted, borderWidth: 1, borderColor: palette.border },
+  conversationButtonText: { color: palette.white, fontSize: 14, fontWeight: "700" },
+  conversationButtonPassiveText: { color: palette.textMuted },
+  chatHint: { marginTop: -3, color: palette.textMuted, fontSize: 11, textAlign: "center" },
   approveButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
   approveButtonText: { color: palette.white, fontSize: 14, fontWeight: "700" },
   unavailableButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.successSoft, borderWidth: 1, borderColor: palette.success, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
@@ -337,7 +411,6 @@ const styles = StyleSheet.create({
   exchangeUnderway: { color: palette.success, fontSize: 13, lineHeight: 18, fontWeight: "700" },
   contactsCard: { backgroundColor: palette.surfaceMuted, borderRadius: 12, padding: 9, gap: 5 },
   contactsTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
-  contactsEmpty: { fontSize: 13, color: palette.textMuted },
   contactRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   contactLabel: { fontSize: 12, fontWeight: "600", color: palette.textMuted },
   contactValue: { fontSize: 14, color: palette.text },

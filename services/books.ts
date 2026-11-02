@@ -1,9 +1,7 @@
 import type { ImagePickerAsset } from "expo-image-picker"
 import * as ImageManipulator from "expo-image-manipulator"
-import { File as ExpoFile } from "expo-file-system"
-import { Platform } from "react-native"
 
-import { supabase } from "@/utils/supabase"
+import { uploadImage } from "./imageUpload"
 
 import { apiFetch } from "./api"
 
@@ -181,55 +179,6 @@ export function deleteBook(bookId: string) {
   }) as Promise<{ message: string }>
 }
 
-function getFileExtension(asset: ImagePickerAsset) {
-  if (asset.fileName?.includes(".")) {
-    return asset.fileName.split(".").pop()?.toLowerCase() || "jpg"
-  }
-
-  if (asset.mimeType?.includes("/")) {
-    return asset.mimeType.split("/").pop()?.toLowerCase() || "jpg"
-  }
-
-  return "jpg"
-}
-
-function buildCoverPath(asset: ImagePickerAsset) {
-  const sessionId = supabase.auth.getSession()
-
-  return sessionId.then(({ data }) => {
-    const userId = data.session?.user.id ?? "anonymous"
-    const extension = getFileExtension(asset)
-    return `${userId}/${Date.now()}.${extension}`
-  })
-}
-
-export async function uploadBookCover(asset: ImagePickerAsset) {
-  let fileBody: File | Blob | Uint8Array
-
-  if (Platform.OS === "web") {
-    if (asset.file) {
-      fileBody = asset.file
-    } else {
-      const response = await fetch(asset.uri)
-      if (!response.ok) throw new Error("Could not read that cover image.")
-      fileBody = await response.blob()
-    }
-  } else {
-    fileBody = await new ExpoFile(asset.uri).bytes()
-  }
-  const filePath = await buildCoverPath(asset)
-
-  const { error } = await supabase.storage
-    .from("book_covers")
-    .upload(filePath, fileBody, {
-      contentType: asset.mimeType ?? "image/jpeg",
-      upsert: false,
-    })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const { data } = supabase.storage.from("book_covers").getPublicUrl(filePath)
-  return data.publicUrl
+export function uploadBookCover(asset: ImagePickerAsset) {
+  return uploadImage(asset, "book_covers")
 }

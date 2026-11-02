@@ -1,3 +1,4 @@
+import DefaultBookCover from "@/components/DefaultBookCover"
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -15,7 +16,7 @@ import { Image } from "expo-image"
 
 import { layout, palette, radii, shadows, typography } from "@/constants/theme"
 import { getCachedApiData } from "@/services/api"
-import { getBook, requestToBorrowBook, type Book } from "@/services/books"
+import { getBook, requestToBorrowBook, updateBook, type Book, type BookStatus } from "@/services/books"
 import { supabase } from "@/utils/supabase"
 import { useBookStatusLabel } from "@/localization/bookStatus"
 import { useTranslation } from "@/localization/LanguageContext"
@@ -41,6 +42,8 @@ export default function BookDetailsScreen() {
   const [borrowRequested, setBorrowRequested] = useState(() => cachedBook?.borrow_requested ?? false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [ownershipResolved, setOwnershipResolved] = useState(false)
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false)
+  const [statusSaving, setStatusSaving] = useState(false)
   const [loading, setLoading] = useState(() => cachedBook === undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -112,6 +115,26 @@ export default function BookDetailsScreen() {
     })
   }
 
+  const handleStatusChange = (status: Extract<BookStatus, "available" | "lent">) => {
+    if (!book || !isOwner || statusSaving) return
+    setStatusMenuOpen(false)
+    if (book.status === status) return
+
+    const previous = book
+    const optimisticBook = { ...book, status }
+    setStatusSaving(true)
+    runInBackground(() => updateBook(book.id, { status }), {
+      event: "book-updated",
+      optimisticResult: { book: optimisticBook, previous },
+      onSuccess: () => setStatusSaving(false),
+      onError: (err) => {
+        setStatusSaving(false)
+        console.error("Failed to update book status", err)
+        Alert.alert(t("changeNotSaved"), t("bookStatusUpdateError"))
+      },
+    })
+  }
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={palette.accent} /></View>
   }
@@ -128,60 +151,76 @@ export default function BookDetailsScreen() {
 
   return (
     <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadBook(true)} tintColor={palette.accent} />}
-      >
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadBook(true)} tintColor={palette.accent} />}
+    >
+      <View style={styles.bookCard}>
+        {isOwner ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("editNamedBook", { title: book.title })}
+            onPress={openEditor}
+            style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
+          >
+            <Ionicons name="create-outline" size={20} color={palette.accentDark} />
+          </Pressable>
+        ) : null}
         <View style={styles.hero}>
           <View style={styles.coverWrap}>
             {book.cover_url ? (
               <Image source={{ uri: book.cover_url }} style={styles.cover} contentFit="contain" cachePolicy="memory-disk" transition={120} />
             ) : (
-              <View style={[styles.cover, styles.coverFallback]}>
-                <Text style={styles.coverLetter}>{book.title.slice(0, 1).toUpperCase()}</Text>
-              </View>
+              <DefaultBookCover title={book.title} author={book.author} style={styles.cover} />
             )}
             <View style={styles.pageEdge} />
           </View>
           <View style={styles.heroText}>
             <Text style={styles.title}>{book.title}</Text>
             <Text style={styles.author}>{book.author || t("unknownAuthor")}</Text>
-            <View style={styles.statusPill}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>{bookStatusLabel(book.status)}</Text>
+            <View style={[styles.statusControl, statusMenuOpen && styles.statusControlOpen]}>
+              <View style={styles.statusPill}>
+                <View style={[styles.statusDot, book.status !== "available" && styles.statusDotUnavailable]} />
+                <Text style={styles.statusText}>{bookStatusLabel(book.status)}</Text>
+              </View>
+              {isOwner ? (
+                <View style={styles.statusMenuWrap}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("changeStatus")}
+                    accessibilityState={{ expanded: statusMenuOpen, disabled: statusSaving }}
+                    disabled={statusSaving}
+                    onPress={() => setStatusMenuOpen((open) => !open)}
+                    style={({ pressed }) => [styles.statusMenuButton, pressed && styles.statusMenuButtonPressed]}
+                  >
+                    {statusSaving ? <ActivityIndicator size="small" color={palette.textMuted} /> : null}
+                    <Text style={styles.statusMenuButtonText}>{t("changeStatus")}</Text>
+                    <Ionicons name={statusMenuOpen ? "chevron-up" : "chevron-down"} size={15} color={palette.textMuted} />
+                  </Pressable>
+                  {statusMenuOpen ? (
+                    <View style={styles.statusDropdown}>
+                      <StatusOption
+                        label={t("available")}
+                        accessibilityLabel={t("markBookAvailable")}
+                        selected={book.status === "available"}
+                        onPress={() => handleStatusChange("available")}
+                      />
+                      <StatusOption
+                        label={t("unavailable")}
+                        accessibilityLabel={t("markBookUnavailable")}
+                        selected={book.status !== "available"}
+                        onPress={() => handleStatusChange("lent")}
+                      />
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
-            {isOwner ? (
-              <Pressable accessibilityRole="button" accessibilityLabel={t("editNamedBook", { title: book.title })} onPress={openEditor} style={({ pressed }) => [styles.editButton, styles.inlineEditButton, pressed && styles.editButtonPressed]}>
-                <Ionicons name="create-outline" size={18} color={palette.accentDark} />
-                <Text style={styles.editButtonText}>{t("edit")}</Text>
-              </Pressable>
-            ) : null}
           </View>
         </View>
 
-        {ownershipResolved && !isOwner ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("askBorrowBook", { title: book.title })}
-            accessibilityState={{ disabled: book.status !== "available" || borrowRequested }}
-            disabled={book.status !== "available" || borrowRequested}
-            onPress={handleBorrowRequest}
-            style={({ pressed }) => [
-              styles.borrowButton,
-              (book.status !== "available" || borrowRequested) && styles.borrowButtonDisabled,
-              pressed && styles.borrowButtonPressed,
-            ]}
-          >
-            <Ionicons name={borrowRequested ? "checkmark-circle" : "hand-left-outline"} size={18} color={palette.paper} />
-            <Text style={styles.borrowButtonText}>
-              {book.status !== "available" ? t("bookUnavailable") : borrowRequested ? t("requestSent") : t("askBorrow")}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>{t("bookInformation")}</Text>
+        <View style={styles.details}>
           {ownerName ? <DetailRow icon="person-outline" label={t("ownerLabel")} value={ownerName} /> : null}
           {communityName ? <DetailRow icon="location-outline" label={t("community")} value={communityName} /> : null}
           <DetailRow label={t("author")} value={book.author || t("unknownAuthor")} />
@@ -192,6 +231,27 @@ export default function BookDetailsScreen() {
             <Text style={styles.description}>{book.description || t("noDescriptionProvided")}</Text>
           </View>
         </View>
+      </View>
+
+      {ownershipResolved && !isOwner ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("askBorrowBook", { title: book.title })}
+          accessibilityState={{ disabled: book.status !== "available" || borrowRequested }}
+          disabled={book.status !== "available" || borrowRequested}
+          onPress={handleBorrowRequest}
+          style={({ pressed }) => [
+            styles.borrowButton,
+            (book.status !== "available" || borrowRequested) && styles.borrowButtonDisabled,
+            pressed && styles.borrowButtonPressed,
+          ]}
+        >
+          <Ionicons name={borrowRequested ? "checkmark-circle" : "hand-left-outline"} size={18} color={palette.paper} />
+          <Text style={styles.borrowButtonText}>
+            {book.status !== "available" ? t("bookUnavailable") : borrowRequested ? t("requestSent") : t("askBorrow")}
+          </Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   )
 }
@@ -208,6 +268,22 @@ function DetailRow({ icon, label, value }: { icon?: keyof typeof Ionicons.glyphM
   )
 }
 
+function StatusOption({ label, accessibilityLabel, selected, onPress }: { label: string; accessibilityLabel: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.statusOption, pressed && styles.statusOptionPressed]}
+    >
+      <View style={[styles.statusOptionDot, selected && styles.statusOptionDotSelected]} />
+      <Text style={[styles.statusOptionText, selected && styles.statusOptionTextSelected]}>{label}</Text>
+      {selected ? <Ionicons name="checkmark" size={16} color={palette.accentDark} /> : null}
+    </Pressable>
+  )
+}
+
 function formatDate(value: string, language: "en" | "tr", fallback: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return fallback
@@ -216,36 +292,46 @@ function formatDate(value: string, language: "en" | "tr", fallback: string) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.background },
-  content: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 22, paddingBottom: 48, gap: 24 },
+  content: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12, gap: 12 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 28, backgroundColor: palette.background },
   errorTitle: { fontFamily: typography.serif, fontSize: 22, fontWeight: "700", color: palette.text },
   errorText: { color: palette.textMuted, textAlign: "center" },
-  editButton: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, borderRadius: radii.round, backgroundColor: palette.accentSoft },
+  editButton: { alignSelf: "flex-end", width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: radii.round, backgroundColor: palette.accentSoft },
   editButtonPressed: { opacity: 0.7 },
-  inlineEditButton: { marginTop: 14 },
-  editButtonText: { color: palette.accentDark, fontSize: 14, fontWeight: "800" },
   borrowButton: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 15, borderRadius: radii.round, backgroundColor: palette.accent, ...shadows.soft },
   borrowButtonDisabled: { backgroundColor: palette.textSoft },
   borrowButtonPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   borrowButtonText: { color: palette.paper, fontSize: 14, fontWeight: "800" },
-  hero: { flexDirection: "row", alignItems: "center", gap: 22, padding: 20, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, backgroundColor: palette.paper, ...shadows.lifted },
-  coverWrap: { width: 142, height: 208, position: "relative" },
+  bookCard: { gap: 14, padding: 16, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.lg, backgroundColor: palette.paper, ...shadows.lifted },
+  hero: { flexDirection: "row", alignItems: "center", gap: 16, zIndex: 1 },
+  coverWrap: { width: 88, height: 128, flexShrink: 0, position: "relative" },
   cover: { width: "100%", height: "100%", borderRadius: radii.sm, backgroundColor: palette.surfaceMuted },
-  coverFallback: { alignItems: "center", justifyContent: "center", backgroundColor: palette.blue, borderWidth: 1.5, borderColor: palette.borderStrong },
-  coverLetter: { fontFamily: typography.serif, fontSize: 58, fontWeight: "700", color: palette.ink },
   pageEdge: { position: "absolute", right: -5, top: 9, bottom: 9, width: 5, borderWidth: 1, borderLeftWidth: 0, borderColor: palette.borderStrong, borderTopRightRadius: 4, borderBottomRightRadius: 4, backgroundColor: palette.yellow },
   heroText: { flex: 1, minWidth: 0, alignItems: "flex-start" },
-  title: { fontFamily: typography.serif, fontSize: 29, lineHeight: 35, fontWeight: "700", color: palette.text },
-  author: { marginTop: 9, fontSize: 16, lineHeight: 22, color: palette.textMuted },
-  statusPill: { marginTop: 18, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 11, paddingVertical: 7, borderRadius: radii.round, backgroundColor: palette.accentSoft },
+  title: { fontFamily: typography.serif, fontSize: 23, lineHeight: 28, fontWeight: "700", color: palette.text },
+  author: { marginTop: 5, fontSize: 14, lineHeight: 19, color: palette.textMuted },
+  statusControl: { marginTop: 10, flexDirection: "row", alignItems: "flex-start", flexWrap: "wrap", gap: 8, zIndex: 2 },
+  statusControlOpen: { zIndex: 20 },
+  statusPill: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 11, paddingVertical: 7, borderRadius: radii.round, backgroundColor: palette.accentSoft },
   statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.accent },
+  statusDotUnavailable: { backgroundColor: palette.textSoft },
   statusText: { color: palette.accentDark, fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
-  detailsCard: { padding: 20, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surface, ...shadows.soft },
-  sectionTitle: { marginBottom: 7, fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text },
-  detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 20, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
+  statusMenuWrap: { position: "relative", alignItems: "flex-end", zIndex: 30 },
+  statusMenuButton: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: palette.border, borderRadius: radii.round, backgroundColor: palette.paper },
+  statusMenuButtonPressed: { opacity: 0.7 },
+  statusMenuButtonText: { color: palette.textMuted, fontSize: 12, fontWeight: "800" },
+  statusDropdown: { position: "absolute", top: "100%", marginTop: 6, right: 0, width: 168, zIndex: 40, padding: 6, borderWidth: 1, borderColor: palette.border, borderRadius: radii.md, backgroundColor: palette.paper, ...shadows.lifted },
+  statusOption: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 10, borderRadius: radii.sm },
+  statusOptionPressed: { backgroundColor: palette.surfaceMuted },
+  statusOptionDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, borderColor: palette.textSoft },
+  statusOptionDotSelected: { borderColor: palette.accent, backgroundColor: palette.accent },
+  statusOptionText: { flex: 1, color: palette.text, fontSize: 13, fontWeight: "700" },
+  statusOptionTextSelected: { color: palette.accentDark },
+  details: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 14, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
   detailLabelRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   detailLabel: { color: palette.textMuted, fontSize: 13, fontWeight: "700" },
   detailValue: { flex: 1, color: palette.text, fontSize: 14, textAlign: "right" },
-  descriptionBlock: { paddingTop: 16, gap: 8 },
-  description: { color: palette.text, fontSize: 15, lineHeight: 23 },
+  descriptionBlock: { paddingTop: 10, gap: 5 },
+  description: { color: palette.text, fontSize: 14, lineHeight: 20 },
 })

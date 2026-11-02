@@ -2,7 +2,7 @@ import type { ImagePickerAsset } from "expo-image-picker"
 
 type Props = {
   asset: ImagePickerAsset | null
-  purpose?: "cover" | "shelf"
+  purpose?: "cover" | "shelf" | "avatar"
   onCancel: () => void
   onComplete: (asset: ImagePickerAsset) => void
 }

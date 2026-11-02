@@ -1,3 +1,4 @@
+import DefaultBookCover from "@/components/DefaultBookCover"
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native"
 import { Image } from "expo-image"
 
@@ -29,9 +30,7 @@ export default function BookDisplay({ book, actionAccessibilityLabel, actionDisa
     <View style={[styles.coverWrap, variant === "list" && styles.listCoverWrap]}>
       <View style={styles.spine} />
       {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} contentFit="contain" cachePolicy="memory-disk" transition={120} /> : (
-        <View style={[styles.cover, styles.coverFallback]}>
-          <View style={styles.fallbackFrame}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>
-        </View>
+        <DefaultBookCover title={book.title} author={book.author} style={styles.cover} />
       )}
       <View style={styles.pageEdge} />
     </View>
@@ -131,9 +130,6 @@ const styles = StyleSheet.create({
   cover: { width: "100%", height: "100%", borderRadius: radii.sm, backgroundColor: palette.surfaceMuted },
   spine: { position: "absolute", zIndex: 2, left: 5, top: 0, bottom: 0, width: 3, borderRadius: 2, backgroundColor: "rgba(56,51,45,0.28)" },
   pageEdge: { position: "absolute", right: -4, bottom: 5, width: 4, height: "88%", backgroundColor: palette.yellow, borderTopRightRadius: 4, borderBottomRightRadius: 4, borderWidth: 1, borderLeftWidth: 0, borderColor: palette.borderStrong },
-  coverFallback: { alignItems: "center", justifyContent: "center", backgroundColor: palette.blue },
-  fallbackFrame: { width: "54%", aspectRatio: 1, borderRadius: 999, borderWidth: 1.5, borderColor: palette.borderStrong, backgroundColor: palette.yellow, alignItems: "center", justifyContent: "center" },
-  coverFallbackText: { fontFamily: typography.serif, fontSize: 36, fontWeight: "700", color: palette.ink },
   content: { padding: 9, gap: 3 },
   listBody: { flex: 1, minWidth: 0, justifyContent: "space-between" },
   listContent: { flexGrow: 1, minWidth: 0, justifyContent: "center", paddingLeft: 10, paddingBottom: 6 },

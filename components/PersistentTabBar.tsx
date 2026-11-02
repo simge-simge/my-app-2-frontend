@@ -13,6 +13,7 @@ const tabs = {
   search: { labelKey: "search", outline: "search-outline", filled: "search" },
   library: { labelKey: "library", outline: "library-outline", filled: "library" },
   matches: { labelKey: "matches", outline: "heart-outline", filled: "heart" },
+  messages: { labelKey: "messages", outline: "chatbubbles-outline", filled: "chatbubbles" },
 } as const
 
 type TabName = keyof typeof tabs
@@ -28,7 +29,7 @@ export default function PersistentTabBar({ state, descriptors, navigation }: Bot
   return (
     <View style={[styles.safeArea, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={[styles.bar, { width: Math.min(width - 24, layout.readingMax) }]} accessibilityRole="tablist">
-        {state.routes.filter((route) => route.name in tabs).map((route) => {
+        {state.routes.filter((route) => route.name in tabs && route.name !== "home").map((route) => {
           const routeIndex = state.routes.findIndex((item) => item.key === route.key)
           const focused = state.index === routeIndex
           const config = tabs[route.name as TabName]

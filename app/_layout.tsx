@@ -2,6 +2,7 @@ import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import AppTabHeader from "@/components/AppTabHeader";
 import { palette, typography } from "@/constants/theme";
 import { LanguageProvider } from "@/localization/LanguageContext";
 import { AuthSessionProvider, useAuthSession } from "@/services/authSession";
@@ -29,9 +30,10 @@ function ThemedRoot() {
   // Private routes still wait for session restoration before their guards run.
   if (loading && pathname !== "/") {
     return (
-      <View style={styles.loading}>
+      <View style={styles.screen}>
         <StatusBar style={statusBarStyle} />
-        <ActivityIndicator size="large" color={palette.accent} />
+        <AppTabHeader />
+        <View style={styles.loading}><ActivityIndicator size="large" color={palette.accent} /></View>
       </View>
     );
   }
@@ -40,6 +42,8 @@ function ThemedRoot() {
 }
 
 function RootStack() {
+  const pathname = usePathname();
+  const showHeaderActions = ["/home", "/search", "/library", "/explore", "/messages", "/matches"].includes(pathname);
   const insets = useSafeAreaInsets();
   const headerlessScreenOptions = {
     headerShown: false,
@@ -50,6 +54,8 @@ function RootStack() {
     <Stack
       screenOptions={{
         headerBackButtonDisplayMode: "minimal",
+        header: () => <AppTabHeader showActions={showHeaderActions} refreshKey={pathname} />,
+        headerTitleAlign: "left",
         headerStyle: { backgroundColor: palette.background as string },
         headerShadowVisible: false,
         headerTintColor: palette.text as string,
@@ -59,21 +65,23 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="index" options={headerlessScreenOptions} />
-      <Stack.Screen name="app" options={headerlessScreenOptions} />
-      <Stack.Screen name="privacy" options={{ title: "Privacy Policy" }} />
-      <Stack.Screen name="terms" options={{ title: "Terms of Service" }} />
-      <Stack.Screen name="auth/callback" options={headerlessScreenOptions} />
-      <Stack.Screen name="(auth)" options={headerlessScreenOptions} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="books" options={{ headerShown: false }} />
-      <Stack.Screen name="matches" options={{ headerShown: false }} />
-      <Stack.Screen name="members" options={{ headerShown: false }} />
-      <Stack.Screen name="communities" options={{ headerShown: false }} />
+      <Stack.Screen name="app" />
+      <Stack.Screen name="privacy" options={{ title: "Privacy Policy", header: () => <AppTabHeader title="Privacy Policy" /> }} />
+      <Stack.Screen name="terms" options={{ title: "Terms of Service", header: () => <AppTabHeader title="Terms of Service" /> }} />
+      <Stack.Screen name="auth/callback" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="books" />
+      <Stack.Screen name="matches" />
+      <Stack.Screen name="chats" />
+      <Stack.Screen name="members" />
+      <Stack.Screen name="communities" />
     </Stack>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: palette.background },
   loading: {
     flex: 1,
     alignItems: "center",

@@ -8,6 +8,7 @@ export type MatchBook = {
   cover_url: string | null
   isbn?: string | null
   status?: string
+  reserved_match_id?: string | null
   created_at?: string
 }
 
@@ -39,6 +40,9 @@ export type Match = {
   approved_at: string | null
   approved_by: string | null
   contacts: MatchContacts | null
+  my_messaging_enabled?: boolean
+  their_messaging_enabled?: boolean
+  conversation_id?: string | null
 }
 
 export type RevealMatchResponse = {
@@ -84,4 +88,11 @@ export function deleteMatch(matchId: string) {
     method: "DELETE",
     invalidate: ["matches", "books", "inbox"],
   }) as Promise<{ message: string }>
+}
+
+export function endMatchExchange(matchId: string) {
+  return apiFetch(`/matches/${matchId}/end-exchange`, {
+    method: "PATCH",
+    invalidate: ["matches", "books", "inbox"],
+  }) as Promise<{ book_id: string; status: "available" }>
 }

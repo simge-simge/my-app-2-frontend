@@ -19,6 +19,17 @@ const notification = (overrides: Partial<InboxNotification>): InboxNotification 
 })
 
 describe("inbox notification localization", () => {
+  it("translates the ended match notification and release instructions into Turkish", () => {
+    expect(localizeInboxNotification(notification({
+      type: "match_exchange_ended",
+      title: "Match ended",
+      message: "This match has ended.",
+      metadata: { match_id: "match-1" },
+    }), "tr", translate)).toEqual({
+      title: "Eşleşme sona erdi",
+      message: 'Bu eşleşme sona erdi. Kitabının ayrılmasını kaldırıp yeniden müsait yapmak için eşleşmeyi aç ve "Takası bitir" düğmesine dokun.',
+    })
+  })
   it("translates dynamic borrow request copy into Turkish", () => {
     expect(localizeInboxNotification(notification({}), "tr", translate)).toEqual({
       title: "Ödünç alma isteği",

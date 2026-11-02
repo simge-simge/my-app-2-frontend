@@ -120,6 +120,11 @@ export default function InboxScreen() {
       return
     }
     const matchId = notification.metadata?.match_id
+    const conversationId = notification.metadata?.conversation_id
+    if (typeof conversationId === "string") {
+      router.push({ pathname: "/chats/[conversationId]", params: { conversationId } })
+      return
+    }
     if (typeof matchId === "string") {
       router.push({ pathname: "/matches/[matchId]", params: { matchId } })
       return
@@ -261,7 +266,7 @@ export default function InboxScreen() {
                   <Text style={styles.message}>{copy.message}</Text>
                   <Text style={styles.date}>{formatDate(notification.created_at, language === "tr" ? "tr-TR" : "en-US", t("recently"))}</Text>
                 </View>
-                {notification.type === "book_swap_match" || notification.metadata?.match_id || notification.metadata?.shelf_scan_job_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
+                {notification.type === "book_swap_match" || notification.metadata?.conversation_id || notification.metadata?.match_id || notification.metadata?.shelf_scan_job_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
               </Pressable>
             )
           })}
@@ -287,7 +292,7 @@ function formatDate(value: string, locale: string, fallback: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.background },
-  content: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 20, paddingBottom: 36, gap: 22 },
+  content: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 20, paddingTop: 8, paddingBottom: 36, gap: 22 },
   emptyContent: { flexGrow: 1 },
   markRead: { color: palette.accentDark, fontSize: 13, fontWeight: "700" },
   error: { color: palette.danger },
@@ -316,6 +321,6 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 10 },
   emptyTitle: { color: palette.text, fontFamily: typography.serif, fontSize: 21, fontWeight: "700" },
   emptyText: { color: palette.textMuted, textAlign: "center", lineHeight: 20 },
-  loadingScreen: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 20, backgroundColor: palette.background },
+  loadingScreen: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 20, paddingTop: 8, backgroundColor: palette.background },
   loadingCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
 })

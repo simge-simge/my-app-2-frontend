@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react-native"
 
 import Home from "../home"
+import AppTabHeader from "@/components/AppTabHeader"
 import { getCachedApiData } from "@/services/api"
 import { getMyBooks, searchBooks } from "@/services/books"
 import { getInbox } from "@/services/inbox"
@@ -55,7 +56,7 @@ describe("home performance flow", () => {
       unread_count: 3,
     })
 
-    render(<Home />)
+    render(<><AppTabHeader showActions /><Home /></>)
 
     expect(await screen.findByText("Hello, Ada")).toBeVisible()
     expect(getInbox).toHaveBeenCalledTimes(1)
@@ -76,7 +77,7 @@ describe("home performance flow", () => {
       .mockResolvedValueOnce({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 3 })
       .mockResolvedValue({ notifications: [], join_requests: [], borrow_requests: [], unread_count: 0 })
 
-    render(<Home />)
+    render(<><AppTabHeader showActions /><Home /></>)
     expect(await screen.findByText("3")).toBeVisible()
 
     act(() => {
@@ -106,7 +107,7 @@ describe("home performance flow", () => {
       finishFeed = resolve
     }))
 
-    render(<Home />)
+    render(<><AppTabHeader showActions /><Home /></>)
     expect(screen.getByText("Cached Shelf Book")).toBeTruthy()
     await waitFor(() => expect(finishFeed).toBeDefined())
     expect(screen.getByText("Cached Shelf Book")).toBeTruthy()
@@ -123,7 +124,7 @@ describe("home performance flow", () => {
       book({ id: "lent-community-book", owner_id: "user-b", title: "Their Lent Book", status: "lent" }),
     ])
 
-    render(<Home />)
+    render(<><AppTabHeader showActions /><Home /></>)
 
     expect(await screen.findByText("My Matched Book")).toBeTruthy()
     expect(screen.getByText("Their Lent Book")).toBeTruthy()
@@ -145,7 +146,7 @@ describe("home performance flow", () => {
       unread_count: 0,
     })
 
-    render(<Home />)
+    render(<><AppTabHeader showActions /><Home /></>)
 
     expect(await screen.findByText("Kürk Mantolu Madonna")).toBeTruthy()
     expect(screen.getByText("The Left Hand of Darkness")).toBeTruthy()

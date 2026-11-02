@@ -8,7 +8,7 @@ import { useTranslation } from "@/localization/LanguageContext"
 
 type Props = {
   asset: ImagePickerAsset | null
-  purpose?: "cover" | "shelf"
+  purpose?: "cover" | "shelf" | "avatar"
   onCancel: () => void
   onComplete: (asset: ImagePickerAsset) => void
 }
@@ -89,7 +89,7 @@ export default function WebImageCropper({ asset, purpose = "cover", onCancel, on
   const aspect = useMemo(() => {
     if (aspectOption === "square") return 1
     if (aspectOption === "original" && asset?.width && asset.height) return asset.width / asset.height
-    return purpose === "shelf" ? 4 / 3 : 2 / 3
+    return purpose === "avatar" ? 1 : purpose === "shelf" ? 4 / 3 : 2 / 3
   }, [aspectOption, asset, purpose])
 
   const finishCrop = useCallback(async () => {
@@ -134,7 +134,7 @@ export default function WebImageCropper({ asset, purpose = "cover", onCancel, on
           <View style={styles.aspectRow}>
             {(["preferred", "square", "original"] as const).map((option) => (
               <Pressable key={option} accessibilityRole="button" style={[styles.aspectButton, aspectOption === option && styles.aspectButtonSelected]} onPress={() => setAspectOption(option)}>
-                <Text style={[styles.aspectText, aspectOption === option && styles.aspectTextSelected]}>{t(option === "preferred" ? (purpose === "shelf" ? "shelfRatio" : "coverRatio") : option === "square" ? "squareRatio" : "originalRatio")}</Text>
+                <Text style={[styles.aspectText, aspectOption === option && styles.aspectTextSelected]}>{t(option === "preferred" ? (purpose === "avatar" ? "squareRatio" : purpose === "shelf" ? "shelfRatio" : "coverRatio") : option === "square" ? "squareRatio" : "originalRatio")}</Text>
               </Pressable>
             ))}
           </View>

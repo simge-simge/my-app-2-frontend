@@ -5,6 +5,14 @@ import BookDisplay from "../BookDisplay"
 import { book } from "@/test/factories"
 
 describe("BookDisplay", () => {
+  it.each(["card", "list"] as const)("renders a titled cover for a book without artwork in %s view", (variant) => {
+    const missingCover = book({ cover_url: null, title: "A Very Long Book Title About Discovering New Worlds", author: "Alexandra Montgomery" })
+    render(<BookDisplay book={missingCover} variant={variant} />)
+
+    expect(screen.getByRole("image", { name: `${missingCover.title} by ${missingCover.author}` })).toBeVisible()
+    expect(screen.queryByText("A")).toBeNull()
+  })
+
   it("shows the complete cover and keeps its action beside the status", () => {
     const onActionPress = jest.fn()
     const onPress = jest.fn()

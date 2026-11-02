@@ -1,3 +1,5 @@
+import type { ImagePickerAsset } from "expo-image-picker"
+import { uploadImage } from "./imageUpload"
 import { apiFetch } from "./api"
 import type { SearchScope } from "./books"
 import type { Book } from "./books"
@@ -10,6 +12,7 @@ export type Profile = {
   location: Location | null
   avatar_url: string | null
   contacts: Record<string, string>
+  messaging_enabled?: boolean
   community_id: string | null
   community_name: string | null
   community_location: Location | null
@@ -66,7 +69,7 @@ export function updateProfile(data: Record<string, unknown>) {
   return apiFetch("/profile/me/", {
     method: "PATCH",
     body: JSON.stringify(data),
-    invalidate: ["profile", "communities", "books", "matches", "inbox"],
+    invalidate: ["profile", "communities", "books", "matches", "messages", "inbox"],
   }) as Promise<Profile>
 }
 
@@ -75,4 +78,8 @@ export function deleteAccount() {
     method: "DELETE",
     invalidate: "all",
   })
+}
+
+export function uploadProfilePicture(asset: ImagePickerAsset) {
+  return uploadImage(asset, "profile_pictures")
 }
