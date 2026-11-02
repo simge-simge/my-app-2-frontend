@@ -6,7 +6,9 @@ type Translator = (key: TranslationKey, values?: Record<string, string | number>
 const titleKeys: Record<string, TranslationKey> = {
   book_borrow_requested: "notificationBorrowRequest",
   book_swap_match: "notificationNewSwap",
+  book_swap_approved: "notificationExchangeApproved",
   book_swap_contact_revealed: "notificationSwapUpdate",
+  match_book_unavailable: "notificationExchangeUnderway",
   community_request_approved: "notificationCommunityApproved",
   community_member_added: "notificationMemberAdded",
   community_member_removed: "notificationMemberRemoved",
@@ -34,11 +36,24 @@ export function localizeInboxNotification(notification: InboxNotification, langu
       return { title, message: name && quotedBook ? t("notificationWantsBorrow", { name, book: quotedBook }) : notification.message }
     }
     case "book_swap_match": {
+      const reader = notification.message.match(/^You and (.+) have new exchange options\.$/)?.[1]
+      if (reader) return { title, message: t("notificationNewSwapOptions", { name: reader }) }
       const book = notification.message.match(/^Your (.+) has a new swap match\.$/)?.[1]
       return { title, message: book ? t("notificationNewSwapMessage", { book }) : notification.message }
     }
-    case "book_swap_contact_revealed":
-      return { title, message: t("notificationContactRevealed") }
+    case "book_swap_contact_revealed": {
+      const name = String(notification.metadata?.reader_name || "")
+      return { title, message: name ? t("notificationContactRevealedGuidance", { name }) : t("notificationContactRevealed") }
+    }
+    case "book_swap_approved": {
+      const name = String(notification.metadata?.approved_by_name || "")
+      return { title, message: name ? t("notificationExchangeApprovedMessage", { name }) : notification.message }
+    }
+    case "match_book_unavailable": {
+      const name = String(notification.metadata?.reader_name || "")
+      const book = String(notification.metadata?.book_title || "")
+      return { title, message: name ? t("notificationExchangeUnderwayMessage", { name, book }) : notification.message }
+    }
     case "community_request_approved":
     case "community_added": {
       const community = notification.message.match(/member of (.+)\.$/)?.[1]

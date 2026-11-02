@@ -7,6 +7,8 @@ function requirePublicEnv(name: string, value: string | undefined) {
 }
 
 export const ENV = {
+  DISABLE_EMAIL_VERIFICATION:
+    process.env.EXPO_PUBLIC_DISABLE_EMAIL_VERIFICATION === "true",
   SUPABASE_URL: requirePublicEnv(
     "EXPO_PUBLIC_SUPABASE_URL",
     process.env.EXPO_PUBLIC_SUPABASE_URL,

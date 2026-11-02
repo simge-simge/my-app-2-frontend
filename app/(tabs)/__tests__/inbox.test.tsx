@@ -85,6 +85,24 @@ describe("borrow request inbox history", () => {
     finishStorage()
   })
 
+  it("opens grouped multi-match notifications on the Matches page", async () => {
+    jest.mocked(getInbox).mockResolvedValue(inbox([], [{
+      id: "notification-match-options",
+      type: "book_swap_match",
+      title: "New book swap options",
+      message: "You and Ada have new exchange options.",
+      metadata: { match_id: "representative-match", pair_key: "a:b", new_option_count: 4 },
+      read_at: "2026-01-03T12:00:00Z",
+      created_at: "2026-01-03T12:00:00Z",
+    }]))
+    render(<InboxScreen />)
+
+    fireEvent.press(await screen.findByText("New book swap options"))
+
+    expect(router.push).toHaveBeenCalledWith("/matches")
+    expect(router.push).not.toHaveBeenCalledWith({ pathname: "/matches/[matchId]", params: { matchId: "representative-match" } })
+  })
+
   it("publishes the new unread count immediately when all notifications are marked read", async () => {
     let finishUpdate!: (result: { updated: number }) => void
     const listener = jest.fn()

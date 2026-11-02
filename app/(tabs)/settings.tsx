@@ -13,7 +13,7 @@ import { useCallback, useState } from "react"
 import { useFocusEffect, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
-import { layout, palette, radii, shadows, typography } from "@/constants/theme"
+import { layout, palette, radii, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
 import ConfirmationModal from "@/components/ConfirmationModal"
 import PageHeader from "@/components/PageHeader"
@@ -251,11 +251,17 @@ export default function Settings() {
       />
       <PageHeader title={t("settings")} subtitle={t("profileCommunityPreferences")} />
       <View style={styles.languageCard}>
-        <Text style={styles.section}>{t("language")}</Text>
+        <View style={styles.preferenceCopy}>
+          <View style={styles.preferenceIcon}><Ionicons name="globe-outline" size={18} color={palette.accentDark} /></View>
+          <View><Text style={styles.preferenceTitle}>{t("language")}</Text><Text style={styles.preferenceHint}>{t("chooseLanguage")}</Text></View>
+        </View>
         <LanguageSwitch />
       </View>
       <View style={styles.languageCard}>
-        <Text style={styles.section}>{t("appearance")}</Text>
+        <View style={styles.preferenceCopy}>
+          <View style={styles.preferenceIcon}><Ionicons name="sunny-outline" size={18} color={palette.accentDark} /></View>
+          <View><Text style={styles.preferenceTitle}>{t("appearance")}</Text><Text style={styles.preferenceHint}>{t("darkMode")}</Text></View>
+        </View>
         <ThemeSwitch />
       </View>
       <View style={styles.card}>
@@ -379,7 +385,9 @@ export default function Settings() {
             </Pressable>
           </View>
         ) : null}
+      </View>
 
+      <View style={styles.card}>
         <Text style={[styles.section, styles.contactsSection]}>{t("contacts")}</Text>
 
         <Text style={styles.label}>{t("email")}</Text>
@@ -429,7 +437,9 @@ export default function Settings() {
             <Ionicons name={editingField === "telegram" ? "checkmark" : "create-outline"} size={21} color={palette.accentDark} />
           </Pressable>
         </View>
+      </View>
 
+      <View style={styles.accountCard}>
         <Pressable style={styles.secondaryAction} onPress={handleSignOut} disabled={signingOut}>
           <Text style={styles.secondaryActionText}>{signingOut ? t("signingOut") : t("signOut")}</Text>
         </Pressable>
@@ -447,10 +457,15 @@ export default function Settings() {
 }
 
 const styles = StyleSheet.create({
-  languageCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%", backgroundColor: palette.paper, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, padding: 16 },
+  languageCard: { minHeight: 66, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", backgroundColor: palette.surface, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, paddingHorizontal: 13, paddingVertical: 10 },
+  preferenceCopy: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
+  preferenceIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: palette.accentSoft },
+  preferenceTitle: { fontFamily: typography.serif, color: palette.text, fontSize: 16, fontWeight: "700" },
+  preferenceHint: { marginTop: 2, color: palette.textMuted, fontSize: 11 },
   container: {
-    padding: 24,
-    gap: 22,
+    padding: 16,
+    paddingBottom: 28,
+    gap: 12,
     backgroundColor: palette.background,
     width: "100%",
     maxWidth: layout.readingMax,
@@ -460,12 +475,12 @@ const styles = StyleSheet.create({
   loadingCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
   card: {
     backgroundColor: palette.surface,
-    borderRadius: radii.lg,
-    padding: 22,
-    borderWidth: 1.5,
-    borderColor: palette.borderStrong,
-    ...shadows.soft,
+    borderRadius: radii.md,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: palette.border,
   },
+  accountCard: { paddingHorizontal: 14, paddingBottom: 4 },
   section: {
     fontFamily: typography.serif,
     fontSize: 20,
@@ -476,8 +491,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   profileHeading: {
     flexDirection: "row",
@@ -488,31 +502,32 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   contactsSection: {
-    marginTop: 8,
     marginBottom: 12,
   },
   label: {
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: "700",
     color: palette.textMuted,
     marginBottom: 6,
   },
   input: {
-    minHeight: 52,
+    minHeight: 44,
     width: "100%",
     borderWidth: 1.5,
     borderColor: palette.border,
     borderRadius: radii.md,
-    padding: 14,
-    paddingRight: 58,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingRight: 50,
     backgroundColor: palette.background,
     color: palette.text,
   },
   fieldControl: {
     position: "relative",
-    marginBottom: 18,
+    marginBottom: 12,
   },
   locationEditor: {
-    marginBottom: 18,
+    marginBottom: 12,
     gap: 10,
   },
   locationActions: {
@@ -544,9 +559,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 7,
     top: 3,
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: palette.accentSoft,
@@ -651,7 +666,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   secondaryAction: {
-    marginTop: 16,
+    marginTop: 10,
     alignItems: "center",
   },
   secondaryActionText: {
@@ -660,7 +675,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   deleteAction: {
-    marginTop: 24,
+    marginTop: 18,
     alignItems: "center",
   },
   deleteActionText: {

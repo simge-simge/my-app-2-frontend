@@ -64,6 +64,17 @@ describe("BookForm", () => {
     expect(onDelete).not.toHaveBeenCalled()
   })
 
+  it("lets an owner hide and restore a book in Discover", async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    render(<BookForm mode="edit" initialBook={book()} onSave={onSave} />)
+    const availability = screen.getByRole("switch")
+    expect(availability.props.accessibilityState).toMatchObject({ checked: true })
+    fireEvent.press(availability)
+    expect(screen.getByText("This book is hidden from Discover. Mark it available when it returns.")).toBeVisible()
+    fireEvent.press(screen.getByRole("button", { name: "Save Changes" }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ status: "lent" }), null))
+  })
+
   it("renders its loading state", () => {
     render(<BookForm mode="edit" loading onSave={jest.fn()} />)
     expect(screen.getByText("Loading book...")).toBeVisible()

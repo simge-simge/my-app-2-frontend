@@ -18,12 +18,14 @@ export const book = (overrides: Partial<Book> = {}): Book => ({
 export const match = (overrides: Partial<Match> = {}): Match => ({
   match_id: "40000000-0000-0000-0000-000000000001",
   created_at: "2026-01-02T12:00:00Z",
-  my_book: { id: "book-a", title: "My Book", cover_url: null },
-  their_book: { id: "book-b", title: "Their Book", cover_url: null },
+  my_book: { id: "book-a", title: "My Book", cover_url: null, status: "available" },
+  their_book: { id: "book-b", title: "Their Book", cover_url: null, status: "available" },
   other_user: { id: "user-b", display_name: "Ada Reader", avatar_url: null, admin: false },
   revealed: false,
   my_revealed: false,
   their_revealed: false,
+  approved_at: null,
+  approved_by: null,
   contacts: null,
   ...overrides,
 })

@@ -53,7 +53,7 @@ export default function EditBookScreen() {
   useFocusEffect(useCallback(() => { loadBook() }, [loadBook]))
 
   const handleSave = async (
-    values: { title: string; author: string; description: string; isbn: string; cover_url: string | null },
+    values: { title: string; author: string; description: string; isbn: string; cover_url: string | null; status?: "available" | "lent" },
     coverAsset: ImagePickerAsset | null,
   ) => {
     if (!bookId || !book) return
@@ -64,6 +64,7 @@ export default function EditBookScreen() {
       description: values.description || null,
       cover_url: coverAsset?.uri ?? values.cover_url,
       isbn: values.isbn || null,
+      status: values.status ?? "available",
     }
     router.back()
     runInBackground(async () => {
@@ -74,6 +75,7 @@ export default function EditBookScreen() {
         description: values.description || null,
         cover_url: coverUrl,
         isbn: values.isbn || null,
+        status: values.status,
       })
     }, {
       event: "book-updated",

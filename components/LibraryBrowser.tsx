@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native"
 
 import BookDisplay from "@/components/BookDisplay"
-import { layout, palette, radii, shadows, typography } from "@/constants/theme"
+import { layout, palette, radii, typography } from "@/constants/theme"
 import { useTranslation } from "@/localization/LanguageContext"
 import type { Book } from "@/services/books"
 
@@ -107,13 +107,6 @@ export default function LibraryBrowser({
 
           <View style={styles.optionsRow}>
             <View style={styles.compactControl}>
-              <Text style={styles.compactLabel}>{t("displayAs")}</Text>
-              <View style={styles.compactOptions}>
-                <Pressable accessibilityRole="button" accessibilityLabel={t("cardView")} accessibilityState={{ selected: viewMode === "card" }} onPress={() => setViewMode("card")} style={[styles.iconOption, viewMode === "card" && styles.optionSelected]}><Ionicons name="grid-outline" size={17} color={viewMode === "card" ? palette.paper : palette.textMuted} /></Pressable>
-                <Pressable accessibilityRole="button" accessibilityLabel={t("listView")} accessibilityState={{ selected: viewMode === "list" }} onPress={() => setViewMode("list")} style={[styles.iconOption, viewMode === "list" && styles.optionSelected]}><Ionicons name="list-outline" size={18} color={viewMode === "list" ? palette.paper : palette.textMuted} /></Pressable>
-              </View>
-            </View>
-            <View style={styles.compactControl}>
               <Text style={styles.compactLabel}>{t("booksPerPage")}</Text>
               <View style={styles.compactOptions}>
                 {PAGE_SIZES.map((size) => <Pressable key={size} accessibilityRole="button" accessibilityState={{ selected: pageSize === size }} onPress={() => setPageSize(size)} style={[styles.pageSizeOption, pageSize === size && styles.optionSelected]}><Text style={[styles.pageSizeText, pageSize === size && styles.selectedText]}>{size}</Text></Pressable>)}
@@ -122,7 +115,13 @@ export default function LibraryBrowser({
           </View>
         </View> : null}
       </View>
-      <Text style={styles.resultCount}>{t(visibleBooks.length === 1 ? "libraryResult" : "libraryResults", { count: visibleBooks.length })}</Text>
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultCount}>{t(visibleBooks.length === 1 ? "libraryResult" : "libraryResults", { count: visibleBooks.length })}</Text>
+        <View style={styles.viewOptions}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("cardView")} accessibilityState={{ selected: viewMode === "card" }} onPress={() => setViewMode("card")} style={[styles.iconOption, viewMode === "card" && styles.optionSelected]}><Ionicons name="grid-outline" size={17} color={viewMode === "card" ? palette.paper : palette.textMuted} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("listView")} accessibilityState={{ selected: viewMode === "list" }} onPress={() => setViewMode("list")} style={[styles.iconOption, viewMode === "list" && styles.optionSelected]}><Ionicons name="list-outline" size={18} color={viewMode === "list" ? palette.paper : palette.textMuted} /></Pressable>
+        </View>
+      </View>
     </>
   )
 
@@ -148,14 +147,14 @@ export default function LibraryBrowser({
 }
 
 const styles = StyleSheet.create({
-  content: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", padding: 18, paddingBottom: 24 },
+  content: { width: "100%", maxWidth: layout.contentMax, alignSelf: "center", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 },
   emptyContent: { flexGrow: 1 },
   row: { justifyContent: "space-between" },
   eyebrow: { marginTop: 22, marginBottom: 5, color: palette.accentDark, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },
-  title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
-  subtitle: { marginTop: 6, color: palette.textMuted, fontSize: 15 },
+  title: { fontFamily: typography.serif, fontSize: 32, lineHeight: 37, fontWeight: "700", color: palette.text },
+  subtitle: { marginTop: 2, color: palette.textMuted, fontSize: 13 },
   message: { marginTop: 10, color: palette.danger },
-  controlsCard: { gap: 14, marginTop: 18, marginBottom: 12, padding: 14, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surface, ...shadows.soft },
+  controlsCard: { gap: 10, marginTop: 14, marginBottom: 8 },
   searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   searchBox: { flex: 1, height: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
   searchInput: { flex: 1, minWidth: 0, color: palette.text, fontSize: 14, paddingVertical: 10 },
@@ -163,7 +162,7 @@ const styles = StyleSheet.create({
   optionsButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, backgroundColor: palette.paper },
   optionsButtonSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
   optionsTogglePressed: { opacity: 0.72 },
-  advancedOptions: { gap: 14, paddingTop: 2 },
+  advancedOptions: { gap: 12, padding: 12, borderWidth: 1, borderColor: palette.border, borderRadius: radii.md, backgroundColor: palette.surface },
   controlSection: { gap: 7 },
   controlLabel: { color: palette.textMuted, fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
@@ -180,7 +179,9 @@ const styles = StyleSheet.create({
   optionSelected: { borderColor: palette.accentDark, backgroundColor: palette.accent },
   pageSizeText: { color: palette.textMuted, fontSize: 11, fontWeight: "800" },
   selectedText: { color: palette.paper },
-  resultCount: { marginBottom: 9, color: palette.textMuted, fontSize: 12, fontWeight: "700" },
+  resultsHeader: { minHeight: 34, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8 },
+  resultCount: { color: palette.textMuted, fontSize: 12, fontWeight: "700" },
+  viewOptions: { flexDirection: "row", gap: 5 },
   emptyCard: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 8, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.lg, backgroundColor: palette.surfaceMuted },
   emptyTitle: { marginTop: 4, fontFamily: typography.serif, fontSize: 20, fontWeight: "700", color: palette.text },
   emptyText: { color: palette.textMuted, textAlign: "center", lineHeight: 20 },

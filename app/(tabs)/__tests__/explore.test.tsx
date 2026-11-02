@@ -1,5 +1,5 @@
 import { AccessibilityInfo, Animated } from "react-native"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native"
+import { act, fireEvent, render, screen } from "@testing-library/react-native"
 import { router } from "expo-router"
 
 import Explore from "../explore"
@@ -90,13 +90,14 @@ describe("explore", () => {
     expect(createSwipe).not.toHaveBeenCalled()
   })
 
-  it("opens a newly-created match after an interested gesture", async () => {
+  it("shows a non-blocking success message after an interested gesture", async () => {
     jest.mocked(getBookFeed).mockResolvedValue([book()])
     jest.mocked(createSwipe).mockResolvedValue({ swipe: [], match: [{ id: "match-new" }] as never })
     render(<Explore />)
     const card = await screen.findByLabelText("Swipe The Left Hand of Darkness")
     await act(async () => fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } }))
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith({ pathname: "/matches/[matchId]", params: { matchId: "match-new" } }))
+    expect(await screen.findByText("It's a match! 1 new exchange option(s) were added.")).toBeVisible()
+    expect(router.push).not.toHaveBeenCalledWith({ pathname: "/matches/[matchId]", params: { matchId: "match-new" } })
   })
 
   it("renders empty and API failure states", async () => {

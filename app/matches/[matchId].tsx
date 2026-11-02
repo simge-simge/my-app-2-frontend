@@ -1,10 +1,9 @@
-import { useCallback, useRef, useState, type ReactNode } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -12,13 +11,15 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 
-import { layout, palette, radii, shadows, typography } from "@/constants/theme"
+import { layout, palette, radii, typography } from "@/constants/theme"
 import AdminBadge from "@/components/AdminBadge"
 import ConfirmationModal from "@/components/ConfirmationModal"
 import { getCachedApiData } from "@/services/api"
 import {
+  approveMatch,
   deleteMatch,
   getMatch,
+  markMatchBookUnavailable,
   revealMatchContact,
   type Match,
   type MatchBook,
@@ -26,7 +27,6 @@ import {
   type MatchUser,
 } from "@/services/matches"
 import { runInBackground } from "@/utils/backgroundAction"
-import { useBookStatusLabel } from "@/localization/bookStatus"
 import { useTranslation } from "@/localization/LanguageContext"
 
 export default function MatchDetailScreen() {
@@ -63,13 +63,43 @@ export default function MatchDetailScreen() {
     if (!matchId || !match) return
     const previous = match
     setError(null)
-    setMatch({ ...match, my_revealed: true, revealed: match.their_revealed, my_book: match.my_book ? { ...match.my_book, status: "lent" } : null })
+    setMatch({ ...match, my_revealed: true, revealed: match.their_revealed })
     runInBackground(() => revealMatchContact(matchId), {
       onSuccess: () => loadMatch(),
       onError: (err) => {
         setMatch(previous)
         console.error("Failed to reveal contact info", err)
         Alert.alert(t("changeNotSaved"), t("revealContactError"))
+      },
+    })
+  }, [loadMatch, match, matchId, t])
+
+  const handleApprove = useCallback(() => {
+    if (!matchId || !match) return
+    const previous = match
+    setError(null)
+    setMatch({ ...match, approved_at: new Date().toISOString() })
+    runInBackground(() => approveMatch(matchId), {
+      onSuccess: () => loadMatch(),
+      onError: (err) => {
+        setMatch(previous)
+        console.error("Failed to approve match", err)
+        Alert.alert(t("changeNotSaved"), t("approveMatchError"))
+      },
+    })
+  }, [loadMatch, match, matchId, t])
+
+  const handleMarkUnavailable = useCallback(() => {
+    if (!matchId || !match?.my_book) return
+    const previous = match
+    setError(null)
+    setMatch({ ...match, my_book: { ...match.my_book, status: "lent" } })
+    runInBackground(() => markMatchBookUnavailable(matchId), {
+      onSuccess: () => loadMatch(),
+      onError: (err) => {
+        setMatch(previous)
+        console.error("Failed to mark match book unavailable", err)
+        Alert.alert(t("changeNotSaved"), t("markBookUnavailableError"))
       },
     })
   }, [loadMatch, match, matchId, t])
@@ -108,14 +138,15 @@ export default function MatchDetailScreen() {
   }
 
   const displayName = match.other_user.display_name || t("unknownReader")
-  const memberSinceText = match.other_user.created_at ? t("memberSince", { date: formatMatchDate(match.other_user.created_at, language, t("unknownDate")) }) : t("profileDetailsAvailable")
   const matchedAt = formatMatchDate(match.created_at, language, t("unknownDate"))
   const canReveal = !match.my_revealed
   const isBorrowMatch = !match.my_book || !match.their_book
   const borrowedBook = match.my_book ?? match.their_book
-  const otherStatusText = match.their_revealed ? t("personRevealedContact", { name: displayName }) : t("personNotRevealed", { name: displayName })
-  const myStatusText = match.my_revealed ? t("yourContactRevealed") : t("yourContactHidden")
-  const revealButtonText = match.my_book ? t("revealAndMarkLent") : t("revealMyContact")
+  const isSwapMatch = Boolean(match.my_book && match.their_book)
+  const isApprovedSwap = Boolean(isSwapMatch && match.approved_at)
+  const myBookUnavailable = Boolean(isApprovedSwap && ["lent", "matched"].includes(match.my_book?.status ?? ""))
+  const theirBookUnavailable = Boolean(isApprovedSwap && ["lent", "matched"].includes(match.their_book?.status ?? ""))
+  const exchangeIsUnderway = myBookUnavailable || theirBookUnavailable
 
   return (
     <>
@@ -128,72 +159,92 @@ export default function MatchDetailScreen() {
         onCancel={() => setShowDeleteConfirmation(false)}
         onConfirm={() => { void handleDelete() }}
       />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.heroCard}>
+      <View style={styles.container}>
+      <View style={styles.content}>
+        {isBorrowMatch && borrowedBook ? (
+          <View style={[styles.booksPanel, styles.singleBookStage]}>
+            <Text style={styles.borrowExplanation}>{match.my_book ? t("youAreLending") : t("youAreBorrowing")}</Text>
+            <View style={styles.singleBookVisual}>
+              <BookVisual label={match.my_book ? t("yourBook") : t("personsBook", { name: displayName })} book={borrowedBook} />
+            </View>
+          </View>
+        ) : match.my_book && match.their_book ? (
+          <View style={[styles.booksPanel, styles.booksRow]}>
+            <BookVisual label={t("yourBook")} book={match.my_book} />
+            <View style={styles.exchangeIcon}><Ionicons name="swap-horizontal" size={28} color={palette.success} /></View>
+            <BookVisual label={t("theirBook")} book={match.their_book} />
+          </View>
+        ) : null}
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("viewLibrary", { name: displayName })}
           onPress={() => router.push({ pathname: "/members/[memberId]", params: { memberId: match.other_user.id } })}
           style={styles.heroHeader}
         >
-          <UserAvatar user={match.other_user} size={72} />
+          <UserAvatar user={match.other_user} size={48} />
           <View style={styles.heroText}>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{displayName}</Text>
               {match.other_user.admin ? <AdminBadge /> : null}
-              <View style={[styles.statusBadge, match.revealed ? styles.revealedBadge : styles.pendingBadge]}>
-                <Text style={[styles.statusText, match.revealed ? styles.revealedText : styles.pendingText]}>
-                  {match.revealed ? t("revealed") : t("pending")}
-                </Text>
-              </View>
             </View>
-            <Text style={styles.subtitle}>{memberSinceText}</Text>
             <Text style={styles.subtitle}>{t("matchedOn", { date: matchedAt })}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={palette.textMuted} />
         </Pressable>
 
-        <View style={styles.statusBlock}>
-          <Text style={styles.statusLine}>{otherStatusText}</Text>
-          <Text style={styles.statusLine}>{myStatusText}</Text>
+        <View style={styles.contactSection}>
+          <View style={styles.contactHeading}>
+            <Ionicons name="lock-closed-outline" size={18} color={palette.textMuted} />
+            <Text style={styles.contactsTitle}>{t("contactStatus")}</Text>
+          </View>
+          <View style={styles.contactStatusPanel}>
+            <ContactStatusRow label={t("you")} shared={match.my_revealed} />
+            <View style={styles.contactStatusDivider} />
+            <ContactStatusRow label={displayName} shared={match.their_revealed} />
+          </View>
+
+          <View style={styles.contactActions}>
+          {isSwapMatch && !isApprovedSwap ? (
+            <Pressable style={styles.approveButton} onPress={handleApprove}>
+              <Ionicons name="checkmark-circle-outline" size={20} color={palette.white} />
+              <Text style={styles.approveButtonText}>{t("approveMatch")}</Text>
+            </Pressable>
+          ) : null}
+          {(!isSwapMatch || isApprovedSwap) && canReveal ? (
+            <Pressable style={styles.revealButton} onPress={handleReveal}>
+              <Ionicons name="chatbubble-outline" size={20} color={palette.white} />
+              <Text style={styles.revealButtonText}>{t("revealMyContact")}</Text>
+            </Pressable>
+          ) : null}
+          {isApprovedSwap && !myBookUnavailable ? (
+            <>
+              <Pressable style={styles.unavailableButton} onPress={handleMarkUnavailable}>
+                <Ionicons name="bookmark-outline" size={20} color={palette.success} />
+                <Text style={styles.unavailableButtonText}>{t("reserveMyBook")}</Text>
+              </Pressable>
+              <Text style={styles.reserveHint}>{t("reserveBookHint")}</Text>
+            </>
+          ) : null}
+          {exchangeIsUnderway ? <Text style={styles.exchangeUnderway}>{t("exchangeUnderway")}</Text> : null}
+          {match.contacts ? <ContactList contacts={match.contacts} /> : null}
+          </View>
+
+          <View style={styles.removeDivider} />
+          <Pressable
+            accessibilityLabel={t("deleteMatch")}
+            accessibilityRole="button"
+            disabled={deleting}
+            style={[styles.deleteButton, deleting && styles.actionDisabled]}
+            onPress={confirmDelete}
+          >
+            {deleting ? <ActivityIndicator color={palette.danger} /> : <><Ionicons name="close" size={19} color={palette.danger} /><Text style={styles.deleteButtonText}>{t("deleteMatch")}</Text></>}
+          </Pressable>
         </View>
-
-        {canReveal ? <Pressable style={styles.revealButton} onPress={handleReveal}><Text style={styles.revealButtonText}>{revealButtonText}</Text></Pressable> : null}
-        {match.contacts ? <ContactList contacts={match.contacts} /> : null}
       </View>
-
-      {isBorrowMatch && borrowedBook ? (
-        <InfoSection title={match.my_book ? t("bookYouLend") : t("bookYouBorrow")}>
-          <Text style={styles.borrowExplanation}>
-            {match.my_book
-              ? t("askedToBorrow", { name: displayName })
-              : t("acceptedBorrow", { name: displayName })}
-          </Text>
-          <BookDetails book={borrowedBook} />
-        </InfoSection>
-      ) : match.my_book && match.their_book ? (
-        <>
-          <InfoSection title={t("yourBook")}><BookDetails book={match.my_book} /></InfoSection>
-          <InfoSection title={t("theirBook")}><BookDetails book={match.their_book} /></InfoSection>
-        </>
-      ) : null}
-
-      <Pressable
-        accessibilityLabel={t("deleteMatch")}
-        accessibilityRole="button"
-        disabled={deleting}
-        style={[styles.deleteButton, deleting && styles.actionDisabled]}
-        onPress={confirmDelete}
-      >
-        {deleting ? <ActivityIndicator color={palette.danger} /> : <Text style={styles.deleteButtonText}>{t("deleteMatch")}</Text>}
-      </Pressable>
-      </ScrollView>
+      </View>
     </>
   )
-}
-
-function InfoSection({ title, children }: { title: string; children: ReactNode }) {
-  return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{children}</View>
 }
 
 function UserAvatar({ user, size }: { user: MatchUser; size: number }) {
@@ -203,24 +254,19 @@ function UserAvatar({ user, size }: { user: MatchUser; size: number }) {
   return <View style={[styles.avatar, styles.avatarFallback, { width: size, height: size, borderRadius: size / 2 }]}><Text style={styles.avatarFallbackText}>{displayName.slice(0, 1).toUpperCase()}</Text></View>
 }
 
-function BookDetails({ book }: { book: MatchBook }) {
-  const bookStatusLabel = useBookStatusLabel()
-  const { language, t } = useTranslation()
+function BookVisual({ label, book }: { label: string; book: MatchBook }) {
   return (
-    <View style={styles.bookCard}>
+    <View style={styles.bookVisual}>
+      <Text style={styles.bookLabel}>{label}</Text>
       {book.cover_url ? <Image source={{ uri: book.cover_url }} style={styles.cover} resizeMode="contain" /> : <View style={[styles.cover, styles.coverFallback]}><Text style={styles.coverFallbackText}>{book.title.slice(0, 1).toUpperCase()}</Text></View>}
-      <Text style={styles.bookTitle}>{book.title}</Text>
-      <InfoRow label={t("author")} value={book.author || t("unknown")} />
-      <InfoRow label={t("isbn")} value={book.isbn || t("notProvided")} />
-      <InfoRow label={t("status")} value={bookStatusLabel(book.status)} />
-      <InfoRow label={t("added")} value={book.created_at ? formatMatchDate(book.created_at, language, t("unknownDate")) : t("unknown")} />
-      <InfoRow label={t("description")} value={book.description || t("noDescriptionProvided")} multiline />
+      <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
     </View>
   )
 }
 
-function InfoRow({ label, value, multiline = false }: { label: string; value: string; multiline?: boolean }) {
-  return <View style={styles.infoRow}><Text style={styles.infoLabel}>{label}</Text><Text style={[styles.infoValue, multiline && styles.infoValueMultiline]}>{value}</Text></View>
+function ContactStatusRow({ label, shared }: { label: string; shared: boolean }) {
+  const { t } = useTranslation()
+  return <View style={styles.contactStatusRow}><Text style={styles.contactStatusLabel}>{label}</Text><Text style={[styles.contactStatusValue, shared && styles.contactStatusShared]}>{shared ? t("contactShared") : t("contactNotShared")}</Text></View>
 }
 
 function ContactList({ contacts }: { contacts: MatchContacts }) {
@@ -249,47 +295,55 @@ function formatMatchDate(value: string, language: "en" | "tr", fallback: string)
 }
 
 const styles = StyleSheet.create({
-  container: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", padding: 18, backgroundColor: palette.background, gap: 16 },
+  container: { flex: 1, backgroundColor: palette.background },
+  content: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, gap: 12 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background, paddingHorizontal: 24 },
-  heroCard: { backgroundColor: palette.surface, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, padding: 18, gap: 16, ...shadows.soft },
-  heroHeader: { flexDirection: "row", alignItems: "center", gap: 14 },
-  heroText: { flex: 1, gap: 4 },
+  heroHeader: { flexDirection: "row", alignItems: "center", gap: 10, padding: 11, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  heroText: { flex: 1, gap: 2 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  title: { fontFamily: typography.serif, fontSize: 26, fontWeight: "700", color: palette.text, flex: 1 },
-  subtitle: { fontSize: 14, color: palette.textMuted },
-  statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  revealedBadge: { backgroundColor: palette.successSoft },
-  pendingBadge: { backgroundColor: palette.accentSoft },
-  statusText: { fontSize: 12, fontWeight: "700" },
-  revealedText: { color: palette.success },
-  pendingText: { color: palette.textSoft },
-  statusBlock: { gap: 8 },
-  statusLine: { fontSize: 14, color: palette.textMuted, lineHeight: 20 },
-  section: { backgroundColor: palette.surface, borderRadius: radii.lg, borderWidth: 1.5, borderColor: palette.borderStrong, padding: 16, gap: 12, ...shadows.soft },
-  sectionTitle: { fontFamily: typography.serif, fontSize: 19, fontWeight: "700", color: palette.text },
-  borrowExplanation: { fontSize: 14, lineHeight: 20, color: palette.textMuted },
+  title: { fontFamily: typography.serif, fontSize: 24, lineHeight: 29, fontWeight: "700", color: palette.text, flex: 1 },
+  subtitle: { fontSize: 12, color: palette.textMuted },
+  borrowExplanation: { fontSize: 13, fontWeight: "700", color: palette.accentDark, textAlign: "center" },
   avatar: { backgroundColor: palette.surfaceMuted },
   avatarFallback: { alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 26, fontWeight: "700", color: palette.textSoft },
-  bookCard: { gap: 10 },
-  cover: { width: "100%", height: 240, borderRadius: 16, backgroundColor: palette.surfaceMuted },
+  booksPanel: { width: "100%", height: 220, padding: 12, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  booksRow: { flexDirection: "row", alignItems: "stretch", gap: 8 },
+  singleBookStage: { alignItems: "center", gap: 5 },
+  singleBookVisual: { flex: 1, width: "52%", minWidth: 160 },
+  bookVisual: { flex: 1, minWidth: 0, gap: 5, alignItems: "center" },
+  bookLabel: { fontSize: 12, fontWeight: "600", color: palette.textMuted },
+  exchangeIcon: { alignSelf: "center", width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: palette.successSoft, borderWidth: 1, borderColor: palette.success },
+  cover: { flex: 1, minHeight: 90, width: "100%", borderRadius: 12, backgroundColor: palette.surfaceMuted },
   coverFallback: { alignItems: "center", justifyContent: "center" },
   coverFallbackText: { fontSize: 42, fontWeight: "700", color: palette.textSoft },
-  bookTitle: { fontFamily: typography.serif, fontSize: 21, fontWeight: "700", color: palette.text },
-  infoRow: { gap: 4 },
-  infoLabel: { fontSize: 12, fontWeight: "700", color: palette.textMuted, textTransform: "uppercase", letterSpacing: 0.4 },
-  infoValue: { fontSize: 15, color: palette.text },
-  infoValueMultiline: { lineHeight: 22 },
-  revealButton: { minHeight: 48, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingVertical: 13, paddingHorizontal: 14 },
-  revealButtonText: { color: palette.white, fontSize: 15, fontWeight: "700" },
-  contactsCard: { backgroundColor: palette.surfaceMuted, borderRadius: 16, padding: 12, gap: 8 },
+  bookTitle: { fontFamily: typography.serif, fontSize: 15, lineHeight: 18, fontWeight: "700", color: palette.text, textAlign: "center" },
+  contactSection: { flex: 1, gap: 7 },
+  contactHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
+  contactStatusPanel: { paddingHorizontal: 11, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  contactStatusDivider: { height: 1, backgroundColor: palette.border },
+  contactStatusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 34, gap: 12 },
+  contactActions: { paddingTop: 8, gap: 7 },
+  contactStatusLabel: { fontSize: 13, color: palette.textMuted },
+  contactStatusValue: { fontSize: 13, color: palette.orange, textAlign: "right" },
+  contactStatusShared: { color: palette.success, fontWeight: "700" },
+  revealButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
+  revealButtonText: { color: palette.white, fontSize: 14, fontWeight: "700" },
+  approveButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
+  approveButtonText: { color: palette.white, fontSize: 14, fontWeight: "700" },
+  unavailableButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.successSoft, borderWidth: 1, borderColor: palette.success, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
+  unavailableButtonText: { color: palette.success, fontSize: 14, fontWeight: "800" },
+  reserveHint: { marginTop: -4, fontSize: 11, lineHeight: 15, color: palette.textMuted, textAlign: "center" },
+  exchangeUnderway: { color: palette.success, fontSize: 13, lineHeight: 18, fontWeight: "700" },
+  contactsCard: { backgroundColor: palette.surfaceMuted, borderRadius: 12, padding: 9, gap: 5 },
   contactsTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
   contactsEmpty: { fontSize: 13, color: palette.textMuted },
-  contactRow: { gap: 2 },
+  contactRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   contactLabel: { fontSize: 12, fontWeight: "600", color: palette.textMuted },
   contactValue: { fontSize: 14, color: palette.text },
-  deleteButton: { minHeight: 48, justifyContent: "center", backgroundColor: palette.dangerSoft, borderRadius: radii.md, alignItems: "center", paddingVertical: 14, marginBottom: 12 },
-  deleteButtonText: { color: palette.danger, fontSize: 15, fontWeight: "700" },
+  removeDivider: { height: 1, backgroundColor: palette.border, marginTop: "auto" },
+  deleteButton: { minHeight: 40, flexDirection: "row", gap: 6, justifyContent: "center", alignItems: "center" },
+  deleteButtonText: { color: palette.danger, fontSize: 14, fontWeight: "700" },
   actionDisabled: { opacity: 0.7 },
   emptyTitle: { fontSize: 22, fontWeight: "700", color: palette.text, marginBottom: 8 },
   emptyText: { fontSize: 14, color: palette.textMuted, textAlign: "center" },

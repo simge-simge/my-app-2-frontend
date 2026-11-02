@@ -27,6 +27,7 @@ export type BookFormValues = {
   description: string
   isbn: string
   cover_url: string | null
+  status?: "available" | "lent"
 }
 
 type Props = {
@@ -56,6 +57,7 @@ export default function BookForm({
   const [description, setDescription] = useState(initialBook?.description ?? initialValues?.description ?? "")
   const [isbn, setIsbn] = useState(initialBook?.isbn ?? initialValues?.isbn ?? "")
   const [coverUri, setCoverUri] = useState(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
+  const [status, setStatus] = useState<"available" | "lent">(initialBook?.status === "available" ? "available" : "lent")
   const [coverAsset, setCoverAsset] = useState<ImagePickerAsset | null>(null)
   const [coverCameraOpen, setCoverCameraOpen] = useState(false)
   const [webCropAsset, setWebCropAsset] = useState<ImagePickerAsset | null>(null)
@@ -68,6 +70,7 @@ export default function BookForm({
     setDescription(initialBook?.description ?? initialValues?.description ?? "")
     setIsbn(initialBook?.isbn ?? initialValues?.isbn ?? "")
     setCoverUri(initialBook?.cover_url ?? initialValues?.cover_url ?? null)
+    setStatus(initialBook?.status === "available" ? "available" : "lent")
     setCoverAsset(null)
     setWebCropAsset(null)
     setCoverCameraOpen(false)
@@ -157,6 +160,7 @@ export default function BookForm({
         description: description.trim(),
         isbn: isbn.trim(),
         cover_url: coverAsset ? null : coverUri,
+        status: isEditMode ? status : undefined,
       },
       coverAsset
     )
@@ -260,6 +264,27 @@ export default function BookForm({
             textAlignVertical="top"
           />
         </View>
+
+        {isEditMode ? (
+          <View style={styles.availabilityCard}>
+            <View style={styles.availabilityCopy}>
+              <Text style={styles.label}>{t("bookAvailability")}</Text>
+              <Text style={styles.helperText}>
+                {status === "available" ? t("bookDiscoverable") : t("bookHiddenFromDiscover")}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityState={{ checked: status === "available" }}
+              onPress={() => setStatus((value) => value === "available" ? "lent" : "available")}
+              style={[styles.availabilityToggle, status === "available" && styles.availabilityToggleOn]}
+            >
+              <Text style={[styles.availabilityToggleText, status === "available" && styles.availabilityToggleTextOn]}>
+                {status === "available" ? t("available") : t("unavailable")}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <AppButton
           title={isEditMode ? t("saveChanges") : t("saveBook")}
@@ -373,6 +398,31 @@ const styles = StyleSheet.create({
   descriptionInput: {
     minHeight: 120,
   },
+  availabilityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 14,
+    marginBottom: 22,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: palette.border,
+    borderRadius: radii.md,
+    backgroundColor: palette.surface,
+  },
+  availabilityCopy: { flex: 1 },
+  availabilityToggle: {
+    minWidth: 104,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: palette.surfaceMuted,
+  },
+  availabilityToggleOn: { backgroundColor: palette.successSoft },
+  availabilityToggleText: { color: palette.textMuted, fontSize: 13, fontWeight: "700" },
+  availabilityToggleTextOn: { color: palette.success },
   deleteButton: {
     marginTop: 20,
     alignItems: "center",

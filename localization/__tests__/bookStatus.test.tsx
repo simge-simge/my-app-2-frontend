@@ -27,12 +27,12 @@ describe("book status localization", () => {
 
     expect(screen.getByText("Available")).toBeVisible()
     expect(screen.getByText("Matched")).toBeVisible()
-    expect(screen.getByText("Lent")).toBeVisible()
+    expect(screen.getByText("Unavailable")).toBeVisible()
 
     fireEvent.press(screen.getByRole("switch", { name: "Choose language" }))
 
     expect(screen.getByText("Müsait")).toBeVisible()
     expect(screen.getByText("Eşleşti")).toBeVisible()
-    expect(screen.getByText("Ödünç verildi")).toBeVisible()
+    expect(screen.getByText("Müsait değil")).toBeVisible()
   })
 })

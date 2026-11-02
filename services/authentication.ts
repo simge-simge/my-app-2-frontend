@@ -3,7 +3,8 @@ import * as Linking from "expo-linking"
 import * as WebBrowser from "expo-web-browser"
 
 import { supabase } from "@/utils/supabase"
-import { clearApiCache } from "./api"
+import { ENV } from "@/config/env"
+import { apiFetch, clearApiCache } from "./api"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -20,6 +21,15 @@ export function getAuthRedirectUrl() {
 
 export async function signUp(email: string, password: string, metadata?: SignupMetadata) {
   clearApiCache()
+
+  if (ENV.DISABLE_EMAIL_VERIFICATION) {
+    await apiFetch("/auth/dev-signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password, metadata: metadata ?? {} }),
+    })
+    return supabase.auth.signInWithPassword({ email, password })
+  }
+
   return supabase.auth.signUp({
     email,
     password,

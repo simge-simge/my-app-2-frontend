@@ -7,8 +7,10 @@ import { match } from "@/test/factories"
 
 jest.mock("@/services/api", () => ({ getCachedApiData: jest.fn(() => undefined) }))
 jest.mock("@/services/matches", () => ({
+  approveMatch: jest.fn(),
   deleteMatch: jest.fn(),
   getMatch: jest.fn(),
+  markMatchBookUnavailable: jest.fn(),
   revealMatchContact: jest.fn(),
 }))
 

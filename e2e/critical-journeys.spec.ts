@@ -83,7 +83,7 @@ test("keeps the public entry available and opens the app for an authenticated vi
   await expect(page).toHaveURL(/\/home$/)
 })
 
-test("login, show interest in discovery, and open the new match", async ({ page }) => {
+test("login, show interest, keep browsing, and open the grouped match", async ({ page }) => {
   await login(page)
   await page.getByRole("tab", { name: "Explore" }).click()
   const card = page.getByLabel("Swipe The Left Hand of Darkness")
@@ -94,6 +94,11 @@ test("login, show interest in discovery, and open the new match", async ({ page 
   await page.mouse.down()
   await page.mouse.move(box!.x + box!.width / 2 + 170, box!.y + box!.height / 2, { steps: 8 })
   await page.mouse.up()
+  await expect(page.getByText("It's a match! 1 new exchange option(s) were added.")).toBeVisible()
+  await expect(page).toHaveURL(/\/explore$/)
+  await page.getByRole("tab", { name: "Matches" }).click()
+  await page.getByText("The Left Hand of Darkness").click()
+  await page.getByText("My Owned Book").click()
   await expect(page.getByRole("heading", { name: "Match Details" })).toBeVisible()
 })
 
@@ -125,7 +130,8 @@ test("open owned library/add-book and match details", async ({ page }) => {
   await expect(page.getByText("Enter the details for the book you want in your library")).toBeVisible()
   await page.goBack()
   await page.getByRole("tab", { name: "Matches" }).click()
-  await page.getByText("Pending").click()
+  await page.getByText("The Left Hand of Darkness").click()
+  await page.getByText("My Owned Book").click()
   await expect(page.getByText("Match Details")).toBeVisible()
 })
 

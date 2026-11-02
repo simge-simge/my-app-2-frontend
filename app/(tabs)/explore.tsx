@@ -40,6 +40,8 @@ export default function Explore() {
   const hasLoaded = useRef(Boolean(cachedProfile && (!cachedProfile.community_id || cachedBooks !== undefined)))
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [matchMessage, setMatchMessage] = useState<string | null>(null)
+  const matchMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimatingSwipe, setIsAnimatingSwipe] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
@@ -52,6 +54,10 @@ export default function Explore() {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion)
     return () => subscription.remove()
+  }, [])
+
+  useEffect(() => () => {
+    if (matchMessageTimer.current) clearTimeout(matchMessageTimer.current)
   }, [])
 
   // Reset the animated values only after React has replaced the dismissed card.
@@ -153,9 +159,11 @@ export default function Explore() {
         direction,
       })
         .then((response) => {
-          const createdMatch = response.match?.[0]
-          if (createdMatch) {
-            router.push({ pathname: "/matches/[matchId]", params: { matchId: createdMatch.id } })
+          const createdCount = response.match?.length ?? 0
+          if (createdCount > 0) {
+            setMatchMessage(t("matchSuccess", { count: createdCount }))
+            if (matchMessageTimer.current) clearTimeout(matchMessageTimer.current)
+            matchMessageTimer.current = setTimeout(() => setMatchMessage(null), 3500)
           }
         })
         .catch((err) => {
@@ -227,6 +235,12 @@ export default function Explore() {
 
   return (
     <View style={styles.container}>
+      {matchMessage ? (
+        <View accessibilityLiveRegion="polite" style={styles.matchToast}>
+          <Ionicons name="sparkles" size={19} color={palette.success} />
+          <Text style={styles.matchToastText}>{matchMessage}</Text>
+        </View>
+      ) : null}
       <Text style={styles.title}>{t("explore")}</Text>
       <Text style={styles.subtitle}>{t("exploreSubtitle")}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -344,6 +358,8 @@ const styles = StyleSheet.create({
   title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
   subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
   error: { color: palette.danger, marginBottom: 12 },
+  matchToast: { position: "absolute", top: 14, left: 18, right: 18, zIndex: 50, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: radii.md, borderWidth: 1.5, borderColor: palette.success, backgroundColor: palette.successSoft, ...shadows.soft },
+  matchToastText: { flex: 1, color: palette.text, fontSize: 14, fontWeight: "700" },
   content: { flex: 1, paddingBottom: 28 },
   deckSection: { flex: 1, paddingTop: 10 },
   deck: { flex: 1, minHeight: 535, position: "relative" },

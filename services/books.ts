@@ -23,6 +23,7 @@ export type UpdateBookInput = {
   description?: string | null
   cover_url?: string | null
   isbn?: string | null
+  status?: "available" | "lent"
 }
 
 export type Book = {

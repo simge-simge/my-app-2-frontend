@@ -16,6 +16,11 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+For local test accounts that do not require email confirmation, set
+`EXPO_PUBLIC_DISABLE_EMAIL_VERIFICATION=true` in `.env.development.local` and
+enable the matching `DEV_DISABLE_EMAIL_VERIFICATION` backend setting. Never
+enable the frontend flag in `.env.production`.
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)

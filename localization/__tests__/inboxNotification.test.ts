@@ -68,4 +68,20 @@ describe("inbox notification localization", () => {
       message: "Ada, “Beloved” kitabı için eşleşmenizi sildi. Kitap yeniden müsait.",
     })
   })
+
+  it("localizes approved exchanges and unavailable-book guidance", () => {
+    expect(localizeInboxNotification(notification({
+      type: "book_swap_approved",
+      title: "Exchange option approved",
+      message: "Ada approved a book exchange with you.",
+      metadata: { approved_by_name: "Ada", match_id: "match-1" },
+    }), "tr", translate).message).toContain("Ada")
+
+    expect(localizeInboxNotification(notification({
+      type: "match_book_unavailable",
+      title: "Exchange is moving forward",
+      message: "Ada marked a book unavailable.",
+      metadata: { reader_name: "Ada", book_title: "Beloved", match_id: "match-1" },
+    }), "tr", translate).message).toContain("Beloved")
+  })
 })

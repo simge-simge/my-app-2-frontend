@@ -112,6 +112,13 @@ export default function InboxScreen() {
         },
       })
     }
+    // A swap-interest notification represents a grouped set of possible book
+    // combinations, not one committed exchange. Open the grouped Matches page
+    // even for older notifications that still contain a representative ID.
+    if (notification.type === "book_swap_match") {
+      router.push("/matches")
+      return
+    }
     const matchId = notification.metadata?.match_id
     if (typeof matchId === "string") {
       router.push({ pathname: "/matches/[matchId]", params: { matchId } })
@@ -254,7 +261,7 @@ export default function InboxScreen() {
                   <Text style={styles.message}>{copy.message}</Text>
                   <Text style={styles.date}>{formatDate(notification.created_at, language === "tr" ? "tr-TR" : "en-US", t("recently"))}</Text>
                 </View>
-                {notification.metadata?.match_id || notification.metadata?.shelf_scan_job_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
+                {notification.type === "book_swap_match" || notification.metadata?.match_id || notification.metadata?.shelf_scan_job_id ? <Ionicons name="chevron-forward" size={18} color={palette.textMuted} /> : null}
               </Pressable>
             )
           })}

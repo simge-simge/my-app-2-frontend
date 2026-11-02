@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { useLocalSearchParams } from "expo-router"
 
 import BookDetailsScreen from "../[bookId]"
+import { getCachedApiData } from "@/services/api"
 import { getBook, requestToBorrowBook } from "@/services/books"
 import { book } from "@/test/factories"
 
@@ -16,6 +17,7 @@ jest.mock("@/utils/supabase", () => ({
 
 describe("book details", () => {
   beforeEach(() => {
+    jest.mocked(getCachedApiData).mockReturnValue(undefined)
     jest.mocked(useLocalSearchParams).mockReturnValue({
       bookId: book().id,
       ownerName: "Ada Reader",
@@ -38,5 +40,17 @@ describe("book details", () => {
 
     expect(screen.getByText("Request sent")).toBeVisible()
     await waitFor(() => expect(requestToBorrowBook).toHaveBeenCalledWith(book().id))
+  })
+
+  it("never flashes the borrow action for a cached book owned by the current user", async () => {
+    const ownedBook = book({ owner_id: "current-user" })
+    jest.mocked(getCachedApiData).mockReturnValue(ownedBook)
+    jest.mocked(getBook).mockResolvedValue(ownedBook)
+
+    render(<BookDetailsScreen />)
+
+    expect(screen.queryByText("Ask to borrow")).toBeNull()
+    await waitFor(() => expect(getBook).toHaveBeenCalledWith(ownedBook.id))
+    expect(screen.queryByText("Ask to borrow")).toBeNull()
   })
 })

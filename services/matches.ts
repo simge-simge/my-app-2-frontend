@@ -36,6 +36,8 @@ export type Match = {
   revealed: boolean
   my_revealed: boolean
   their_revealed: boolean
+  approved_at: string | null
+  approved_by: string | null
   contacts: MatchContacts | null
 }
 
@@ -61,6 +63,20 @@ export function revealMatchContact(matchId: string) {
     method: "PATCH",
     invalidate: ["matches", "books", "inbox"],
   }) as Promise<RevealMatchResponse>
+}
+
+export function approveMatch(matchId: string) {
+  return apiFetch(`/matches/${matchId}/approve`, {
+    method: "PATCH",
+    invalidate: ["matches", "inbox"],
+  }) as Promise<{ match: { id: string; approved_at: string; approved_by: string } }>
+}
+
+export function markMatchBookUnavailable(matchId: string) {
+  return apiFetch(`/matches/${matchId}/mark-unavailable`, {
+    method: "PATCH",
+    invalidate: ["matches", "books", "inbox"],
+  }) as Promise<{ match: { id: string }; book_id: string; status: "lent" }>
 }
 
 export function deleteMatch(matchId: string) {

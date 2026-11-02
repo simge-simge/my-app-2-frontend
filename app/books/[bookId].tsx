@@ -40,6 +40,7 @@ export default function BookDetailsScreen() {
   const [book, setBook] = useState<Book | null>(() => cachedBook ?? null)
   const [borrowRequested, setBorrowRequested] = useState(() => cachedBook?.borrow_requested ?? false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [ownershipResolved, setOwnershipResolved] = useState(false)
   const [loading, setLoading] = useState(() => cachedBook === undefined)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +60,7 @@ export default function BookDetailsScreen() {
         getBook(bookId),
       ])
       setCurrentUserId(data.session?.user.id ?? null)
+      setOwnershipResolved(true)
       if (revisionAtStart === bookRevision.current) {
         setBook(response)
         setBorrowRequested(response.borrow_requested ?? false)
@@ -158,7 +160,7 @@ export default function BookDetailsScreen() {
           </View>
         </View>
 
-        {!isOwner ? (
+        {ownershipResolved && !isOwner ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("askBorrowBook", { title: book.title })}

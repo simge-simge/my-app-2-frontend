@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native"
 import { Image } from "expo-image"
 
-import { palette, radii, shadows, typography } from "@/constants/theme"
+import { palette, radii, typography } from "@/constants/theme"
 import type { Book } from "@/services/books"
 import { useTranslation } from "@/localization/LanguageContext"
 import { useBookStatusLabel } from "@/localization/bookStatus"
@@ -119,14 +119,14 @@ export default function BookDisplay({ book, actionAccessibilityLabel, actionDisa
 }
 
 const styles = StyleSheet.create({
-  card: { width: "48%", backgroundColor: palette.paper, borderRadius: radii.md, borderCurve: "continuous", borderWidth: 1.5, borderColor: palette.borderStrong, marginBottom: 16, minHeight: 250, ...shadows.soft },
+  card: { width: "48.5%", backgroundColor: palette.surface, borderRadius: radii.md, borderCurve: "continuous", borderWidth: 1, borderColor: palette.border, marginBottom: 12, minHeight: 232 },
   listCard: { width: "100%", minHeight: 124, marginBottom: 10 },
   listLayout: { flexDirection: "row", alignItems: "stretch" },
   details: { flex: 1 },
   listDetails: { flexGrow: 1 },
   listCoverPressable: { width: 92, alignSelf: "stretch" },
   pressed: { transform: [{ scale: 0.975 }, { rotate: "-0.6deg" }], shadowOpacity: 0.03 },
-  coverWrap: { margin: 8, marginBottom: 0, height: 148, position: "relative", overflow: "hidden", borderRadius: radii.sm, backgroundColor: palette.surfaceMuted },
+  coverWrap: { margin: 7, marginBottom: 0, height: 142, position: "relative", overflow: "hidden", borderRadius: radii.sm, backgroundColor: palette.surfaceMuted },
   listCoverWrap: { width: "auto", height: "auto", minHeight: 108, flex: 1, alignSelf: "stretch", marginBottom: 8 },
   cover: { width: "100%", height: "100%", borderRadius: radii.sm, backgroundColor: palette.surfaceMuted },
   spine: { position: "absolute", zIndex: 2, left: 5, top: 0, bottom: 0, width: 3, borderRadius: 2, backgroundColor: "rgba(56,51,45,0.28)" },
@@ -134,17 +134,17 @@ const styles = StyleSheet.create({
   coverFallback: { alignItems: "center", justifyContent: "center", backgroundColor: palette.blue },
   fallbackFrame: { width: "54%", aspectRatio: 1, borderRadius: 999, borderWidth: 1.5, borderColor: palette.borderStrong, backgroundColor: palette.yellow, alignItems: "center", justifyContent: "center" },
   coverFallbackText: { fontFamily: typography.serif, fontSize: 36, fontWeight: "700", color: palette.ink },
-  content: { padding: 12, gap: 5 },
+  content: { padding: 9, gap: 3 },
   listBody: { flex: 1, minWidth: 0, justifyContent: "space-between" },
   listContent: { flexGrow: 1, minWidth: 0, justifyContent: "center", paddingLeft: 10, paddingBottom: 6 },
-  title: { fontFamily: typography.serif, fontSize: 17, lineHeight: 21, fontWeight: "700", color: palette.ink },
+  title: { fontFamily: typography.serif, fontSize: 15, lineHeight: 18, fontWeight: "700", color: palette.ink },
   listTitle: { fontSize: 16 },
   author: { fontSize: 12, color: palette.textMuted },
   owner: { flexShrink: 1, fontSize: 11, color: palette.textMuted },
   ownerLink: { color: palette.accentDark, textDecorationLine: "underline" },
   ownerRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
   community: { fontSize: 11, color: palette.textSoft },
-  statusRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, paddingHorizontal: 12, paddingBottom: 12 },
+  statusRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, paddingHorizontal: 9, paddingBottom: 9 },
   listStatusRow: { paddingLeft: 10, paddingTop: 0 },
   statusPill: { minHeight: 28, alignSelf: "flex-start", justifyContent: "center", backgroundColor: palette.accentSoft, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 4 },
   status: { fontSize: 11, lineHeight: 14, fontWeight: "400", color: palette.accentDark, textTransform: "capitalize" },
