@@ -6,8 +6,10 @@ import {
   Alert,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native"
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
@@ -34,6 +36,7 @@ import { useTranslation } from "@/localization/LanguageContext"
 import { startConversation } from "@/services/messages"
 
 export default function MatchDetailScreen() {
+  const { height } = useWindowDimensions()
   const { language, t } = useTranslation()
   const { matchId } = useLocalSearchParams<{ matchId: string }>()
   const cachePath = matchId ? `/matches/${matchId}` : ""
@@ -204,17 +207,17 @@ export default function MatchDetailScreen() {
         onCancel={() => setShowDeleteConfirmation(false)}
         onConfirm={() => { void handleDelete() }}
       />
-      <View style={styles.container}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.content}>
         {isBorrowMatch && borrowedBook ? (
-          <View style={[styles.booksPanel, styles.singleBookStage]}>
+          <View style={[styles.booksPanel, { height: Math.max(170, Math.min(200, height * 0.25)) }, styles.singleBookStage]}>
             <Text style={styles.borrowExplanation}>{match.my_book ? t("youAreLending") : t("youAreBorrowing")}</Text>
             <View style={styles.singleBookVisual}>
               <BookVisual label={match.my_book ? t("yourBook") : t("personsBook", { name: displayName })} book={borrowedBook} />
             </View>
           </View>
         ) : match.my_book && match.their_book ? (
-          <View style={[styles.booksPanel, styles.booksRow]}>
+          <View style={[styles.booksPanel, { height: Math.max(170, Math.min(200, height * 0.25)) }, styles.booksRow]}>
             <BookVisual label={t("yourBook")} book={match.my_book} />
             <View style={styles.exchangeIcon}><Ionicons name="swap-horizontal" size={28} color={palette.success} /></View>
             <BookVisual label={t("theirBook")} book={match.their_book} />
@@ -315,7 +318,7 @@ export default function MatchDetailScreen() {
           </Pressable>
         </View>
       </View>
-      </View>
+      </ScrollView>
     </>
   )
 }
@@ -366,7 +369,8 @@ function formatMatchDate(value: string, language: "en" | "tr", fallback: string)
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.background },
-  content: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", paddingHorizontal: 16, paddingVertical: 8, gap: 12 },
+  scrollContent: { flexGrow: 1, paddingBottom: 16 },
+  content: { width: "100%", maxWidth: layout.readingMax, alignSelf: "center", paddingHorizontal: 16, paddingTop: 2, gap: 8 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background, paddingHorizontal: 24 },
   heroHeader: { flexDirection: "row", alignItems: "center", gap: 10, padding: 11, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
   heroText: { flex: 1, gap: 2 },
@@ -377,24 +381,24 @@ const styles = StyleSheet.create({
   avatar: { backgroundColor: palette.surfaceMuted },
   avatarFallback: { alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 26, fontWeight: "700", color: palette.textSoft },
-  booksPanel: { width: "100%", height: 220, padding: 12, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  booksPanel: { width: "100%", padding: 8, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
   booksRow: { flexDirection: "row", alignItems: "stretch", gap: 8 },
   singleBookStage: { alignItems: "center", gap: 5 },
   singleBookVisual: { flex: 1, width: "52%", minWidth: 160 },
   bookVisual: { flex: 1, minWidth: 0, gap: 5, alignItems: "center" },
   bookLabel: { fontSize: 12, fontWeight: "600", color: palette.textMuted },
   exchangeIcon: { alignSelf: "center", width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: palette.successSoft, borderWidth: 1, borderColor: palette.success },
-  cover: { flex: 1, minHeight: 90, width: "100%", borderRadius: 12, backgroundColor: palette.surfaceMuted },
+  cover: { flex: 1, minHeight: 60, width: "100%", borderRadius: 12, backgroundColor: palette.surfaceMuted },
   bookTitle: { fontFamily: typography.serif, fontSize: 15, lineHeight: 18, fontWeight: "700", color: palette.text, textAlign: "center" },
-  contactSection: { flex: 1, gap: 7 },
+  contactSection: { gap: 7 },
   exchangeGuidance: { fontSize: 13, lineHeight: 19, color: palette.textMuted },
   contactHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
   contactStatusPanel: { paddingHorizontal: 11, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
   contactStatusDivider: { height: 1, backgroundColor: palette.border },
   contactStatusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 34, gap: 12 },
-  contactActions: { paddingTop: 8, gap: 7 },
-  contactStatusLabel: { fontSize: 13, color: palette.textMuted },
-  contactStatusValue: { fontSize: 13, color: palette.orange, textAlign: "right" },
+  contactActions: { paddingTop: 2, gap: 7 },
+  contactStatusLabel: { flex: 1, fontSize: 13, color: palette.textMuted },
+  contactStatusValue: { flexShrink: 1, fontSize: 13, color: palette.orange, textAlign: "right" },
   contactStatusShared: { color: palette.success, fontWeight: "700" },
   revealButton: { minHeight: 44, flexDirection: "row", gap: 8, justifyContent: "center", backgroundColor: palette.accent, borderRadius: radii.md, alignItems: "center", paddingHorizontal: 14 },
   revealButtonText: { color: palette.white, fontSize: 14, fontWeight: "700" },
@@ -413,8 +417,8 @@ const styles = StyleSheet.create({
   contactsTitle: { fontSize: 14, fontWeight: "700", color: palette.text },
   contactRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   contactLabel: { fontSize: 12, fontWeight: "600", color: palette.textMuted },
-  contactValue: { fontSize: 14, color: palette.text },
-  removeDivider: { height: 1, backgroundColor: palette.border, marginTop: "auto" },
+  contactValue: { flex: 1, textAlign: "right", fontSize: 14, color: palette.text },
+  removeDivider: { height: 1, backgroundColor: palette.border, marginTop: 4 },
   deleteButton: { minHeight: 40, flexDirection: "row", gap: 6, justifyContent: "center", alignItems: "center" },
   deleteButtonText: { color: palette.danger, fontSize: 14, fontWeight: "700" },
   actionDisabled: { opacity: 0.7 },

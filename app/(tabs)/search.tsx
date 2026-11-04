@@ -251,24 +251,8 @@ export default function Search() {
     </View>
   )
 
-  return (
-    <View style={styles.container}>
-      <ConfirmationModal
-        visible={pendingRemoval !== null}
-        title={t("removeCommunityMember")}
-        message={t("removeCommunityMemberConfirm", {
-          name: pendingRemoval?.display_name || t("unknownReader"),
-        })}
-        cancelLabel={t("cancel")}
-        confirmLabel={t("remove")}
-        onCancel={() => setPendingRemoval(null)}
-        onConfirm={() => {
-          if (!pendingRemoval) return
-          const member = pendingRemoval
-          setPendingRemoval(null)
-          void removeUser(member)
-        }}
-      />
+  const searchHeader = (
+    <>
       <View onTouchEnd={() => setOpenFilter(null)}>
         <Text style={styles.title}>{t("search")}</Text>
         <Text style={styles.subtitle}>{t("searchSubtitle")}</Text>
@@ -280,7 +264,6 @@ export default function Search() {
           <TextInput
             autoCapitalize="none"
             autoCorrect={false}
-            autoFocus
             onFocus={() => setOpenFilter(null)}
             onChangeText={setQuery}
             placeholder={mode === "books" ? t("searchBooksPlaceholder") : mode === "users" ? t("searchUsersPlaceholder") : t("searchAllPlaceholder")}
@@ -443,13 +426,31 @@ export default function Search() {
       </View> : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+    </>
+  )
 
-      {loading && (mode === "books" ? books.length === 0 : mode === "users" ? users.length === 0 : books.length === 0 && users.length === 0) ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={palette.text} />
-        </View>
-      ) : mode === "all" ? (
+  return (
+    <View style={styles.container}>
+      <ConfirmationModal
+        visible={pendingRemoval !== null}
+        title={t("removeCommunityMember")}
+        message={t("removeCommunityMemberConfirm", {
+          name: pendingRemoval?.display_name || t("unknownReader"),
+        })}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("remove")}
+        onCancel={() => setPendingRemoval(null)}
+        onConfirm={() => {
+          if (!pendingRemoval) return
+          const member = pendingRemoval
+          setPendingRemoval(null)
+          void removeUser(member)
+        }}
+      />
+
+      {mode === "all" ? (
         <FlatList
+          ListHeaderComponent={searchHeader}
           key={`all-results-${viewMode}`}
           data={pagedCombinedResults}
           keyExtractor={({ kind, item }) => `${kind}-${item.id}`}
@@ -497,14 +498,14 @@ export default function Search() {
           contentContainerStyle={[styles.listContent, books.length === 0 && users.length === 0 && styles.emptyListContent]}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => setOpenFilter(null)}
-          onTouchStart={() => setOpenFilter(null)}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={emptyState}
+          ListEmptyComponent={loading ? <ActivityIndicator size="large" color={palette.text} /> : emptyState}
           ListFooterComponent={pagination}
           columnWrapperStyle={viewMode === "card" ? styles.bookRow : undefined}
         />
       ) : mode === "books" ? (
         <FlatList
+          ListHeaderComponent={searchHeader}
           key={`book-results-${viewMode}`}
           data={pagedBooks}
           keyExtractor={(item) => item.id}
@@ -547,13 +548,13 @@ export default function Search() {
           columnWrapperStyle={viewMode === "card" ? styles.bookRow : undefined}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => setOpenFilter(null)}
-          onTouchStart={() => setOpenFilter(null)}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={emptyState}
+          ListEmptyComponent={loading ? <ActivityIndicator size="large" color={palette.text} /> : emptyState}
           ListFooterComponent={pagination}
         />
       ) : (
         <FlatList
+          ListHeaderComponent={searchHeader}
           key="user-results"
           data={pagedUsers}
           keyExtractor={(item) => item.id}
@@ -569,9 +570,8 @@ export default function Search() {
           contentContainerStyle={[styles.listContent, users.length === 0 && styles.emptyListContent]}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={() => setOpenFilter(null)}
-          onTouchStart={() => setOpenFilter(null)}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={emptyState}
+          ListEmptyComponent={loading ? <ActivityIndicator size="large" color={palette.text} /> : emptyState}
           ListFooterComponent={pagination}
         />
       )}
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
   pageSizeTextSelected: { color: palette.paper },
   error: { color: palette.danger, marginBottom: 12 },
   listContent: { paddingBottom: 24 },
-  emptyListContent: { flexGrow: 1, justifyContent: "center" },
+  emptyListContent: { flexGrow: 1 },
   bookRow: { gap: 12 },
   bookCell: { flexGrow: 1, flexBasis: 0, width: "48%" },
   bookListCell: { width: "100%" },

@@ -53,12 +53,14 @@ describe("explore", () => {
     expect(router.push).toHaveBeenCalledWith("/communities/search")
   })
 
+  // Invoke accessibility actions directly: fireEvent incorrectly applies the
+  // horizontal PanResponder touch gate to these non-touch actions.
   it("renders the active book and records a pass gesture", async () => {
     jest.mocked(getBookFeed).mockResolvedValue([book()])
     jest.mocked(createSwipe).mockResolvedValue({ swipe: [], match: null })
     render(<Explore />)
     const card = await screen.findByLabelText("Swipe The Left Hand of Darkness")
-    await act(async () => fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "decrement" } }))
+    await act(async () => card.props.onAccessibilityAction({ nativeEvent: { actionName: "decrement" } }))
     expect(createSwipe).toHaveBeenCalledWith(expect.objectContaining({ direction: "left", target_book_id: book().id }))
     expect(await screen.findByText("No books to explore")).toBeVisible()
   })
@@ -72,7 +74,7 @@ describe("explore", () => {
     jest.mocked(createSwipe).mockReturnValue(new Promise((resolve) => { finish = resolve }) as never)
     render(<Explore />)
     const card = await screen.findByLabelText("Swipe The Left Hand of Darkness")
-    fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } })
+    act(() => card.props.onAccessibilityAction({ nativeEvent: { actionName: "increment" } }))
     expect(createSwipe).toHaveBeenCalledTimes(1)
     expect(await screen.findByLabelText("Swipe The Dispossessed")).toBeVisible()
     await act(async () => finish({ swipe: [], match: null }))
@@ -84,8 +86,8 @@ describe("explore", () => {
     jest.mocked(getBookFeed).mockResolvedValue([book()])
     render(<Explore />)
     const card = await screen.findByLabelText("Swipe The Left Hand of Darkness")
-    fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } })
-    fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } })
+    act(() => card.props.onAccessibilityAction({ nativeEvent: { actionName: "increment" } }))
+    act(() => card.props.onAccessibilityAction({ nativeEvent: { actionName: "increment" } }))
     expect(start).toHaveBeenCalledTimes(1)
     expect(createSwipe).not.toHaveBeenCalled()
   })
@@ -95,8 +97,8 @@ describe("explore", () => {
     jest.mocked(createSwipe).mockResolvedValue({ swipe: [], match: [{ id: "match-new" }] as never })
     render(<Explore />)
     const card = await screen.findByLabelText("Swipe The Left Hand of Darkness")
-    await act(async () => fireEvent(card, "accessibilityAction", { nativeEvent: { actionName: "increment" } }))
-    expect(await screen.findByText("It's a match! 1 new exchange option(s) were added.")).toBeVisible()
+    await act(async () => card.props.onAccessibilityAction({ nativeEvent: { actionName: "increment" } }))
+    expect(await screen.findByText("It's a match! To view, check your Matches page.")).toBeVisible()
     expect(router.push).not.toHaveBeenCalledWith({ pathname: "/matches/[matchId]", params: { matchId: "match-new" } })
   })
 

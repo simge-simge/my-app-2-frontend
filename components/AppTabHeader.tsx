@@ -10,7 +10,7 @@ export default function AppTabHeader({ title, showActions = false, refreshKey }:
   const insets = useSafeAreaInsets()
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
       <View style={[styles.content, styles.brandRow]}>
         <AppHomeLink />
         {showActions ? <AppHeaderActions refreshKey={refreshKey} /> : null}
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
   content: {
     width: "100%",
     maxWidth: layout.contentMax,
-    height: 52,
+    minHeight: 44,
     alignSelf: "center",
     justifyContent: "center",
     paddingHorizontal: 18,

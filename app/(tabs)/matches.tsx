@@ -127,11 +127,14 @@ export default function MatchesScreen() {
 
   return (
     <View style={styles.container}>
+
+      <FlatList
+        ListHeaderComponent={<>
       <Text style={styles.title}>{t("myMatches")}</Text>
       <Text style={styles.subtitle}>{t("matchSubtitle")}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <FlatList
+        </>}
         data={matchItems}
         keyExtractor={(item) => item.key}
         renderItem={({ item }) => item.kind === "swap-group" ? <SwapChoiceCard group={item} /> : <MatchRow match={item.match} />}

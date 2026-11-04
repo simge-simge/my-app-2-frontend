@@ -69,8 +69,8 @@ export default function CommunitySearch() {
     })
   }
 
-  return (
-    <View style={styles.container}>
+  const searchHeader = (
+    <View style={styles.searchHeader}>
       <View style={styles.searchBox}>
         <Ionicons name="search" size={20} color={palette.textMuted} />
         <TextInput
@@ -90,67 +90,67 @@ export default function CommunitySearch() {
         selected={location}
         onSelect={setLocation}
       />
+    </View>
+  )
 
-      {loading && results.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={palette.accent} />
-        </View>
-      ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={results.length ? styles.list : styles.emptyList}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => {
-            const disabled = item.is_member || item.request_pending
-            const buttonText = item.is_member
-              ? t("joined")
-              : item.request_pending
-                ? "Request sent"
-                : t("join")
-            return (
-              <View style={styles.communityRow}>
-                <View style={styles.communityDetails}>
-                  <Text style={styles.communityName}>{item.name}</Text>
-                  <View style={styles.metaRow}>
-                    <Ionicons name="location-outline" size={14} color={palette.textMuted} />
-                    <Text style={styles.metaText}>{item.location?.display_name || t("locationNotSpecified")}</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Ionicons name="people-outline" size={14} color={palette.textMuted} />
-                    <Text style={styles.metaText}>{t(item.member_count === 1 ? "memberCount" : "membersCount", { count: item.member_count })}</Text>
-                  </View>
+  return (
+    <View style={styles.container}>
+      <FlatList
+        ListHeaderComponent={searchHeader}
+        data={results}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={results.length ? styles.list : styles.emptyList}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => {
+          const disabled = item.is_member || item.request_pending
+          const buttonText = item.is_member
+            ? t("joined")
+            : item.request_pending
+              ? "Request sent"
+              : t("join")
+          return (
+            <View style={styles.communityRow}>
+              <View style={styles.communityDetails}>
+                <Text style={styles.communityName}>{item.name}</Text>
+                <View style={styles.metaRow}>
+                  <Ionicons name="location-outline" size={14} color={palette.textMuted} />
+                  <Text style={styles.metaText}>{item.location?.display_name || t("locationNotSpecified")}</Text>
+                  <Text style={styles.metaDot}>·</Text>
+                  <Ionicons name="people-outline" size={14} color={palette.textMuted} />
+                  <Text style={styles.metaText}>{t(item.member_count === 1 ? "memberCount" : "membersCount", { count: item.member_count })}</Text>
                 </View>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.joinButton,
-                    disabled && styles.joinButtonDisabled,
-                    pressed && !disabled && styles.joinButtonPressed,
-                  ]}
-                  onPress={() => handleJoin(item)}
-                  disabled={disabled}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${buttonText} ${item.name}`}
-                >
-                  <Text style={[styles.joinButtonText, disabled && styles.joinButtonTextDisabled]}>{buttonText}</Text>
-                </Pressable>
               </View>
-            )
-          }}
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="people-outline" size={38} color={palette.textMuted} />
-              <Text style={styles.emptyTitle}>{t("noCommunitiesFound")}</Text>
-              <Text style={styles.emptyText}>{t("differentNameLocation")}</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.joinButton,
+                  disabled && styles.joinButtonDisabled,
+                  pressed && !disabled && styles.joinButtonPressed,
+                ]}
+                onPress={() => handleJoin(item)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityLabel={`${buttonText} ${item.name}`}
+              >
+                <Text style={[styles.joinButtonText, disabled && styles.joinButtonTextDisabled]}>{buttonText}</Text>
+              </Pressable>
             </View>
-          }
-        />
-      )}
+          )
+        }}
+        ListEmptyComponent={loading ? <ActivityIndicator color={palette.accent} /> :
+          <View style={styles.center}>
+            <Ionicons name="people-outline" size={38} color={palette.textMuted} />
+            <Text style={styles.emptyTitle}>{t("noCommunitiesFound")}</Text>
+            <Text style={styles.emptyText}>{t("differentNameLocation")}</Text>
+          </View>
+        }
+      />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, width: "100%", maxWidth: layout.readingMax, alignSelf: "center", backgroundColor: palette.background, padding: 20, gap: 12 },
+  searchHeader: { gap: 12, paddingBottom: 12 },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: palette.borderStrong, borderRadius: radii.md, paddingHorizontal: 14, minHeight: 52, backgroundColor: palette.surface },
   searchInput: { flex: 1, color: palette.text, fontSize: 16, paddingVertical: 12 },
   list: { paddingTop: 6, paddingBottom: 30, gap: 10 },

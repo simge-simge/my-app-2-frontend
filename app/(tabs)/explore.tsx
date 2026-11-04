@@ -6,10 +6,10 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   Animated,
-  Dimensions,
   Image,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -46,6 +46,7 @@ export default function Explore() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAnimatingSwipe, setIsAnimatingSwipe] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const [cardHeight, setCardHeight] = useState(0)
   const position = useRef(new Animated.ValueXY()).current
   const cardOpacity = useRef(new Animated.Value(1)).current
   const swipeInFlight = useRef(false)
@@ -185,8 +186,8 @@ export default function Explore() {
 
   const panResponder = useMemo(() =>
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gesture) => !isAnimatingSwipe && (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4),
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) => !isAnimatingSwipe && Math.abs(gesture.dx) > Math.abs(gesture.dy) && Math.abs(gesture.dx) > 4,
       onMoveShouldSetPanResponderCapture: (_, gesture) => !isAnimatingSwipe && Math.abs(gesture.dx) > Math.abs(gesture.dy) && Math.abs(gesture.dx) > 4,
       onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_, gesture) => {
@@ -235,7 +236,7 @@ export default function Explore() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       {matchMessage ? (
         <View accessibilityLiveRegion="polite" style={styles.matchToast}>
           <Ionicons name="sparkles" size={19} color={palette.success} />
@@ -269,7 +270,7 @@ export default function Explore() {
           </View>
         ) : (
           <View style={styles.deckSection}>
-            <View style={styles.deck}>
+            <View style={[styles.deck, { minHeight: cardHeight + STACK_SIZE * 12 }]}>
               {stackedBooks.slice().reverse().map((book, reverseIndex) => {
                 const stackIndex = stackedBooks.length - reverseIndex
                 const stackedStyle = {
@@ -284,6 +285,7 @@ export default function Explore() {
 
               <Animated.View
                 key={activeBook.id}
+                onLayout={(event) => setCardHeight(event.nativeEvent.layout.height)}
                 accessible
                 accessibilityLabel={`Swipe ${activeBook.title}`}
                 accessibilityHint="Swipe left to pass or right if interested"
@@ -323,14 +325,15 @@ export default function Explore() {
           </View>
         )}
       </View>
-    </View>
+    </ScrollView>
   )
 }
 
 function BookCard({ book }: { book: Book }) {
   const { t } = useTranslation()
   const bookStatusLabel = useBookStatusLabel()
-  const coverHeight = Math.min(Dimensions.get("window").width * 0.78, 330)
+  const { width, height } = useWindowDimensions()
+  const coverHeight = Math.max(140, Math.min(width * 0.65, height * 0.32, 280))
 
   return (
     <View key={book.id} style={styles.cardInner}>
@@ -353,15 +356,16 @@ function BookCard({ book }: { book: Book }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, width: "100%", maxWidth: 620, alignSelf: "center", backgroundColor: palette.background, paddingHorizontal: 18, paddingTop: 8 },
+  screen: { flex: 1, backgroundColor: palette.background },
+  container: { flexGrow: 1, width: "100%", maxWidth: 620, alignSelf: "center", paddingHorizontal: 18, paddingTop: 8 },
   title: { fontFamily: typography.serif, fontSize: 30, fontWeight: "700", color: palette.text },
   subtitle: { fontSize: 15, color: palette.textMuted, marginTop: 6, marginBottom: 18 },
   error: { color: palette.danger, marginBottom: 12 },
   matchToast: { position: "absolute", top: 14, left: 18, right: 18, zIndex: 50, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: radii.md, borderWidth: 1.5, borderColor: palette.success, backgroundColor: palette.successSoft, ...shadows.soft },
   matchToastText: { flex: 1, color: palette.text, fontSize: 14, fontWeight: "700" },
-  content: { flex: 1, paddingBottom: 28 },
-  deckSection: { flex: 1, paddingTop: 10 },
-  deck: { flex: 1, minHeight: 535, position: "relative" },
+  content: { flexGrow: 1, paddingBottom: 20 },
+  deckSection: { paddingTop: 4 },
+  deck: { position: "relative" },
   card: {
     position: "absolute",
     width: "100%",
@@ -380,7 +384,7 @@ const styles = StyleSheet.create({
   emptyListContent: { flexGrow: 1, justifyContent: "center" },
   cardInner: { backgroundColor: palette.surface },
   cover: { width: "100%", backgroundColor: palette.surfaceMuted },
-  cardContent: { paddingHorizontal: 20, paddingVertical: 18, gap: 12 },
+  cardContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   status: {
     fontSize: 12,
@@ -419,6 +423,6 @@ const styles = StyleSheet.create({
   communityLinkPressed: { transform: [{ scale: 0.97 }] },
   communityLinkText: { color: palette.accentDark, fontSize: 14, fontWeight: "800", textDecorationLine: "underline" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.background },
-  counter: { marginTop: 22, textAlign: "center", fontSize: 14, fontWeight: "700", color: palette.textMuted },
-  refreshText: { marginTop: 14, textAlign: "center", fontSize: 15, fontWeight: "700", color: palette.textSoft },
+  counter: { marginTop: 8, textAlign: "center", fontSize: 14, fontWeight: "700", color: palette.textMuted },
+  refreshText: { marginTop: 8, textAlign: "center", fontSize: 15, fontWeight: "700", color: palette.textSoft },
 })

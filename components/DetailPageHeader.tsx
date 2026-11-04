@@ -9,7 +9,7 @@ export default function DetailPageHeader({ title, fallback = "/home" }: { title:
     <View style={styles.header}>
       <View style={styles.content}>
         <PageBackButton fallback={fallback} />
-        <Text style={styles.title}>{title}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{title}</Text>
       </View>
     </View>
   )
