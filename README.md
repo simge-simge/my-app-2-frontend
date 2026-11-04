@@ -2,6 +2,12 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Web deployment
+
+Deploy the web frontend to Cloudflare Pages using `npm run build` and the `dist`
+output directory. See [the deployment guide](docs/cloudflare-pages.md) for Git
+integration, build variables, backend CORS, and Supabase Auth setup.
+
 ## Get started
 
 1. Install dependencies
