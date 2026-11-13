@@ -11,7 +11,7 @@ function ExampleCopy() {
 }
 
 describe("LanguageSwitch", () => {
-  it("switches to Turkish and persists the choice", async () => {
+  it("defaults to Turkish, then switches to English and persists the choice", async () => {
     render(
       <LanguageProvider>
         <LanguageSwitch />
@@ -19,8 +19,10 @@ describe("LanguageSwitch", () => {
       </LanguageProvider>,
     )
 
-    fireEvent.press(screen.getByRole("switch", { name: "Choose language" }))
+    expect(screen.getByText("Sıradaki kitabını arkadaşının kitaplığında keşfet.")).toBeVisible()
 
-    await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith("commonshelf.language", "tr"))
+    fireEvent.press(screen.getByRole("switch", { name: "Dil seçin" }))
+
+    await waitFor(() => expect(AsyncStorage.setItem).toHaveBeenCalledWith("commonshelf.language", "en"))
   })
 })

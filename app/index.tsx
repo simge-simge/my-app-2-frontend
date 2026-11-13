@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import Head from "expo-router/head"
 import { useEffect, useRef, useState } from "react"
-import { AccessibilityInfo, Animated, Image, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType } from "react-native"
+import { AccessibilityInfo, Animated, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import AppButton from "@/components/AppButton"
@@ -23,6 +23,8 @@ const howImages = {
 }
 const previewRows = [HOME_PREVIEW_BOOKS.slice(0, 5), HOME_PREVIEW_BOOKS.slice(5)]
 const contactEmail = "commonshelf0@gmail.com"
+const HOW_AUTO_ADVANCE_DELAY = 4500
+const HOW_MANUAL_SWIPE_PAUSE = 8000
 
 export default function Index() {
   const { language, setLanguage, t } = useTranslation()
@@ -39,12 +41,15 @@ export default function Index() {
   const isNarrowPhone = width < 380
   const uppercase = (value: string) => value.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")
   const phoneHeaderHeight = 64
+  const nativeMobileHeroHeight = Math.max(0, height - insets.top - phoneHeaderHeight)
+  const webMobileHeroHeight = `calc(100svh - ${phoneHeaderHeight}px)`
   const mobileHeroStyle = isPhone
     ? {
-        minHeight: Math.max(0, height - insets.top - phoneHeaderHeight),
+        height: Platform.OS === "web" ? webMobileHeroHeight : nativeMobileHeroHeight,
+        minHeight: Platform.OS === "web" ? webMobileHeroHeight : nativeMobileHeroHeight,
         paddingTop: Math.max(14, Math.min(24, Math.round(height * 0.025))),
         paddingBottom: Math.max(18, insets.bottom + 12),
-      }
+      } as ViewStyle
     : undefined
   const mobileTopBarStyle = isPhone
     ? { minHeight: phoneHeaderHeight, paddingTop: 6, paddingBottom: 6 }
@@ -183,7 +188,6 @@ export default function Index() {
           </View>
           {isHowMobile ? (
             <HowCarousel
-              cardWidth={Math.max(0, width - 40)}
               reduceMotion={reduceMotion}
               steps={[
                 { number: "01", image: howImages.add, title: t("howStepOneTitle"), body: t("howStepOneBody") },
@@ -276,39 +280,55 @@ type HowStepData = {
   body: string
 }
 
-function HowCarousel({ cardWidth, reduceMotion, steps }: { cardWidth: number; reduceMotion: boolean; steps: HowStepData[] }) {
+function HowCarousel({ reduceMotion, steps }: { reduceMotion: boolean; steps: HowStepData[] }) {
   const carouselRef = useRef<ScrollView>(null)
+  // Static exports have no viewport width. Measure after hydration so zero-width
+  // server styles cannot persist on the carousel's slides.
+  const [cardWidth, setCardWidth] = useState(0)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [autoplayRevision, setAutoplayRevision] = useState(0)
   const activeIndexRef = useRef(activeIndex)
+  const nextAutoplayDelayRef = useRef(HOW_AUTO_ADVANCE_DELAY)
 
-  useEffect(() => {
-    activeIndexRef.current = activeIndex
-  }, [activeIndex])
+  const updateActiveIndex = (index: number) => {
+    const next = Math.max(0, Math.min(steps.length - 1, index))
+    if (next === activeIndexRef.current) return
+    activeIndexRef.current = next
+    setActiveIndex(next)
+  }
+
+  const pauseAfterManualSwipe = () => {
+    nextAutoplayDelayRef.current = HOW_MANUAL_SWIPE_PAUSE
+    setAutoplayRevision((revision) => revision + 1)
+  }
 
   useEffect(() => {
     carouselRef.current?.scrollTo({ x: activeIndexRef.current * cardWidth, animated: false })
   }, [cardWidth])
 
   useEffect(() => {
-    if (reduceMotion) return
+    if (reduceMotion || cardWidth <= 0) return
 
-    const timer = setInterval(() => {
-      const next = (activeIndex + 1) % steps.length
+    const timer = setTimeout(() => {
+      const next = (activeIndexRef.current + 1) % steps.length
+      nextAutoplayDelayRef.current = HOW_AUTO_ADVANCE_DELAY
       carouselRef.current?.scrollTo({ x: next * cardWidth, animated: true })
-      setActiveIndex(next)
-    }, 3000)
+      updateActiveIndex(next)
+    }, nextAutoplayDelayRef.current)
 
-    return () => clearInterval(timer)
-  }, [activeIndex, cardWidth, reduceMotion, steps.length])
+    return () => clearTimeout(timer)
+  }, [activeIndex, autoplayRevision, cardWidth, reduceMotion, steps.length])
 
   const goToStep = (index: number) => {
-    setActiveIndex(index)
+    pauseAfterManualSwipe()
+    updateActiveIndex(index)
     carouselRef.current?.scrollTo({ x: index * cardWidth, animated: !reduceMotion })
   }
 
   return (
-    <View style={styles.howCarousel}>
-      <ScrollView
+    <View testID="how-carousel" style={styles.howCarousel} onLayout={(event) => setCardWidth(event.nativeEvent.layout.width)}>
+      {cardWidth > 0 ? <ScrollView
+        testID="how-carousel-scroll"
         ref={carouselRef}
         horizontal
         pagingEnabled
@@ -316,17 +336,21 @@ function HowCarousel({ cardWidth, reduceMotion, steps }: { cardWidth: number; re
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         snapToInterval={cardWidth}
+        scrollEventThrottle={16}
+        onScrollBeginDrag={pauseAfterManualSwipe}
+        onScroll={(event) => {
+          updateActiveIndex(Math.round(event.nativeEvent.contentOffset.x / cardWidth))
+        }}
         onMomentumScrollEnd={(event) => {
-          const next = Math.round(event.nativeEvent.contentOffset.x / cardWidth)
-          setActiveIndex(Math.max(0, Math.min(steps.length - 1, next)))
+          updateActiveIndex(Math.round(event.nativeEvent.contentOffset.x / cardWidth))
         }}
       >
         {steps.map((step) => (
-          <View key={step.number} style={{ width: cardWidth }}>
+          <View key={step.number} style={{ width: cardWidth, flexShrink: 0 }}>
             <HowStep {...step} mobile tablet={false} />
           </View>
         ))}
-      </ScrollView>
+      </ScrollView> : <HowStep {...steps[0]} mobile tablet={false} />}
       <View style={styles.howDots} accessibilityRole="tablist">
         {steps.map((step, index) => (
           <Pressable
@@ -422,13 +446,13 @@ const styles = StyleSheet.create({
   actions: { marginTop: spacing.lg },
   actionsWide: { flexDirection: "row", alignItems: "center", gap: 10 },
   actionWide: { flex: 1 },
-  mobileHeroAction: { width: "100%", marginTop: 8 },
-  exploreCue: { minHeight: 44, alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 4 },
+  mobileHeroAction: { width: "100%", flexShrink: 0, marginTop: 8 },
+  exploreCue: { minHeight: 44, flexShrink: 0, alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 4 },
   exploreCueText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
   artColumn: { width: "100%", height: 380, alignItems: "stretch", marginTop: 24 },
   artColumnWide: { flex: 1.05, height: 550, marginTop: 0 },
-  artColumnPhone: { flex: 1, height: undefined, minHeight: 190, marginTop: 12 },
-  artScene: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
+  artColumnPhone: { flex: 1, height: undefined, minHeight: 0, marginTop: 12 },
+  artScene: { flex: 1, minHeight: 0, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
   artHalo: { position: "absolute", height: "88%", aspectRatio: 1, maxWidth: 490, borderRadius: 999, backgroundColor: palette.yellow, opacity: 0.46, transform: [{ rotate: "-5deg" }] },
   heroArt: { width: "100%", height: "100%", zIndex: 2 },
   skyDot: { position: "absolute", borderWidth: 1.5, borderColor: palette.borderStrong, zIndex: 3 },

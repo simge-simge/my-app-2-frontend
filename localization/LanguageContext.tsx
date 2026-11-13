@@ -29,7 +29,7 @@ function interpolate(template: string, values?: TranslationValues) {
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en")
+  const [language, setLanguageState] = useState<Language>("tr")
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
