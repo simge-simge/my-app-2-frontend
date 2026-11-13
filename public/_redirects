@@ -1,6 +1,6 @@
 # Expo exports these dynamic routes as HTML templates. Serve the matching
 # template without changing the URL so Expo Router receives the actual ID.
-# Keep specific paths before general ones; static pages use Pages' HTML routing.
+# Keep specific paths before general ones; static pages use Workers' HTML routing.
 /books/new /books/new.html 200
 /books/shelf-scan /books/shelf-scan.html 200
 /books/edit/:bookId /books/edit/[bookId].html 200

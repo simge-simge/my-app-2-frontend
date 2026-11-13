@@ -183,7 +183,6 @@ export default function Index() {
           </View>
           {isHowMobile ? (
             <HowCarousel
-              cardWidth={Math.max(0, width - 40)}
               reduceMotion={reduceMotion}
               steps={[
                 { number: "01", image: howImages.add, title: t("howStepOneTitle"), body: t("howStepOneBody") },
@@ -276,8 +275,11 @@ type HowStepData = {
   body: string
 }
 
-function HowCarousel({ cardWidth, reduceMotion, steps }: { cardWidth: number; reduceMotion: boolean; steps: HowStepData[] }) {
+function HowCarousel({ reduceMotion, steps }: { reduceMotion: boolean; steps: HowStepData[] }) {
   const carouselRef = useRef<ScrollView>(null)
+  // Static exports have no viewport width. Measure after hydration so zero-width
+  // server styles cannot persist on the carousel's slides.
+  const [cardWidth, setCardWidth] = useState(0)
   const [activeIndex, setActiveIndex] = useState(0)
   const activeIndexRef = useRef(activeIndex)
 
@@ -290,7 +292,7 @@ function HowCarousel({ cardWidth, reduceMotion, steps }: { cardWidth: number; re
   }, [cardWidth])
 
   useEffect(() => {
-    if (reduceMotion) return
+    if (reduceMotion || cardWidth <= 0) return
 
     const timer = setInterval(() => {
       const next = (activeIndex + 1) % steps.length
@@ -307,8 +309,8 @@ function HowCarousel({ cardWidth, reduceMotion, steps }: { cardWidth: number; re
   }
 
   return (
-    <View style={styles.howCarousel}>
-      <ScrollView
+    <View style={styles.howCarousel} onLayout={(event) => setCardWidth(event.nativeEvent.layout.width)}>
+      {cardWidth > 0 ? <ScrollView
         ref={carouselRef}
         horizontal
         pagingEnabled
@@ -322,11 +324,11 @@ function HowCarousel({ cardWidth, reduceMotion, steps }: { cardWidth: number; re
         }}
       >
         {steps.map((step) => (
-          <View key={step.number} style={{ width: cardWidth }}>
+          <View key={step.number} style={{ width: cardWidth, flexShrink: 0 }}>
             <HowStep {...step} mobile tablet={false} />
           </View>
         ))}
-      </ScrollView>
+      </ScrollView> : <HowStep {...steps[0]} mobile tablet={false} />}
       <View style={styles.howDots} accessibilityRole="tablist">
         {steps.map((step, index) => (
           <Pressable
