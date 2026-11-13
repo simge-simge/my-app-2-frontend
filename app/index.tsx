@@ -42,9 +42,11 @@ export default function Index() {
   const uppercase = (value: string) => value.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")
   const phoneHeaderHeight = 64
   const stablePhoneHeight = Dimensions.get("screen").height || height
+  const mobileHeroHeight = Math.max(0, stablePhoneHeight - insets.top - phoneHeaderHeight)
   const mobileHeroStyle = isPhone
     ? {
-        minHeight: Math.max(0, stablePhoneHeight - insets.top - phoneHeaderHeight),
+        height: mobileHeroHeight,
+        minHeight: mobileHeroHeight,
         paddingTop: Math.max(14, Math.min(24, Math.round(stablePhoneHeight * 0.025))),
         paddingBottom: Math.max(18, insets.bottom + 12),
       }
@@ -444,13 +446,13 @@ const styles = StyleSheet.create({
   actions: { marginTop: spacing.lg },
   actionsWide: { flexDirection: "row", alignItems: "center", gap: 10 },
   actionWide: { flex: 1 },
-  mobileHeroAction: { width: "100%", marginTop: 8 },
-  exploreCue: { minHeight: 44, alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 4 },
+  mobileHeroAction: { width: "100%", flexShrink: 0, marginTop: 8 },
+  exploreCue: { minHeight: 44, flexShrink: 0, alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 4 },
   exploreCueText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
   artColumn: { width: "100%", height: 380, alignItems: "stretch", marginTop: 24 },
   artColumnWide: { flex: 1.05, height: 550, marginTop: 0 },
   artColumnPhone: { flex: 1, height: undefined, minHeight: 190, marginTop: 12 },
-  artScene: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
+  artScene: { flex: 1, minHeight: 0, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
   artHalo: { position: "absolute", height: "88%", aspectRatio: 1, maxWidth: 490, borderRadius: 999, backgroundColor: palette.yellow, opacity: 0.46, transform: [{ rotate: "-5deg" }] },
   heroArt: { width: "100%", height: "100%", zIndex: 2 },
   skyDot: { position: "absolute", borderWidth: 1.5, borderColor: palette.borderStrong, zIndex: 3 },
