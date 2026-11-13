@@ -2,6 +2,12 @@
   "name": "my-app-2-frontend",
   "compatibility_date": "2026-11-04",
   "workers_dev": true,
+  "preview_urls": true,
+  "previews": {
+    "vars": {
+      "APP_ENV": "staging"
+    }
+  },
   "assets": {
     "directory": "./dist",
     "html_handling": "auto-trailing-slash",
