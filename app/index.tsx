@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import Head from "expo-router/head"
 import { useEffect, useRef, useState } from "react"
-import { AccessibilityInfo, Animated, Dimensions, Image, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType } from "react-native"
+import { AccessibilityInfo, Animated, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import AppButton from "@/components/AppButton"
@@ -41,15 +41,15 @@ export default function Index() {
   const isNarrowPhone = width < 380
   const uppercase = (value: string) => value.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")
   const phoneHeaderHeight = 64
-  const stablePhoneHeight = Dimensions.get("screen").height || height
-  const mobileHeroHeight = Math.max(0, stablePhoneHeight - insets.top - phoneHeaderHeight)
+  const nativeMobileHeroHeight = Math.max(0, height - insets.top - phoneHeaderHeight)
+  const webMobileHeroHeight = `calc(100svh - ${phoneHeaderHeight}px)`
   const mobileHeroStyle = isPhone
     ? {
-        height: mobileHeroHeight,
-        minHeight: mobileHeroHeight,
-        paddingTop: Math.max(14, Math.min(24, Math.round(stablePhoneHeight * 0.025))),
+        height: Platform.OS === "web" ? webMobileHeroHeight : nativeMobileHeroHeight,
+        minHeight: Platform.OS === "web" ? webMobileHeroHeight : nativeMobileHeroHeight,
+        paddingTop: Math.max(14, Math.min(24, Math.round(height * 0.025))),
         paddingBottom: Math.max(18, insets.bottom + 12),
-      }
+      } as ViewStyle
     : undefined
   const mobileTopBarStyle = isPhone
     ? { minHeight: phoneHeaderHeight, paddingTop: 6, paddingBottom: 6 }
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   exploreCueText: { color: palette.accentDark, fontSize: 13, fontWeight: "800" },
   artColumn: { width: "100%", height: 380, alignItems: "stretch", marginTop: 24 },
   artColumnWide: { flex: 1.05, height: 550, marginTop: 0 },
-  artColumnPhone: { flex: 1, height: undefined, minHeight: 190, marginTop: 12 },
+  artColumnPhone: { flex: 1, height: undefined, minHeight: 0, marginTop: 12 },
   artScene: { flex: 1, minHeight: 0, width: "100%", alignItems: "center", justifyContent: "center", position: "relative" },
   artHalo: { position: "absolute", height: "88%", aspectRatio: 1, maxWidth: 490, borderRadius: 999, backgroundColor: palette.yellow, opacity: 0.46, transform: [{ rotate: "-5deg" }] },
   heroArt: { width: "100%", height: "100%", zIndex: 2 },
