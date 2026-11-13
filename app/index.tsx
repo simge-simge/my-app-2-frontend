@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import Head from "expo-router/head"
 import { useEffect, useRef, useState } from "react"
-import { AccessibilityInfo, Animated, Image, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType } from "react-native"
+import { AccessibilityInfo, Animated, Dimensions, Image, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ImageSourcePropType } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import AppButton from "@/components/AppButton"
@@ -23,6 +23,8 @@ const howImages = {
 }
 const previewRows = [HOME_PREVIEW_BOOKS.slice(0, 5), HOME_PREVIEW_BOOKS.slice(5)]
 const contactEmail = "commonshelf0@gmail.com"
+const HOW_AUTO_ADVANCE_DELAY = 4500
+const HOW_MANUAL_SWIPE_PAUSE = 8000
 
 export default function Index() {
   const { language, setLanguage, t } = useTranslation()
@@ -39,10 +41,11 @@ export default function Index() {
   const isNarrowPhone = width < 380
   const uppercase = (value: string) => value.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")
   const phoneHeaderHeight = 64
+  const stablePhoneHeight = Dimensions.get("screen").height || height
   const mobileHeroStyle = isPhone
     ? {
-        minHeight: Math.max(0, height - insets.top - phoneHeaderHeight),
-        paddingTop: Math.max(14, Math.min(24, Math.round(height * 0.025))),
+        minHeight: Math.max(0, stablePhoneHeight - insets.top - phoneHeaderHeight),
+        paddingTop: Math.max(14, Math.min(24, Math.round(stablePhoneHeight * 0.025))),
         paddingBottom: Math.max(18, insets.bottom + 12),
       }
     : undefined
@@ -281,11 +284,21 @@ function HowCarousel({ reduceMotion, steps }: { reduceMotion: boolean; steps: Ho
   // server styles cannot persist on the carousel's slides.
   const [cardWidth, setCardWidth] = useState(0)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [autoplayRevision, setAutoplayRevision] = useState(0)
   const activeIndexRef = useRef(activeIndex)
+  const nextAutoplayDelayRef = useRef(HOW_AUTO_ADVANCE_DELAY)
 
-  useEffect(() => {
-    activeIndexRef.current = activeIndex
-  }, [activeIndex])
+  const updateActiveIndex = (index: number) => {
+    const next = Math.max(0, Math.min(steps.length - 1, index))
+    if (next === activeIndexRef.current) return
+    activeIndexRef.current = next
+    setActiveIndex(next)
+  }
+
+  const pauseAfterManualSwipe = () => {
+    nextAutoplayDelayRef.current = HOW_MANUAL_SWIPE_PAUSE
+    setAutoplayRevision((revision) => revision + 1)
+  }
 
   useEffect(() => {
     carouselRef.current?.scrollTo({ x: activeIndexRef.current * cardWidth, animated: false })
@@ -294,23 +307,26 @@ function HowCarousel({ reduceMotion, steps }: { reduceMotion: boolean; steps: Ho
   useEffect(() => {
     if (reduceMotion || cardWidth <= 0) return
 
-    const timer = setInterval(() => {
-      const next = (activeIndex + 1) % steps.length
+    const timer = setTimeout(() => {
+      const next = (activeIndexRef.current + 1) % steps.length
+      nextAutoplayDelayRef.current = HOW_AUTO_ADVANCE_DELAY
       carouselRef.current?.scrollTo({ x: next * cardWidth, animated: true })
-      setActiveIndex(next)
-    }, 3000)
+      updateActiveIndex(next)
+    }, nextAutoplayDelayRef.current)
 
-    return () => clearInterval(timer)
-  }, [activeIndex, cardWidth, reduceMotion, steps.length])
+    return () => clearTimeout(timer)
+  }, [activeIndex, autoplayRevision, cardWidth, reduceMotion, steps.length])
 
   const goToStep = (index: number) => {
-    setActiveIndex(index)
+    pauseAfterManualSwipe()
+    updateActiveIndex(index)
     carouselRef.current?.scrollTo({ x: index * cardWidth, animated: !reduceMotion })
   }
 
   return (
-    <View style={styles.howCarousel} onLayout={(event) => setCardWidth(event.nativeEvent.layout.width)}>
+    <View testID="how-carousel" style={styles.howCarousel} onLayout={(event) => setCardWidth(event.nativeEvent.layout.width)}>
       {cardWidth > 0 ? <ScrollView
+        testID="how-carousel-scroll"
         ref={carouselRef}
         horizontal
         pagingEnabled
@@ -318,9 +334,13 @@ function HowCarousel({ reduceMotion, steps }: { reduceMotion: boolean; steps: Ho
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         snapToInterval={cardWidth}
+        scrollEventThrottle={16}
+        onScrollBeginDrag={pauseAfterManualSwipe}
+        onScroll={(event) => {
+          updateActiveIndex(Math.round(event.nativeEvent.contentOffset.x / cardWidth))
+        }}
         onMomentumScrollEnd={(event) => {
-          const next = Math.round(event.nativeEvent.contentOffset.x / cardWidth)
-          setActiveIndex(Math.max(0, Math.min(steps.length - 1, next)))
+          updateActiveIndex(Math.round(event.nativeEvent.contentOffset.x / cardWidth))
         }}
       >
         {steps.map((step) => (

@@ -25,6 +25,8 @@ describe("book status localization", () => {
       </LanguageProvider>,
     )
 
+    fireEvent.press(screen.getByRole("switch", { name: "Dil seçin" }))
+
     expect(screen.getByText("Available")).toBeVisible()
     expect(screen.getByText("Matched")).toBeVisible()
     expect(screen.getByText("Unavailable")).toBeVisible()

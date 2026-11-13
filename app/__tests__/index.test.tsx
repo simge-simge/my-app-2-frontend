@@ -54,4 +54,14 @@ describe("public home page", () => {
 
     expect(positionDots[2].props.accessibilityState).toEqual({ selected: true })
   })
+
+  it("updates the how-it-works position controls during a manual swipe", () => {
+    mockUseAuthSession.mockReturnValue({ session: null, loading: false })
+    render(<Index />)
+
+    fireEvent(screen.getByTestId("how-carousel"), "layout", { nativeEvent: { layout: { width: 320, height: 0, x: 0, y: 0 } } })
+    fireEvent.scroll(screen.getByTestId("how-carousel-scroll"), { nativeEvent: { contentOffset: { x: 320, y: 0 } } })
+
+    expect(screen.getAllByRole("tab")[1].props.accessibilityState).toEqual({ selected: true })
+  })
 })
